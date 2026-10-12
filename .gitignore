@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets and local configuration
+.env
+
+# Datasets and model weights are never committed
+data/
+*.onnx
+*.pt
+*.pth
+
+# Node / frontend build output
+node_modules/
+dist/
+
+# Plan-execution scratch space
+.superpowers/
+
+.DS_Store
