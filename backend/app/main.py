@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.kb import router as kb_router
 from app.core.config import get_settings
 
 
@@ -18,6 +19,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
+
+    app.include_router(kb_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:
