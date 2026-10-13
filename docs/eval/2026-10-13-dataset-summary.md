@@ -68,12 +68,36 @@ worse, chaining near misses into a single group of 866 images.
 | **leader-based + pixel confirmation** | **8,541** | **16** | **0.2** |
 
 The shipped method uses the hash to find candidates and a 32×32 greyscale mean
-absolute difference of at most 8.0 (of 255) to confirm them. Sampled
-in-group pairs now measure 0.1 to 0.2, while unrelated images measure at least
-16.0 — the two populations no longer overlap. It also recovered 1,712 images the
-spec's method would have thrown away, and revealed that 438 of the 439
-apparent cross-class conflicts were hash false positives rather than real
+absolute difference of at most 8.0 (of 255) to confirm them. It recovered 1,712
+images the spec's method would have thrown away, and revealed that 438 of the
+439 apparent cross-class conflicts were hash false positives rather than real
 labelling disagreements.
+
+**Correction.** An earlier version of this document, and commit `30f7b18`, said
+the two populations no longer overlap. That was measured on a 40-pair sample
+whose worst case was 0.2. Measured across all 3,311 confirmed pairs, the
+distribution is censored by the threshold rather than separated by a gap:
+
+| | MAE of 255 |
+|---|---|
+| accepted pairs, median | 0.07 |
+| accepted pairs, 99th percentile | 4.93 |
+| accepted pairs, maximum | 7.99 |
+| closest rejected cross-split pair | 8.20 |
+
+So the threshold is a judgement at a boundary. The 5-to-8 band is most likely
+Roboflow brightness augmentation of one base image, which is still a duplicate
+for leakage purposes, so the threshold sits above it rather than below. The
+choice is low-stakes either way: moving it to 4.93 would change the corpus by 33
+images out of 8,541.
+
+Verified on the real manifest: of the 1,214 cross-split pairs whose hashes are
+within distance 5, **zero** pass the pixel confirmation, so no confirmed
+duplicate spans two splits. Four pairs of genuinely different photographs share
+an identical hash and sit in different splits; their pixel differences are 14.5
+to 47.0, so they are not leakage. The test that used to assert "no hash appears
+in two splits" was a proxy that the pixel confirmation invalidated, and now
+asserts the real invariant: no pair is close in both hash and pixels.
 
 ## The corpus
 

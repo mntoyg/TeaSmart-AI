@@ -18,8 +18,16 @@ And a hash match alone is not enough. At a Hamming distance of 5, 24% of
 collapsed pairs turned out not to be the same photograph - two different leaves
 centred on the same background share a coarse layout, and a 64-bit perceptual
 hash sees little else. So the hash finds candidates and a greyscale comparison
-decides: true duplicates measure a mean absolute difference around 0.1 of 255,
-while different photographs measure tens.
+decides.
+
+PIXEL_CONFIRM_MAE is a judgement at a boundary, not a natural gap. Across the
+real corpus, accepted pairs have a median difference of 0.07 of 255 and a 99th
+percentile of 4.93, while the closest rejected pair measures 8.2 - but the
+accepted distribution runs right up to the threshold, so the two populations are
+adjacent rather than separated. The band from 5 to 8 is most likely Roboflow
+brightness augmentation of one base image, which counts as a duplicate for
+leakage purposes, so the threshold sits above it. Moving it to 4.93 would change
+the corpus by 33 images out of 8,541.
 """
 
 from collections.abc import Callable, Sequence

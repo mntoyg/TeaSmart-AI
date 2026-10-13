@@ -1,5 +1,13 @@
-from collections import Counter, defaultdict
+from collections import Counter
+from pathlib import Path
 
+from teasmart_ml.datasets.dedup import (
+    DUPLICATE_DISTANCE,
+    PIXEL_CONFIRM_MAE,
+    hamming,
+    pixel_mae,
+    thumbnail,
+)
 from teasmart_ml.datasets.manifest import build_manifest, summarise, write_manifest
 from tests.fixtures import build_interim, distinct, write_leaf_photo
 
@@ -21,13 +29,31 @@ def test_each_class_is_split_seventy_fifteen_fifteen(tmp_path):
         assert counts == {"train": 70, "val": 15, "test": 15}
 
 
-def test_no_perceptual_hash_appears_in_two_splits(tmp_path):
-    root = build_interim(tmp_path, {"healthy": distinct(40)})
-    rows = build_manifest(root).rows
-    by_hash = defaultdict(set)
-    for row in rows:
-        by_hash[row.phash].add(row.split)
-    assert all(len(splits) == 1 for splits in by_hash.values())
+def test_no_confirmed_duplicate_spans_two_splits(tmp_path):
+    # The invariant is about duplicates, not about hashes. Two different
+    # photographs may share a 64-bit perceptual hash - four pairs do in the real
+    # manifest, with pixel differences of 14 to 47 of 255 - and splitting those
+    # apart is not leakage. What must never happen is the same photograph
+    # appearing on both sides of the train and test boundary.
+    spec = {
+        "healthy": [("a", 512), ("a", 256), ("b", 512), ("b", 256), *distinct(20)]
+    }
+    rows = build_manifest(build_interim(tmp_path, spec)).rows
+    thumbnails = {row.path: thumbnail(Path(row.path)) for row in rows}
+    for left in rows:
+        for right in rows:
+            if left.path >= right.path or left.split == right.split:
+                continue
+            # Duplicate means both gates: a close hash AND a close picture.
+            # Either one alone is routinely true of different photographs.
+            close_hash = hamming(left.phash, right.phash) <= DUPLICATE_DISTANCE
+            close_pixels = (
+                pixel_mae(thumbnails[left.path], thumbnails[right.path])
+                <= PIXEL_CONFIRM_MAE
+            )
+            assert not (close_hash and close_pixels), (
+                f"{left.path} and {right.path} are duplicates in different splits"
+            )
 
 
 def test_the_split_is_deterministic_for_a_given_seed(tmp_path):
