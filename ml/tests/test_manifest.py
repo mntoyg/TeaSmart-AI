@@ -1,14 +1,16 @@
+import pytest
+
 from collections import Counter
 from pathlib import Path
 
-from teasmart_ml.datasets.dedup import (
-    DUPLICATE_DISTANCE,
-    PIXEL_CONFIRM_MAE,
-    hamming,
-    pixel_mae,
-    thumbnail,
+from teasmart_ml.datasets.dedup import DUPLICATE_MAE, pixel_mae, thumbnail
+from teasmart_ml.datasets.manifest import (
+    UnknownCanonicalError,
+    UnknownSourceError,
+    build_manifest,
+    summarise,
+    write_manifest,
 )
-from teasmart_ml.datasets.manifest import build_manifest, summarise, write_manifest
 from tests.fixtures import build_interim, distinct, write_leaf_photo
 
 
@@ -30,29 +32,27 @@ def test_each_class_is_split_seventy_fifteen_fifteen(tmp_path):
 
 
 def test_no_confirmed_duplicate_spans_two_splits(tmp_path):
-    # The invariant is about duplicates, not about hashes. Two different
-    # photographs may share a 64-bit perceptual hash - four pairs do in the real
-    # manifest, with pixel differences of 14 to 47 of 255 - and splitting those
-    # apart is not leakage. What must never happen is the same photograph
-    # appearing on both sides of the train and test boundary.
+    # What must never happen is the same photograph appearing on both sides of
+    # the train and test boundary.
     spec = {
         "healthy": [("a", 512), ("a", 256), ("b", 512), ("b", 256), *distinct(20)]
     }
-    rows = build_manifest(build_interim(tmp_path, spec)).rows
-    thumbnails = {row.path: thumbnail(Path(row.path)) for row in rows}
+    root = build_interim(tmp_path, spec)
+    rows = build_manifest(root).rows
+    thumbnails = {row.path: thumbnail(root / row.path) for row in rows}
     for left in rows:
         for right in rows:
             if left.path >= right.path or left.split == right.split:
                 continue
-            # Duplicate means both gates: a close hash AND a close picture.
-            # Either one alone is routinely true of different photographs.
-            close_hash = hamming(left.phash, right.phash) <= DUPLICATE_DISTANCE
-            close_pixels = (
-                pixel_mae(thumbnails[left.path], thumbnails[right.path])
-                <= PIXEL_CONFIRM_MAE
-            )
-            assert not (close_hash and close_pixels), (
-                f"{left.path} and {right.path} are duplicates in different splits"
+            # Stated in pixels alone, which is the definition of a duplicate.
+            # An earlier version of this test also required the hashes to be
+            # close, which made it a restatement of how candidates were found
+            # rather than a check on the property, and it passed while 127 real
+            # cross-split duplicate pairs existed.
+            difference = pixel_mae(thumbnails[left.path], thumbnails[right.path])
+            assert difference > DUPLICATE_MAE, (
+                f"{left.path} and {right.path} differ by {difference:.2f} and sit "
+                f"in {left.split} and {right.split}"
             )
 
 
@@ -101,7 +101,7 @@ def test_the_same_photo_labelled_two_different_classes_is_dropped_as_a_conflict(
     # label a human never agreed with. Drop the group and report it.
     root = tmp_path / "interim"
     for canonical in ("healthy", "grey_blight"):
-        dest = root / "fake" / canonical / "shared.jpg"
+        dest = root / "agml" / canonical / "shared.jpg"
         dest.parent.mkdir(parents=True, exist_ok=True)
         write_leaf_photo(dest, seed=11)
     manifest = build_manifest(root)
@@ -112,3 +112,33 @@ def test_the_same_photo_labelled_two_different_classes_is_dropped_as_a_conflict(
 def test_collapsed_duplicates_are_counted(tmp_path):
     root = build_interim(tmp_path, {"healthy": [("a", 512), ("a", 256), ("b", 512)]})
     assert build_manifest(root).collapsed_duplicates == 1
+
+
+def test_manifest_paths_are_relative_to_the_interim_root(tmp_path):
+    # data/ is gitignored, so an absolute Windows path in the manifest is dead
+    # on any other checkout, container or machine that reads it.
+    root = build_interim(tmp_path, {"healthy": distinct(4)})
+    rows = build_manifest(root).rows
+    assert all(not Path(row.path).is_absolute() for row in rows)
+    assert all((root / row.path).exists() for row in rows)
+
+
+def test_a_class_folder_outside_the_registry_is_refused(tmp_path):
+    # to_canonical guards the ingest, but the manifest is the contract D3 reads.
+    # A stale or renamed source folder left in the interim tree was picked up
+    # silently with whatever its folder was called.
+    root = build_interim(tmp_path, {"healthy": distinct(3)})
+    stray = root / "agml" / "tea_mosquito_bug"
+    stray.mkdir(parents=True)
+    write_leaf_photo(stray / "x.jpg", seed=99)
+    with pytest.raises(UnknownCanonicalError):
+        build_manifest(root)
+
+
+def test_a_source_folder_outside_the_registry_is_refused(tmp_path):
+    root = build_interim(tmp_path, {"healthy": distinct(3)})
+    stray = root / "stale_source" / "healthy"
+    stray.mkdir(parents=True)
+    write_leaf_photo(stray / "x.jpg", seed=98)
+    with pytest.raises(UnknownSourceError):
+        build_manifest(root)

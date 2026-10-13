@@ -138,28 +138,39 @@ Probed 2026-10-13. Only no-authentication sources are used in Phase 1.
 | `mendeley_sjmy` | Mendeley `sjmy6k24d6` | **HTTP 451, unavailable** | — | dropped |
 | `kaggle_*` x2, `hf_ttkqwe123` | Kaggle / gated HF | needs credentials | deferred | `sources.py` keeps the entries so they can be enabled later by dropping in a token |
 
-Usable immediately: **11,853 labelled images plus bounding-box annotations**, which deduplicate to a corpus of **8,541**. Counted on 2026-10-13; the
+Usable immediately: **11,853 labelled images plus bounding-box annotations**, which deduplicate to a corpus of **8,316**. Counted on 2026-10-13; the
 estimate here before the sources were opened was 6,752, which missed that
 `mendeley_mz598` carries 5,180 images of its own rather than annotations alone.
 
 ### Leakage control
 
-The sources overlap heavily: measured on the real corpus, 3,245 of 3,261
-duplicate groups span two sources. Before splitting, every image is
-perceptual-hashed, and a hash match within a Hamming distance of 5 of a group
-leader is treated as a **candidate**, then confirmed by a 32x32 greyscale mean
-absolute difference of at most 8.0 of 255. Confirmed duplicates collapse to a
-single record keeping the highest-resolution copy; a group spanning two classes
-is dropped rather than resolved. Splits are then stratified 70/15/15 **after**
-dedup, so a near-duplicate can never straddle train and test. The manifest
-records each image's source and pHash so this is auditable.
+A duplicate is defined by pixels: two images are the same photograph when the
+mean absolute difference of their 32x32 greyscale thumbnails is at most 8.0 of
+255. Every pair is compared, made tractable by an exact lower bound (the mean
+absolute difference of 4x4 block means can never exceed that of the pixels they
+average), so nothing is discarded on an approximation. Confirmed duplicates
+collapse to the highest-resolution copy; a group spanning two classes is
+dropped rather than resolved. Splits are then stratified 70/15/15 **after**
+dedup. The manifest records each image's source and perceptual hash so the
+result is auditable, and its paths are relative to the interim root.
 
-The pixel confirmation is not belt-and-braces. The hash alone, at the same
-distance, collapsed pairs that were not the same photograph 24% of the time -
-two different leaves centred on the same background share a coarse layout and a
-64-bit hash sees little else - and judging membership transitively instead of
-against a leader chained near misses into a single group of 866 images. See
-`docs/eval/2026-10-13-dataset-summary.md` for the measurements.
+A perceptual hash is **not** used to decide anything, and this is the most
+expensive lesson of D2. Using pHash within a Hamming distance of 5 as the test
+collapsed pairs that were not the same photograph 24% of the time. Using it to
+generate candidates for a pixel confirmation looked right and was worse in the
+way that matters: it silently capped recall, and the manifest it produced
+contained 127 cross-split duplicate pairs, leaving 3.24% of the evaluation set
+with a twin in training. pHash thresholds DCT coefficients at their median, so a
+low-contrast image has many coefficients sitting on it and a near-identical copy
+flips them - two images measured 0.01 of 255 apart hashed 26 bits apart.
+
+**Verified, not asserted.** After each build, every pair of manifest rows is
+compared in pixel terms, and the check is stated without reference to how
+candidates are generated: the earlier version only examined pairs the hash had
+proposed, which is why it reported zero while those 127 pairs existed. The
+current corpus reports 0 cross-split duplicate pairs out of 8,316 rows. See
+`docs/eval/2026-10-13-dataset-summary.md` for the numbers and the two wrong
+answers that preceded them.
 
 ## 7. Inference pipeline
 

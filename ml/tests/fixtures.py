@@ -16,25 +16,30 @@ HF_METADATA_KEY = "huggingface"
 
 
 _BASE_SIZE = (512, 512)
+_GRID = 8
 
 
 def leaf_image(*, size: tuple[int, int] = (64, 64), seed: int = 0) -> Image.Image:
-    """A textured green patch, rendered at a fixed base size then resized.
+    """A seeded blocky green texture, rendered at a base size then resized.
 
-    The blotches scale with the canvas because a perceptual hash downsamples to
-    32x32 before its DCT: speckles a few pixels wide vanish, and two different
-    seeds would then hash identically, making a dedup test prove nothing.
+    The pattern covers the whole canvas on purpose. An earlier version drew a
+    few blotches on a flat green field, which left 78% of any two images
+    identical: different seeds then measured a pixel difference of 7.7 of 255,
+    under the threshold that defines a duplicate, so the fixtures deduped into
+    each other and the split tests measured nothing.
 
     Rendering at one base size and resizing is what makes a smaller copy the
     same photograph rather than a differently textured one.
     """
     rng = numpy.random.default_rng(seed)
     width, height = _BASE_SIZE
-    pixels = numpy.full((height, width, 3), (34, 139, 34), dtype=numpy.uint8)
-    block = width // 8
-    for y, x in rng.integers(0, width - block, size=(14, 2)):
-        pixels[y : y + block, x : x + block] = rng.integers(40, 210, size=3)
-    image = Image.fromarray(pixels, mode="RGB")
+    block = width // _GRID
+    cells = numpy.empty((_GRID, _GRID, 3), dtype=numpy.uint8)
+    cells[..., 0] = rng.integers(20, 80, size=(_GRID, _GRID))
+    cells[..., 1] = rng.integers(70, 200, size=(_GRID, _GRID))
+    cells[..., 2] = rng.integers(20, 80, size=(_GRID, _GRID))
+    pixels = numpy.repeat(numpy.repeat(cells, block, axis=0), block, axis=1)
+    image = Image.fromarray(pixels[:height, :width], mode="RGB")
     return image if size == _BASE_SIZE else image.resize(size, Image.LANCZOS)
 
 
@@ -89,11 +94,13 @@ def make_yolo_zip(*, entries, names, path, extra_members=()) -> Path:
     """
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("data.yaml", yaml.safe_dump({"names": list(names), "nc": len(names)}))
-        for stem, payload, class_ids in entries:
-            archive.writestr(f"train/images/{stem}.jpg", payload)
+        for entry in entries:
+            stem, payload, class_ids = entry[:3]
+            split_dir = entry[3] if len(entry) > 3 else "train"
+            archive.writestr(f"{split_dir}/images/{stem}.jpg", payload)
             if class_ids is not None:
                 archive.writestr(
-                    f"train/labels/{stem}.txt",
+                    f"{split_dir}/labels/{stem}.txt",
                     "".join(f"{cid} 0.5 0.5 0.2 0.2\n" for cid in class_ids),
                 )
         for member, payload in extra_members:
@@ -110,7 +117,7 @@ def distinct(count: int, *, size: int = 256) -> list[tuple[str, int]]:
     return [(f"img{index}", size) for index in range(count)]
 
 
-def build_interim(root, spec, *, source_id: str = "fake") -> Path:
+def build_interim(root, spec, *, source_id: str = "agml") -> Path:
     """Lay out an interim tree from {canonical: [(image_key, size), ...]}.
 
     Entries sharing an image_key render the same photograph, which is how the
@@ -172,3 +179,19 @@ def seed_fake_source_for(source_id: str, raw_root, **_kwargs) -> tuple[Path, ...
             path=dest,
         )
     return (dest,)
+
+
+def flat_noise_photo(path, *, seed: int = 0, amplitude: int = 3) -> Path:
+    """A near-uniform grey image with faint noise.
+
+    Two of these are the same picture for any practical purpose, and yet their
+    perceptual hashes are tens of bits apart: pHash thresholds DCT coefficients
+    at their median, and a low-contrast image has many coefficients sitting on
+    it. This is the shape of image that made a hash-gated search miss real
+    duplicates.
+    """
+    rng = numpy.random.default_rng(seed)
+    pixels = numpy.full((256, 256, 3), 128, dtype=numpy.int16)
+    pixels += rng.integers(-amplitude, amplitude + 1, size=(256, 256, 3))
+    Image.fromarray(numpy.clip(pixels, 0, 255).astype(numpy.uint8), mode="RGB").save(path)
+    return Path(path)

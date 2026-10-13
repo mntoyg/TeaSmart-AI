@@ -90,3 +90,26 @@ def test_a_genuine_mendeley_download_url_is_accepted():
         "bc2642b5-a056-4466-857d-a00cdb8a375f/file_downloaded"
     )
     assert validate_mendeley_url(url) == url
+
+
+def test_a_partial_download_is_not_mistaken_for_a_complete_one(tmp_path):
+    # curl -o leaves a truncated file behind when --max-time expires. The next
+    # run saw it, skipped the download for good, and failed later on BadZipFile
+    # with no hint which file to delete.
+    def fail_midway(_url, dest):
+        dest.write_bytes(b"half a zip")
+        raise RuntimeError("connection reset")
+
+    with pytest.raises(RuntimeError):
+        download_source(
+            "mendeley_mz598",
+            tmp_path,
+            fetch_json=lambda _: [
+                {
+                    "filename": "Tea Leaf Diseases.zip",
+                    "content_details": {"download_url": "https://data.mendeley.com/x"},
+                }
+            ],
+            fetch_file=fail_midway,
+        )
+    assert not (tmp_path / "mendeley_mz598" / "Tea Leaf Diseases.zip").exists()

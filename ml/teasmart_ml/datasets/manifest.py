@@ -18,11 +18,23 @@ from pathlib import Path
 import numpy
 from PIL import Image
 
+from teasmart_ml.classes import CANONICAL_CLASSES
 from teasmart_ml.datasets.dedup import group_duplicates, phash_hex
+from teasmart_ml.datasets.sources import SOURCES
 
+# path is relative to the interim root the manifest was built from, so the
+# file still resolves on another machine, checkout or container.
 HEADER = ("path", "canonical", "source", "phash", "width", "height", "split")
 SPLITS = ("train", "val", "test")
 DEFAULT_RATIOS = (0.70, 0.15, 0.15)
+
+
+class UnknownCanonicalError(ValueError):
+    """A class folder in the interim tree is not a canonical class."""
+
+
+class UnknownSourceError(ValueError):
+    """A source folder in the interim tree is not in the registry."""
 
 
 @dataclass(frozen=True)
@@ -72,7 +84,18 @@ def build_manifest(
     ratios: tuple[float, float, float] = DEFAULT_RATIOS,
 ) -> Manifest:
     """Deduplicate the interim tree, then split each class independently."""
-    images = sorted(Path(interim_root).rglob("*.jpg"))
+    interim_root = Path(interim_root)
+    images = sorted(interim_root.rglob("*.jpg"))
+    # to_canonical guards the ingest, but this file is the contract training
+    # reads. A stale or renamed source folder left in the interim tree used to be
+    # picked up silently under whatever its folder happened to be called.
+    for path in images:
+        if path.parent.name not in CANONICAL_CLASSES:
+            raise UnknownCanonicalError(
+                f"{path.parent} is not one of {CANONICAL_CLASSES}"
+            )
+        if path.parent.parent.name not in SOURCES:
+            raise UnknownSourceError(f"{path.parent.parent} is not a known source")
     groups = group_duplicates(images)
 
     by_class: dict[str, list[Path]] = defaultdict(list)
@@ -104,7 +127,7 @@ def build_manifest(
                 width, height = image.width, image.height
             rows.append(
                 ManifestRow(
-                    path=str(path),
+                    path=str(path.relative_to(interim_root)),
                     canonical=canonical,
                     source=path.parent.parent.name,
                     phash=phash_hex(path),

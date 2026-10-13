@@ -20,6 +20,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import yaml
 from PIL import Image, UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 
 from teasmart_ml.classes import to_canonical
 from teasmart_ml.datasets.sources import (
@@ -31,6 +32,11 @@ from teasmart_ml.datasets.sources import (
 _JPEG_QUALITY = 95
 _IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".webp"})
 _PARQUET_BATCH = 64
+_MARKER = ".teasmart-interim"
+
+
+class InterimRootError(RuntimeError):
+    """The interim root is not ours to clear."""
 
 
 @dataclass(frozen=True)
@@ -75,7 +81,22 @@ def _verify_labels(
 
 
 def _reset(target: Path) -> None:
-    """Clear this output folder, which is what makes a second run idempotent."""
+    """Clear this output folder, which is what makes a second run idempotent.
+
+    A marker file in the interim root is required before anything is removed. A
+    mistyped --interim pointing at a directory that happens to contain a folder
+    named after a source would otherwise have it deleted without a word.
+    """
+    root = target.parent
+    marker = root / _MARKER
+    if root.exists() and any(root.iterdir()) and not marker.exists():
+        raise InterimRootError(
+            f"{root} is not empty and has no {_MARKER} marker; refusing to clear "
+            f"{target}. Point --interim at a new directory, or add the marker if "
+            f"this really is a TeaSmart interim tree."
+        )
+    root.mkdir(parents=True, exist_ok=True)
+    marker.touch()
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
@@ -85,7 +106,7 @@ def _write_jpeg(payload: bytes, dest: Path) -> bool:
     try:
         with Image.open(io.BytesIO(payload)) as opened:
             rgb = opened.convert("RGB")
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (UnidentifiedImageError, OSError, ValueError, DecompressionBombError):
         return False
     dest.parent.mkdir(parents=True, exist_ok=True)
     rgb.save(dest, format="JPEG", quality=_JPEG_QUALITY)
@@ -98,7 +119,7 @@ def ingest_parquet_source(
     target = Path(interim_root) / source.source_id
     _reset(target)
     per_class: Counter[str] = Counter()
-    written = corrupt = index = 0
+    written = corrupt = unlabelled = index = 0
 
     for file in files:
         _verify_labels(
@@ -114,6 +135,11 @@ def ingest_parquet_source(
             labels = batch.column("label").to_pylist()
             for payload, label in zip(payloads, labels):
                 index += 1
+                # HuggingFace writes -1 for "no label", and Python would index
+                # that as the LAST class, with nothing to show anything was wrong.
+                if label is None or not 0 <= label < len(source.label_names):
+                    unlabelled += 1
+                    continue
                 canonical = to_canonical(source.label_names[label])
                 data = payload["bytes"] if isinstance(payload, dict) else payload
                 dest = target / canonical / f"{source.source_id}-{index:06d}.jpg"
@@ -123,7 +149,9 @@ def ingest_parquet_source(
                 else:
                     corrupt += 1
 
-    return IngestReport(source.source_id, written, corrupt, 0, 0, dict(per_class))
+    return IngestReport(
+        source.source_id, written, corrupt, unlabelled, 0, dict(per_class)
+    )
 
 
 def _yolo_class_names(archive: zipfile.ZipFile) -> tuple[str, ...] | None:
@@ -159,8 +187,12 @@ def ingest_yolo_zip_source(
     with zipfile.ZipFile(archive_path) as archive:
         names = _yolo_class_names(archive)
         _verify_labels(source.source_id, names, source.label_names)
-        labels_by_stem = {
-            Path(member).stem: member
+        # Keyed by split directory as well as stem. Matching on the bare stem
+        # attaches the boxes of one split to the image of another; the real
+        # archive escapes this only because Roboflow appends a hash to every
+        # filename, and two disabled archives are one flag away from ingestion.
+        labels_by_key = {
+            (member.split("/labels/", 1)[0], Path(member).stem): member
             for member in archive.namelist()
             if "/labels/" in member and member.endswith(".txt")
         }
@@ -172,7 +204,9 @@ def ingest_yolo_zip_source(
             ):
                 continue
             index += 1
-            label_member = labels_by_stem.get(Path(member).stem)
+            label_member = labels_by_key.get(
+                (member.split("/images/", 1)[0], Path(member).stem)
+            )
             if label_member is None:
                 unlabelled += 1
                 continue

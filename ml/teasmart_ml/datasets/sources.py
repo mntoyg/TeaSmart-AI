@@ -9,6 +9,7 @@ a 0.2 second test run rather than after 900MB of download.
 """
 
 import json
+import os
 import shutil
 import subprocess
 from collections.abc import Callable, Mapping
@@ -187,6 +188,23 @@ def _hf_download(repo_id: str, filename: str, dest: Path) -> None:
     shutil.copyfile(cached, dest)
 
 
+def _fetch_atomically(dest: Path, fetch: Callable[[Path], None]) -> None:
+    """Write to <dest>.part and move it into place only on success.
+
+    curl -o leaves a truncated file behind when --max-time expires or the user
+    interrupts. The next run then saw a file at dest, skipped the download for
+    good, and failed much later on BadZipFile with no hint which file to delete.
+    """
+    partial = dest.with_name(dest.name + ".part")
+    partial.unlink(missing_ok=True)
+    try:
+        fetch(partial)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
+    os.replace(partial, dest)
+
+
 def resolve_mendeley_download(
     dataset_id: str,
     version: int,
@@ -235,7 +253,12 @@ def download_source(
             dest = target_dir / relative
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                hf_download(repo_id=source.repo_id, filename=relative, dest=dest)
+                _fetch_atomically(
+                    dest,
+                    lambda partial, relative=relative: hf_download(
+                        repo_id=source.repo_id, filename=relative, dest=partial
+                    ),
+                )
             paths.append(dest)
         return tuple(paths)
 
@@ -245,5 +268,5 @@ def download_source(
             source.dataset_id, source.version, source.filename, fetch_json=fetch_json
         )
         dest.parent.mkdir(parents=True, exist_ok=True)
-        fetch_file(url, dest)
+        _fetch_atomically(dest, lambda partial: fetch_file(url, partial))
     return (dest,)
