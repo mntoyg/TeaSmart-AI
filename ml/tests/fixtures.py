@@ -125,3 +125,50 @@ def build_interim(root, spec, *, source_id: str = "fake") -> Path:
             dest.parent.mkdir(parents=True, exist_ok=True)
             write_leaf_photo(dest, size=(size, size), seed=_seed_for(f"{canonical}/{key}"))
     return interim
+
+
+def seed_fake_source_for(source_id: str, raw_root, **_kwargs) -> tuple[Path, ...]:
+    """Write a tiny stand-in archive for a real source, one image per label.
+
+    Seeds are derived from the file and row, never from a counter, so a second
+    prepare run over the same raw tree produces byte-identical inputs and the
+    images never collide into a duplicate group.
+    """
+    from teasmart_ml.datasets.sources import SOURCES, HFParquetSource
+
+    source = SOURCES[source_id]
+    target = Path(raw_root) / source_id
+
+    if isinstance(source, HFParquetSource):
+        paths = []
+        for relative in source.files:
+            dest = target / relative
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if not dest.exists():
+                make_parquet(
+                    rows=[
+                        (green_png(seed=_seed_for(f"{source_id}:{relative}:{index}")), index)
+                        for index in range(len(source.label_names))
+                    ],
+                    label_names=source.label_names,
+                    path=dest,
+                )
+            paths.append(dest)
+        return tuple(paths)
+
+    dest = target / source.filename
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not dest.exists():
+        make_yolo_zip(
+            entries=[
+                (
+                    f"{source_id}-{index}",
+                    green_jpeg(seed=_seed_for(f"{source_id}:{index}")),
+                    (index,),
+                )
+                for index in range(len(source.label_names))
+            ],
+            names=source.label_names,
+            path=dest,
+        )
+    return (dest,)
