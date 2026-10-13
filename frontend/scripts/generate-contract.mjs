@@ -7,7 +7,7 @@ const example = spec?.match(/```json\s*([\s\S]*?)```/)?.[1];
 if (!example) throw new Error('Section 8 scan response sample is missing');
 const sample = JSON.parse(example);
 function typeOf(value, depth = 0) {
-  if (Array.isArray(value)) return 'unknown[]';
+  if (Array.isArray(value)) return value.length ? `${typeOf(value[0], depth)}[]` : 'unknown[]';
   if (value === null) return 'unknown';
   if (typeof value !== 'object') return typeof value;
   if (!Object.keys(value).length) return 'Record<string, unknown>';
@@ -16,7 +16,8 @@ function typeOf(value, depth = 0) {
 }
 const output = '// Generated from design spec section 8. Run npm run generate:contract.\n'
   + '// Empty arrays and objects in the sample deliberately remain unknown.\n'
-  + `export type ScanResponse = ${typeOf(sample)};\n`;
+  + `export type ScanResponse = ${typeOf(sample)} & { replayed?: boolean };\n`
+  + `export const scanShape = ${JSON.stringify(sample, null, 2)};\n`;
 const target = new URL('../src/lib/scan-contract.ts', import.meta.url);
 if (process.argv.includes('--check')) {
   if (readFileSync(target, 'utf8') !== output) throw new Error('Scan contract types are stale');

@@ -5,7 +5,8 @@
 - **Claude Code:** D2 dataset pipeline finished on `feat/d2-dataset-pipeline`;
   D3 model training is next. See that branch's dataset report and handoff.
 - **Codex:** D6 in progress on `feat/d6-scan-ui` in a separate worktree.
-  Frontend foundation and spec-generated scan response types are ready.
+  Foundation, upload client, camera/file capture and Thai result cards are ready.
+  Evidence: 18 Vitest tests pass; contract check and production build pass.
 - **Daily ceilings:** Claude Code 15%, Codex 13.5% of weekly capacity.
   Codex session baseline: 19% consumed weekly; 81% remains.
 
@@ -19,20 +20,19 @@
 
 ## Next
 
-Codex: D6 camera/file scan flow, Thai result cards, history and KB routes.
+Codex: D6 history and KB routes, IndexedDB persistence and browser checks.
 Use section 8 unchanged. Server scan endpoint is not implemented yet.
 
 Claude Code: D3 training, then D4 segmentation/lesion/severity and D5 scan API.
 The model target remains `frontend/public/models/teasmart-v1-int8.onnx`.
 
-## Integration questions before D7
+## Integration contract
 
-- Section 8 lists `/api/v1/sync/batch` but has no batch request/response or
-  idempotency schema. Claude Code and Codex must agree before queue replay.
-- Confirm ONNX normalization, resize/crop policy and low-confidence semantics.
-  Shape alone (`[1,3,224,224]` to `[1,5]`) cannot establish numerical parity.
-- Confirm scan multipart field name and supported verdict/severity values.
-  D6 can render the published sample and preserve unknown values safely.
+- User confirmed Claude Code commit `4fe7263`. The exact spec from that commit
+  is included here; Codex has not changed the shared contract.
+- Sections 8.1-8.4 now pin `image`, client UUID, timestamps, per-item batch sync,
+  idempotency, ImageNet normalization and the required 50-image parity check.
+- ONNX model and Python parity evidence still depend on D3-D5 delivery.
 
 ## Remaining
 
