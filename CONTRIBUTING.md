@@ -8,6 +8,8 @@ read the spec before touching code.
 | `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md` | the design spec — the binding authority when anything disagrees |
 | `docs/superpowers/plans/` | the day's implementation plan, task by task |
 | `docs/superpowers/decisions/` | rulings taken during execution, and the deferred items |
+| `docs/STATE.md` | where the work stands right now — update it when you finish a slice |
+| `AGENTS.md` | the rules AI agents work under; `CLAUDE.md` and `CODEX.md` point there |
 
 ## Get set up
 

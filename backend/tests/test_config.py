@@ -14,6 +14,7 @@ def test_settings_defaults_match_the_values_the_spec_pins():
     assert settings.exposure_min_mean == 40.0
     assert settings.exposure_max_mean == 215.0
     assert settings.clip_max_pct == 0.10
+    assert settings.min_confidence == 0.60
 
 
 def test_kb_path_default_is_absolute_so_it_resolves_from_any_cwd():
