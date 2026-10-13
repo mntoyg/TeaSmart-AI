@@ -14,14 +14,35 @@ from PIL import Image
 HF_METADATA_KEY = "huggingface"
 
 
+_BASE_SIZE = (512, 512)
+
+
 def leaf_image(*, size: tuple[int, int] = (64, 64), seed: int = 0) -> Image.Image:
-    """A textured green patch. Flat colour would hash identically for every seed."""
+    """A textured green patch, rendered at a fixed base size then resized.
+
+    The blotches scale with the canvas because a perceptual hash downsamples to
+    32x32 before its DCT: speckles a few pixels wide vanish, and two different
+    seeds would then hash identically, making a dedup test prove nothing.
+
+    Rendering at one base size and resizing is what makes a smaller copy the
+    same photograph rather than a differently textured one.
+    """
     rng = numpy.random.default_rng(seed)
-    pixels = numpy.full((size[1], size[0], 3), (34, 139, 34), dtype=numpy.uint8)
-    span = max(1, min(size) - 6)
-    for y, x in rng.integers(0, span, size=(24, 2)):
-        pixels[y : y + 5, x : x + 5] = rng.integers(60, 200, size=3)
-    return Image.fromarray(pixels, mode="RGB")
+    width, height = _BASE_SIZE
+    pixels = numpy.full((height, width, 3), (34, 139, 34), dtype=numpy.uint8)
+    block = width // 8
+    for y, x in rng.integers(0, width - block, size=(14, 2)):
+        pixels[y : y + block, x : x + block] = rng.integers(40, 210, size=3)
+    image = Image.fromarray(pixels, mode="RGB")
+    return image if size == _BASE_SIZE else image.resize(size, Image.LANCZOS)
+
+
+def write_leaf_photo(
+    path, *, size: tuple[int, int] = (512, 512), quality: int = 95, seed: int = 0
+) -> Path:
+    """Save a deterministic leaf photo as JPEG. Same seed means same photograph."""
+    leaf_image(size=size, seed=seed).save(path, format="JPEG", quality=quality)
+    return Path(path)
 
 
 def _encode(image: Image.Image, fmt: str) -> bytes:
