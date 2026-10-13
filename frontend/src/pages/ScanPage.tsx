@@ -4,7 +4,7 @@ import type { ScanResponse } from '../lib/scan-contract';
 
 type Capture = { file: File; id: string; at: string };
 export function ScanPage({ onResult, multipartField = 'image' }: {
-  onResult: (result: ScanResponse) => void; multipartField?: string;
+  onResult: (result: ScanResponse) => void | Promise<void>; multipartField?: string;
 }) {
   const [capture, setCapture] = useState<Capture>();
   const [preview, setPreview] = useState('');
@@ -72,7 +72,7 @@ export function ScanPage({ onResult, multipartField = 'image' }: {
     try {
       const result = await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
       if (result.scan_id !== capture.id) throw new Error('ผลวิเคราะห์ไม่ตรงกับภาพ กรุณาลองใหม่');
-      if (mounted.current) onResult(result);
+      if (mounted.current) await onResult(result);
     } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : 'วิเคราะห์ไม่ได้ กรุณาลองใหม่'); }
     finally { if (mounted.current) setBusy(false); }
   }
@@ -82,13 +82,16 @@ export function ScanPage({ onResult, multipartField = 'image' }: {
     <section className="card">
       <div className="capture-frame">{camera ? <video ref={video} playsInline muted aria-label="ภาพจากกล้อง" />
         : preview ? <img src={preview} alt="ภาพใบชาที่เลือก" />
-        : <div className="capture-guide"><span aria-hidden="true">♧</span><p>วางใบชาให้เต็มกรอบ</p><small>แสงธรรมชาติ · ภาพชัด · เห็นใบทั้งใบ</small></div>}</div>
+        : <div className="capture-guide"><svg aria-hidden="true" viewBox="0 0 64 64" fill="none">
+          <path d="M52 10C25 8 9 24 16 42c8 20 34 4 36-32Z" stroke="currentColor" strokeWidth="3" />
+          <path d="M12 54 43 22M23 43l-1-13M32 34l13-1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg><p>วางใบชาให้เต็มกรอบ</p><small>แสงธรรมชาติ · ภาพชัด · เห็นใบทั้งใบ</small></div>}</div>
       <div className="actions">
         {camera ? <button onClick={takePhoto} disabled={busy}>ถ่ายภาพ</button>
           : <button onClick={openCamera} disabled={busy || opening}>{opening ? 'กำลังเปิดกล้อง…' : 'เปิดกล้อง'}</button>}
         <label className={`button secondary ${busy ? 'disabled' : ''}`}>
           เลือกภาพใบชา<input aria-label="เลือกภาพใบชา" type="file" accept="image/jpeg,image/png,image/webp"
-            disabled={busy} onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ''; }} /></label>
+            disabled={busy || opening} onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ''; }} /></label>
       </div>
       {error && <p role="alert" className="notice">{error}</p>}
       {capture && <div className="actions"><button onClick={submit} disabled={busy}>{busy ? 'กำลังวิเคราะห์…' : 'วิเคราะห์ใบชา'}</button>
