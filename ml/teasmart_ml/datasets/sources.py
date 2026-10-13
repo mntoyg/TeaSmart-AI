@@ -50,6 +50,9 @@ class MendeleyZipSource:
     dataset_id: str
     version: int
     filename: str
+    # The Roboflow export carries its class names in data.yaml, verified
+    # against this tuple at ingest time. Empty for archives not yet opened.
+    label_names: tuple[str, ...] = ()
     enabled: bool = True
 
 
@@ -95,6 +98,14 @@ SOURCES: Mapping[str, HFParquetSource | MendeleyZipSource] = MappingProxyType(
             dataset_id="mz598gxfw9",
             version=1,
             filename="Tea Leaf Diseases.zip",
+            label_names=(
+                "Algal Leaf Spot",
+                "Brown Blight",
+                "Gray Blight",
+                "Healthy",
+                "Helopeltis",
+                "Red Leaf Spot",
+            ),
         ),
         # Extra volume, deferred: 3.07GB and a .rar needing an external unpacker.
         "mendeley_d2xy": MendeleyZipSource(
