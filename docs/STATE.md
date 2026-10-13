@@ -51,6 +51,26 @@ CPU wheel.
 | D8 | Capacitor `.apk`, polish |
 | D9 | demo data, pitch script, buffer |
 
+## Contract changes (read if you own either side)
+
+**2026-10-13 — spec section 8 rewritten.** Codex asked for the parts a client
+cannot be written without, and it was right that they were missing. Now pinned:
+
+- `POST /api/v1/scan` multipart field name is **`image`**, plus optional
+  `scan_id` and `captured_at`
+- `POST /api/v1/sync/batch` request and per-item response, with items and files
+  matched by `scan_id` rather than by position
+- `scan_id` is the idempotency key; the server cache is in-memory and does not
+  survive a restart, so the client must dedupe locally too
+- ONNX preprocessing, input and output names, class order, and the parity test
+  that has to pass before D7 is done
+- the browser does not segment, so an on-device result is `classifier_only` and
+  genuinely differs from a server result
+
+Open against this: `Settings` does not yet carry `max_batch_items`,
+`max_batch_bytes`, `idempotency_cache_size` or `min_confidence`. They land with
+D5, which is when the endpoints do.
+
 ## Open decisions for the user
 
 1. **`max_image_pixels` is 40,000,000.** A 738 KB JPEG decodes to 7000×5600 and

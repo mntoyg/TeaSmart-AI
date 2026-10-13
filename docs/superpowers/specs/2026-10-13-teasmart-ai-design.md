@@ -276,27 +276,191 @@ response. `class_name` remains the English display name.
 
 ## 8. API contract
 
+This section is the interface between the backend and the PWA. Neither side
+changes it alone: a change is written here first, noted in `docs/STATE.md`, and
+raised with the user.
+
 | method | path | purpose |
 |---|---|---|
 | `GET` | `/health` | liveness, model version |
-| `POST` | `/api/v1/scan` | multipart image, returns the full result |
+| `POST` | `/api/v1/scan` | one image, full result |
 | `GET` | `/api/v1/kb` | the knowledge base, for offline caching |
 | `POST` | `/api/v1/sync/batch` | replay scans queued while offline |
 
-`POST /api/v1/scan` response shape:
+### 8.1 `POST /api/v1/scan`
+
+`Content-Type: multipart/form-data` with these parts:
+
+| part | required | type | notes |
+|---|---|---|---|
+| `image` | yes | file | The field name is **`image`**. The declared content type and the filename are ignored; the format is decided by magic bytes. JPEG, PNG and WebP only. |
+| `scan_id` | no | text | A client-generated UUIDv4. Supply it: it is the idempotency key (8.3) and it is what ties a queued scan to its result. When absent the server generates one. |
+| `captured_at` | no | text | ISO 8601 with offset, from the device clock. Recorded, never trusted. |
+
+Limits, from `Settings`: `max_upload_bytes` 8388608 (8 MiB) and
+`max_image_pixels` 40000000. Over either one the request is refused before the
+image is decoded.
+
+Responses:
+
+| status | when | body |
+|---|---|---|
+| `200` | analysed | the result object below |
+| `422` | the quality gate rejected the frame | `{"detail", "detail_th", "quality"}` |
+| `415` | not a JPEG, PNG or WebP | `{"detail", "detail_th"}` |
+| `413` | over the byte or pixel cap | `{"detail", "detail_th"}` |
+| `400` | truncated or undecodable | `{"detail", "detail_th"}` |
+
+Only `detail_th` is ever shown to a worker. `detail` is English, for logs.
+
+A `422` is not an error page: it carries the Thai instruction that tells the
+worker what to change, and the UI offers an immediate retake.
 
 ```json
 {
-  "scan_id": "uuid",
-  "quality": { "passed": true, "blur_score": 0.0, "exposure_score": 0.0 },
-  "prediction": { "class_id": 0, "class_name": "grey_blight", "confidence": 0.0, "top_k": [] },
-  "burn_analysis": { "verdict": "disease", "burn_likelihood": 0.0, "features": {} },
-  "severity": { "affected_pct": 0.0, "level": "moderate" },
-  "advice": { "disease_name_th": "", "immediate_action": "" },
+  "scan_id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+  "captured_at": "2026-10-13T09:12:04+07:00",
+  "quality": {
+    "passed": true,
+    "blur_score": 704.5,
+    "exposure_mean": 93.4,
+    "clipped_low_pct": 0.0,
+    "clipped_high_pct": 0.0
+  },
+  "prediction": {
+    "class_id": 0,
+    "class_name": "grey_blight",
+    "confidence": 0.93,
+    "top_k": [
+      { "class_name": "grey_blight", "confidence": 0.93 },
+      { "class_name": "brown_blight", "confidence": 0.04 }
+    ],
+    "low_confidence": false
+  },
+  "burn_analysis": {
+    "verdict": "disease",
+    "burn_likelihood": 0.12,
+    "features": {
+      "edge_sharpness": 0.81,
+      "ring_score": 0.74,
+      "acervuli_score": 0.66,
+      "edge_affinity": 0.19,
+      "colour_zonation": 0.71
+    }
+  },
+  "severity": { "affected_pct": 0.11, "level": "moderate" },
+  "advice": {
+    "canonical": "grey_blight",
+    "disease_name_th": "โรคใบไหม้เทา",
+    "immediate_action": "...",
+    "cultural_control": "...",
+    "chemical_treatment": "...",
+    "preventive_measures": "..."
+  },
+  "analysis_mode": "full",
   "model_version": "teasmart-v1",
-  "processing_ms": 0
+  "processing_ms": 412
 }
 ```
+
+`verdict` is `"disease"` or `"physical_burn"`. `level` is `"mild"`,
+`"moderate"` or `"severe"`. `analysis_mode` is `"full"` or
+`"classifier_only"`, and the result card states which: a worker must never be
+left thinking an on-device answer was a complete analysis.
+
+When `verdict` is `"physical_burn"`, `advice` comes from knowledge-base record 5
+and prescribes no fungicide. The UI shows that distinction prominently; it is
+the feature the product exists for.
+
+### 8.2 `POST /api/v1/sync/batch`
+
+Replays scans the browser queued while offline, each of which already has a
+local classifier-only result. The server redoes them in full.
+
+`Content-Type: multipart/form-data`:
+
+| part | required | notes |
+|---|---|---|
+| `items` | yes | a JSON array, one object per queued scan: `{"scan_id", "captured_at", "local_prediction": {"class_name", "confidence"}}`. `local_prediction` is optional and is recorded for comparison, never used as an answer. |
+| `images` | yes | one file part per item, repeated. **Each part's filename must be its `scan_id`.** |
+
+Items and files are matched by `scan_id`, not by position: an off-by-one would
+attach a diagnosis to the wrong photograph, and a worker would treat the wrong
+plot. A `scan_id` in `items` with no matching file, or a file with no matching
+item, is a `422` for the whole request.
+
+Limits, from `Settings`: `max_batch_items` 20 and `max_batch_bytes` 33554432
+(32 MiB). A longer queue is sent as several requests; the client chunks it.
+
+`200` with a per-item outcome, so one unusable frame does not fail the batch:
+
+```json
+{
+  "results": [ { "scan_id": "...", "...": "the full scan result object" } ],
+  "failed": [
+    {
+      "scan_id": "9f1c...",
+      "status": 422,
+      "detail": "blurry",
+      "detail_th": "ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น"
+    }
+  ]
+}
+```
+
+Every `scan_id` sent appears in exactly one of the two arrays. `422` is returned
+for the envelope only: a malformed `items`, a mismatch, or over the limits.
+
+### 8.3 Idempotency
+
+`scan_id` is the idempotency key for both endpoints. A dropped connection on a
+mountain plot means retries are normal, and a retry must not produce a second
+diagnosis or a second history entry.
+
+- The client generates a UUIDv4 at capture time, stores it with the queued
+  image, and sends it on every attempt including retries.
+- The server keeps a bounded in-memory map of recently completed `scan_id`s to
+  their results (`Settings.idempotency_cache_size`, 512). A repeat returns the
+  stored result with `200` and `"replayed": true` on the result object.
+- **This cache does not survive a restart, and that is deliberate for Phase 1:**
+  there is no database (section 2). The client is the durable record and must
+  dedupe locally by `scan_id` as well. The server-side cache only covers the
+  common case of a retry seconds later.
+
+### 8.4 ONNX model contract
+
+The browser and the server must agree on preprocessing or their answers diverge
+for reasons nobody can see. Both sides implement exactly this:
+
+1. decode to RGB `uint8`
+2. resize to **224x224, bilinear, aspect ratio not preserved**
+3. divide by 255 into `[0, 1]`
+4. normalise per channel, ImageNet statistics: mean `(0.485, 0.456, 0.406)`,
+   std `(0.229, 0.224, 0.225)`
+5. transpose to NCHW, `float32`, batch 1
+
+| | |
+|---|---|
+| file | `frontend/public/models/teasmart-v1-int8.onnx` |
+| input | `input`, `float32[1, 3, 224, 224]`, NCHW |
+| output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
+| class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
+
+Softmax is applied by the caller. `low_confidence` is set when the top
+probability falls below `Settings.min_confidence`, and the result is then
+reported as `other_disease` with the flag set.
+
+**The browser does not segment.** Stage 2 exists only in Python, so an
+on-device run preprocesses the whole frame while the server preprocesses the
+segmented crop. The two therefore disagree on some images, which is part of why
+an on-device result is labelled `classifier_only` rather than presented as
+equivalent. The quality gate is duplicated in JavaScript because it is cheap;
+nothing else is.
+
+**Parity test**, required before D7 is called done: over a fixed set of 50
+manifest images, the browser and Python pipelines must agree on top-1 for every
+image, and no class probability may differ by more than 0.05. Int8 quantisation
+moves logits; it must not move a decision.
 
 ## 9. Frontend and offline behaviour
 
