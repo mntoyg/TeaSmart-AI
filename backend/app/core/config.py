@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 8388608
     max_image_pixels: int = 40000000
 
+    # Stage 3 classifier. PROVISIONAL until D3 measures it: with five classes,
+    # chance is 0.20, and a softmax maximum below roughly 0.5 means the model is
+    # genuinely unsure. The D3 criterion is the smallest floor at which accepted
+    # predictions reach 0.90 accuracy on the validation split, reported together
+    # with the fraction it downgrades. Served to the PWA via /api/v1/config so
+    # retuning it does not leave the browser behind.
+    min_confidence: float = 0.60
+
     # Stage 1 quality gate thresholds.
     blur_threshold: float = 80.0
     exposure_min_mean: float = 40.0

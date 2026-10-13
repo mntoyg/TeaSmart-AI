@@ -285,6 +285,7 @@ raised with the user.
 | `GET` | `/health` | liveness, model version |
 | `POST` | `/api/v1/scan` | one image, full result |
 | `GET` | `/api/v1/kb` | the knowledge base, for offline caching |
+| `GET` | `/api/v1/config` | the constants both sides need, for offline caching |
 | `POST` | `/api/v1/sync/batch` | replay scans queued while offline |
 
 ### 8.1 `POST /api/v1/scan`
@@ -427,6 +428,59 @@ diagnosis or a second history entry.
   dedupe locally by `scan_id` as well. The server-side cache only covers the
   common case of a retry seconds later.
 
+### 8.5 `GET /api/v1/config`
+
+Everything the PWA needs that also exists in the backend, in one cacheable
+document. The browser fetches it alongside the knowledge base and keeps both in
+the service-worker cache.
+
+It exists because two things are necessarily implemented twice - the quality
+gate, because it is cheap and must work offline, and the classifier
+preprocessing, because onnxruntime-web runs the model in the browser - and a
+second copy of each constant in TypeScript drifts the first time one is retuned.
+
+```json
+{
+  "model_version": "teasmart-v1",
+  "min_confidence": 0.6,
+  "class_order": ["grey_blight", "brown_blight", "algal_spot", "healthy", "other_disease"],
+  "preprocessing": {
+    "size": [224, 224],
+    "resize": "bilinear",
+    "preserve_aspect_ratio": false,
+    "scale": 255.0,
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225],
+    "layout": "NCHW",
+    "dtype": "float32"
+  },
+  "onnx": {
+    "file": "teasmart-v1-int8.onnx",
+    "input": "input",
+    "output": "logits",
+    "output_is_logits": true
+  },
+  "quality": {
+    "blur_threshold": 80.0,
+    "exposure_min_mean": 40.0,
+    "exposure_max_mean": 215.0,
+    "clip_max_pct": 0.1
+  }
+}
+```
+
+`class_order` is derived from the knowledge base in `class_id` order, with
+`physical_burn` excluded because the classifier never emits it. It is derived
+rather than listed a second time, so it cannot disagree with the records the
+advice is looked up by.
+
+`min_confidence` is **0.60 provisionally**, and the value shipped today. With
+five classes chance is 0.20, and a softmax maximum below roughly 0.5 means the
+model is genuinely unsure. D3 replaces it with a measured floor: the smallest
+value at which accepted predictions reach 0.90 accuracy on the validation
+split, reported together with the fraction of predictions it downgrades to
+`other_disease`.
+
 ### 8.4 ONNX model contract
 
 The browser and the server must agree on preprocessing or their answers diverge
@@ -447,8 +501,11 @@ for reasons nobody can see. Both sides implement exactly this:
 | class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
 
 Softmax is applied by the caller. `low_confidence` is set when the top
-probability falls below `Settings.min_confidence`, and the result is then
-reported as `other_disease` with the flag set.
+probability falls below `min_confidence`, and the result is then reported as
+`other_disease` with the flag set. **Read that floor from
+`GET /api/v1/config`; do not hard-code it.** It is provisional until D3
+measures it, and a copy in TypeScript would drift the moment it is retuned -
+silently, because neither codebase can see the other.
 
 **The browser does not segment.** Stage 2 exists only in Python, so an
 on-device run preprocesses the whole frame while the server preprocesses the

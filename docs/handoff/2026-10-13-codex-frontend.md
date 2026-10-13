@@ -64,6 +64,19 @@ plot is not reliable.
   be left thinking a classifier-only answer was a full analysis. Being honest
   about that is worth more than looking seamless.
 
+## Do not hard-code a constant that the backend also has
+
+`GET /api/v1/config` serves every number that exists on both sides: the
+confidence floor, the class order, the ONNX preprocessing, and the quality-gate
+thresholds your JavaScript copy of stage 1 needs. Fetch it once, cache it in the
+service worker next to the knowledge base, and read from it.
+
+`min_confidence` is 0.60 today and is explicitly provisional: D3 replaces it
+with a value measured on the validation split. A copy of it in TypeScript would
+go stale the moment that happens, and nothing in either codebase could see the
+disagreement. The same is true of the quality thresholds, which are the one
+piece of logic deliberately implemented twice.
+
 ## Before you write the API client
 
 Read section 8 of `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md` for

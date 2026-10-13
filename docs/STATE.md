@@ -67,9 +67,20 @@ cannot be written without, and it was right that they were missing. Now pinned:
 - the browser does not segment, so an on-device result is `classifier_only` and
   genuinely differs from a server result
 
-Open against this: `Settings` does not yet carry `max_batch_items`,
-`max_batch_bytes`, `idempotency_cache_size` or `min_confidence`. They land with
-D5, which is when the endpoints do.
+**2026-10-13 — `GET /api/v1/config` added** (44 backend tests). Codex pointed out
+that `min_confidence` was specified but did not exist. It does now, at **0.60
+provisionally**, and rather than confirming a number for the frontend to copy,
+the backend serves every constant both sides share: the confidence floor, the
+class order (derived from the knowledge base, not listed again), the ONNX
+preprocessing, and the quality thresholds the browser duplicates. Read them from
+the endpoint; do not hard-code them.
+
+**D3 owes a measured `min_confidence`**: the smallest floor at which accepted
+predictions reach 0.90 accuracy on validation, reported with the fraction it
+downgrades to `other_disease`.
+
+Still open: `Settings` does not yet carry `max_batch_items`, `max_batch_bytes`
+or `idempotency_cache_size`. They land with D5, when the endpoints do.
 
 ## Open decisions for the user
 

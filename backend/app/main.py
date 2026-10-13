@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.v1.config import router as config_router
 from app.api.v1.kb import router as kb_router
 from app.core.config import get_settings
 from app.core.images import (
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
             error_type, _image_error_handler(status, detail, detail_th)
         )
 
+    app.include_router(config_router)
     app.include_router(kb_router)
 
     @app.get("/health")
