@@ -21,3 +21,6 @@ dist/
 .superpowers/
 
 .DS_Store
+
+# ml training environment
+ml/.venv/
