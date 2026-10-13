@@ -117,10 +117,11 @@ export function App() {
     finally { setSyncing(false); }
   }
   useEffect(() => {
-    if (online) void replay();
-    // Replay once on connectivity restoration; a failed request waits for retry.
+    if (online && pendingCount > 0) void replay();
+    // Also replay when a capture finishes after connectivity has returned.
+    // Failed requests preserve the count and wait for a manual retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online]);
+  }, [online, pendingCount]);
   async function prepare() {
     setPreparing(true); setOfflineMessage('กำลังเตรียมข้อมูลในอุปกรณ์…');
     try {

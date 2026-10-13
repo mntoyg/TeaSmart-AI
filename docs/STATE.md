@@ -11,7 +11,7 @@
 - **D6 PR:** https://github.com/mntoyg/TeaSmart-AI/pull/2 (human merge only).
 - **D7:** in progress on `feat/d7-offline`; includes D6 as a dependency.
   Preprocessing, client quality gate, durable queue and validated batch replay
-  are implemented with ONNX worker and PWA shell. 46 Vitest tests, contract check
+  are implemented with ONNX worker and PWA shell. 47 Vitest tests, contract check
   and production build pass. D7 remains incomplete pending the actual model.
 - **Daily ceilings:** Claude Code 15%, Codex 13.5% of weekly capacity.
   Codex session baseline: 19% consumed weekly; 81% remains.
@@ -31,6 +31,8 @@ User confirmed `c53d9a0`: inference settings now come from `/api/v1/config`.
 The prior defaults generator has been removed. Config types come from section 8.5.
 Service-worker caches, ONNX worker and scan/replay UI integration are implemented.
 Production build precaches 11 entries including local WASM (~14 MB).
+Browser reload and scan/history navigation succeeded after the preview server
+was stopped. A reconnect-before-inference-completes regression is covered.
 D6 uses fixtures until the server
 scan endpoint lands. Actual camera capture on the demo phone is still unverified.
 
