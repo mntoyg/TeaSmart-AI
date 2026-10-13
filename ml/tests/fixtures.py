@@ -1,5 +1,6 @@
 """Synthetic dataset fixtures, so every ingest test runs offline."""
 
+import hashlib
 import io
 import json
 import zipfile
@@ -98,3 +99,29 @@ def make_yolo_zip(*, entries, names, path, extra_members=()) -> Path:
         for member, payload in extra_members:
             archive.writestr(member, payload)
     return Path(path)
+
+
+def _seed_for(key: str) -> int:
+    """A stable seed per key, so the same key always renders the same photo."""
+    return int(hashlib.md5(key.encode("utf-8")).hexdigest()[:8], 16)
+
+
+def distinct(count: int, *, size: int = 256) -> list[tuple[str, int]]:
+    return [(f"img{index}", size) for index in range(count)]
+
+
+def build_interim(root, spec, *, source_id: str = "fake") -> Path:
+    """Lay out an interim tree from {canonical: [(image_key, size), ...]}.
+
+    Entries sharing an image_key render the same photograph, which is how the
+    duplicate cases are built. The key is namespaced by class, so the same key
+    under two classes is two different photos - otherwise every class would
+    dedup into whichever one sorts first.
+    """
+    interim = Path(root) / "interim"
+    for canonical, entries in spec.items():
+        for index, (key, size) in enumerate(entries):
+            dest = interim / source_id / canonical / f"{key}-{index}-{size}.jpg"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            write_leaf_photo(dest, size=(size, size), seed=_seed_for(f"{canonical}/{key}"))
+    return interim
