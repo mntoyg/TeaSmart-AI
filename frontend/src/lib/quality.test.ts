@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { assessQuality } from './quality';
-import { offlineSettings as settings } from './offline-settings';
+import { configShape } from './scan-contract';
+const settings = configShape.quality;
 it('reports exposure before blur and distinguishes dark from bright frames', () => {
   expect(assessQuality(new Uint8Array(3 * 4 * 4), 4, 4, settings).detail_th).toContain('มืด');
   expect(assessQuality(new Uint8Array(3 * 4 * 4).fill(255), 4, 4, settings).detail_th).toContain('สว่าง');

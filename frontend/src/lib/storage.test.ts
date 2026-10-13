@@ -11,7 +11,7 @@ it('persists results across reopening and deduplicates retries by scan_id', asyn
   await first.close();
   const second = createStore(name);
   expect(await second.list()).toHaveLength(1);
-  expect((await second.get(scanFixture().scan_id))?.processing_ms).toBe(99);
+  expect(await second.get(scanFixture().scan_id)).toMatchObject({ processing_ms: 99 });
   await second.close();
 });
 it('refuses invalid persisted diagnoses rather than showing misleading advice', async () => {

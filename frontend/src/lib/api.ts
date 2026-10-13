@@ -1,4 +1,4 @@
-import { scanShape, type ScanResponse } from './scan-contract';
+import { scanShape, configShape, type ScanResponse, type ClientConfig } from './scan-contract';
 
 export const classes = ['grey_blight', 'brown_blight', 'algal_spot', 'healthy', 'other_disease'] as const;
 export const adviceFields = [
@@ -14,7 +14,7 @@ export type KnowledgeRecord = {
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-function matches(value: unknown, shape: unknown): boolean {
+export function matches(value: unknown, shape: unknown): boolean {
   if (Array.isArray(shape)) return Array.isArray(value) && (!shape.length || value.every((item) => matches(item, shape[0])));
   if (object(shape)) return object(value) && Object.entries(shape).every(([key, entry]) => matches(value[key], entry));
   if (typeof shape === 'number') return typeof value === 'number' && Number.isFinite(value);
@@ -66,3 +66,21 @@ export async function scanImage(image: File, field = 'image', scanId?: string, c
   return parseScan(await request('/api/v1/scan', { method: 'POST', body, signal }));
 }
 export async function readKnowledgeBase() { return parseKnowledge(await request('/api/v1/kb')); }
+export function parseConfig(value: unknown): ClientConfig {
+  if (!matches(value, configShape)) throw new Error('การตั้งค่าออฟไลน์ไม่ครบถ้วน');
+  const config = value as ClientConfig, prep = config.preprocessing;
+  if (!unit(config.min_confidence) || config.class_order.length !== 5
+    || new Set(config.class_order).size !== 5 || !classes.every((entry) => config.class_order.includes(entry))
+    || prep.size.length !== 2 || !prep.size.every((side) => side === 224)
+    || prep.mean.length !== 3 || prep.std.length !== 3 || !prep.std.every((value) => value > 0)
+    || prep.resize !== 'bilinear' || prep.preserve_aspect_ratio || prep.layout !== 'NCHW'
+    || prep.dtype !== 'float32' || prep.scale <= 0 || !config.onnx.output_is_logits
+    || !/^teasmart-[a-z0-9-]+\.onnx$/.test(config.onnx.file)
+    || !config.onnx.input || !config.onnx.output
+    || config.quality.blur_threshold < 0 || !unit(config.quality.clip_max_pct)
+    || config.quality.exposure_min_mean < 0 || config.quality.exposure_max_mean > 255
+    || config.quality.exposure_min_mean >= config.quality.exposure_max_mean) throw new Error('การตั้งค่าออฟไลน์ไม่ถูกต้อง');
+  return config;
+}
+export async function readClientConfig() { return parseConfig(await request('/api/v1/config')); }
+export { request };

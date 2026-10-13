@@ -3,12 +3,13 @@ import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from '
 import { adviceFields, readKnowledgeBase, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
 import type { ScanResponse } from './lib/scan-contract';
+import { isFull, type StoredResult } from './lib/local-result';
 import { ResultCard } from './components/ResultCard';
 import { ScanPage } from './pages/ScanPage';
 
 function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
   const { id } = useParams();
-  const [result, setResult] = useState<ScanResponse>();
+  const [result, setResult] = useState<StoredResult>();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -22,11 +23,11 @@ function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
   if (!loaded) return <p role="status">กำลังอ่านผลตรวจ…</p>;
   if (!result) return <section className="card"><h1>{error || 'ไม่พบผลตรวจนี้ในอุปกรณ์'}</h1><Link to="/scan">ตรวจใบชา</Link></section>;
   return <><ResultCard result={result} knowledge={knowledge.find((record) => record.canonical === (
-    result.burn_analysis.verdict === 'physical_burn' ? 'physical_burn' : result.prediction.class_name))} />
+    isFull(result) && result.burn_analysis.verdict === 'physical_burn' ? 'physical_burn' : result.prediction.class_name))} />
     <Link className="button" to="/scan">ตรวจใบถัดไป</Link></>;
 }
 function HistoryPage() {
-  const [results, setResults] = useState<ScanResponse[]>([]);
+  const [results, setResults] = useState<StoredResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -39,7 +40,7 @@ function HistoryPage() {
   return <><header className="page-heading"><p className="eyebrow">ข้อมูลในอุปกรณ์นี้</p><h1>ประวัติการตรวจ</h1></header>
     {loading ? <p role="status">กำลังอ่านประวัติ…</p> : error ? <p role="alert">{error}</p> : results.length
       ? <ul className="history-list">{results.map((result) => <li key={result.scan_id}><Link className="card" to={`/result/${encodeURIComponent(result.scan_id)}`}>
-        <strong>{result.burn_analysis.verdict === 'physical_burn' ? 'อาการไหม้ทางกายภาพ' : result.advice.disease_name_th}</strong>
+        <strong>{isFull(result) ? result.burn_analysis.verdict === 'physical_burn' ? 'อาการไหม้ทางกายภาพ' : result.advice.disease_name_th : 'ผลประเมินเบื้องต้น'}</strong>
         <span>{new Date(result.captured_at).toLocaleString('th-TH')}</span>
         <span>{result.analysis_mode === 'full' ? 'วิเคราะห์ครบขั้นตอน' : 'ประเมินเบื้องต้นบนอุปกรณ์'}</span></Link></li>)}</ul>
       : <section className="card"><p>ยังไม่มีประวัติการตรวจใบชา</p><Link to="/scan">ตรวจใบชา</Link></section>}

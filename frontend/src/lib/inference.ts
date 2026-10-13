@@ -1,10 +1,7 @@
-import { classes } from './api';
-import type { ScanResponse } from './scan-contract';
+import type { ClientConfig, ScanResponse } from './scan-contract';
 
-const size = 224;
-const mean = [0.485, 0.456, 0.406];
-const standardDeviation = [0.229, 0.224, 0.225];
-export function preprocess(rgb: Uint8Array, width: number, height: number): Float32Array {
+export function preprocess(rgb: Uint8Array, width: number, height: number, config: ClientConfig): Float32Array {
+  const size = config.preprocessing.size[0], mean = config.preprocessing.mean, standardDeviation = config.preprocessing.std;
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || rgb.length !== width * height * 3) {
     throw new Error('ข้อมูลภาพไม่ถูกต้อง');
   }
@@ -20,13 +17,14 @@ export function preprocess(rgb: Uint8Array, width: number, height: number): Floa
         const top = sample(x0, y0) * (1 - dx) + sample(x1, y0) * dx;
         const bottom = sample(x0, y1) * (1 - dx) + sample(x1, y1) * dx;
         const pixel = Math.round(top * (1 - dy) + bottom * dy);
-        output[channel * size * size + y * size + x] = (pixel / 255 - mean[channel]) / standardDeviation[channel];
+        output[channel * size * size + y * size + x] = (pixel / config.preprocessing.scale - mean[channel]) / standardDeviation[channel];
       }
     }
   }
   return output;
 }
-export function classifyLogits(logits: Float32Array, minConfidence: number): ScanResponse['prediction'] {
+export function classifyLogits(logits: Float32Array, config: ClientConfig): ScanResponse['prediction'] {
+  const classes = config.class_order, minConfidence = config.min_confidence;
   if (logits.length !== classes.length || !Array.from(logits).every(Number.isFinite)
     || !Number.isFinite(minConfidence) || minConfidence < 0 || minConfidence > 1) throw new Error('ข้อมูลโมเดลไม่ถูกต้อง');
   const maximum = Math.max(...logits);
@@ -39,7 +37,7 @@ export function classifyLogits(logits: Float32Array, minConfidence: number): Sca
   return { class_name: className, class_id: classes.indexOf(className), confidence: top[0].confidence,
     low_confidence: lowConfidence, top_k: top.slice(0, 3) };
 }
-export async function runClassifier(rgb: Uint8Array, width: number, height: number, minConfidence: number,
+export async function runClassifier(rgb: Uint8Array, width: number, height: number, config: ClientConfig,
   runner: (input: Float32Array) => Promise<Float32Array>) {
-  return classifyLogits(await runner(preprocess(rgb, width, height)), minConfidence);
+  return classifyLogits(await runner(preprocess(rgb, width, height, config)), config);
 }

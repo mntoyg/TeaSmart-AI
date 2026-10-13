@@ -1,17 +1,17 @@
 import { adviceFields, type KnowledgeRecord } from '../lib/api';
-import type { ScanResponse } from '../lib/scan-contract';
+import { isFull, type StoredResult } from '../lib/local-result';
 
-export function ResultCard({ result, knowledge }: { result: ScanResponse; knowledge?: KnowledgeRecord }) {
-  const burn = result.burn_analysis.verdict === 'physical_burn';
-  const full = result.analysis_mode === 'full';
-  const matchingAdvice = burn ? result.advice.canonical === 'physical_burn'
-    : result.advice.canonical === result.prediction.class_name;
-  const advice = matchingAdvice ? result.advice
+export function ResultCard({ result, knowledge }: { result: StoredResult; knowledge?: KnowledgeRecord }) {
+  const full = isFull(result);
+  const burn = full && result.burn_analysis.verdict === 'physical_burn';
+  const matchingAdvice = full && (burn ? result.advice.canonical === 'physical_burn'
+    : result.advice.canonical === result.prediction.class_name);
+  const advice = full && matchingAdvice ? result.advice
     : knowledge?.canonical === (burn ? 'physical_burn' : result.prediction.class_name) ? knowledge : undefined;
-  const severity = { mild: 'เล็กน้อย', moderate: 'ปานกลาง', severe: 'รุนแรง' }[result.severity.level];
+  const severity = full ? { mild: 'เล็กน้อย', moderate: 'ปานกลาง', severe: 'รุนแรง' }[result.severity.level] : undefined;
   return <article className="card result-card">
     <p className="eyebrow">ผลตรวจใบชา</p>
-    <h1>{burn ? 'อาการไหม้จากปัจจัยทางกายภาพ' : result.advice.disease_name_th}</h1>
+    <h1>{burn ? 'อาการไหม้จากปัจจัยทางกายภาพ' : full ? result.advice.disease_name_th : knowledge?.disease_name_th ?? 'ผลประเมินเบื้องต้น'}</h1>
     <p className="severity">ความรุนแรง: {full ? severity ?? 'ยังประเมินไม่ได้' : 'รอการวิเคราะห์เพิ่มเติม'}
       {full && <span> · พื้นที่เสียหาย {(result.severity.affected_pct * 100).toLocaleString('th-TH', { maximumFractionDigits: 1 })}%</span>}</p>
     <p className={burn ? 'verdict burn' : 'verdict'}>{full
@@ -21,8 +21,8 @@ export function ResultCard({ result, knowledge }: { result: ScanResponse; knowle
     {result.prediction.low_confidence && <p role="status" className="notice">ความมั่นใจต่ำ ควรให้ผู้เชี่ยวชาญตรวจสอบ</p>}
     <p>ความมั่นใจ {(result.prediction.confidence * 100).toLocaleString('th-TH', { maximumFractionDigits: 1 })}%</p>
     {advice && adviceFields.map(([field, label]) => <section key={field}>
-      <h2>{label}</h2><p>{burn && field === 'chemical_treatment'
-        ? 'ไม่แนะนำให้ฉีดพ่นสารป้องกันกำจัดโรคจากผลนี้' : advice[field]}</p>
+      <h2>{label}</h2><p>{field === 'chemical_treatment' && (!full || burn)
+        ? burn ? 'ไม่แนะนำให้ฉีดพ่นสารป้องกันกำจัดโรคจากผลนี้' : 'รอการวิเคราะห์ครบขั้นตอนก่อนพิจารณาการใช้สารป้องกันกำจัด' : advice[field]}</p>
     </section>)}
     {!advice && <p className="notice">รอคำแนะนำที่ตรงกับผลวิเคราะห์จากฐานความรู้</p>}
   </article>;

@@ -100,3 +100,80 @@ export const scanShape = {
   "model_version": "teasmart-v1",
   "processing_ms": 412
 };
+export type ClientConfig = {
+  "model_version": string;
+  "min_confidence": number;
+  "class_order": string[];
+  "preprocessing": {
+    "size": number[];
+    "resize": string;
+    "preserve_aspect_ratio": boolean;
+    "scale": number;
+    "mean": number[];
+    "std": number[];
+    "layout": string;
+    "dtype": string;
+  };
+  "onnx": {
+    "file": string;
+    "input": string;
+    "output": string;
+    "output_is_logits": boolean;
+  };
+  "quality": {
+    "blur_threshold": number;
+    "exposure_min_mean": number;
+    "exposure_max_mean": number;
+    "clip_max_pct": number;
+  };
+};
+export const configShape = {
+  "model_version": "teasmart-v1",
+  "min_confidence": 0.6,
+  "class_order": [
+    "grey_blight",
+    "brown_blight",
+    "algal_spot",
+    "healthy",
+    "other_disease"
+  ],
+  "preprocessing": {
+    "size": [
+      224,
+      224
+    ],
+    "resize": "bilinear",
+    "preserve_aspect_ratio": false,
+    "scale": 255,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "layout": "NCHW",
+    "dtype": "float32"
+  },
+  "onnx": {
+    "file": "teasmart-v1-int8.onnx",
+    "input": "input",
+    "output": "logits",
+    "output_is_logits": true
+  },
+  "quality": {
+    "blur_threshold": 80,
+    "exposure_min_mean": 40,
+    "exposure_max_mean": 215,
+    "clip_max_pct": 0.1
+  }
+};
+export const transportLimits = {
+  "max_upload_bytes": 8388608,
+  "max_image_pixels": 40000000,
+  "max_batch_items": 20,
+  "max_batch_bytes": 33554432
+};

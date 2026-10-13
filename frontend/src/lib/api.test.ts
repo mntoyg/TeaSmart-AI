@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { scanFixture } from '../test/fixtures';
-import { scanImage, parseScan, readKnowledgeBase } from './api';
+import { scanImage, parseScan, readKnowledgeBase, parseConfig } from './api';
+import { configShape } from './scan-contract';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('scan contract boundary', () => {
@@ -41,4 +42,15 @@ describe('scan contract boundary', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ canonical: 'grey_blight' }]))));
     await expect(readKnowledgeBase()).rejects.toThrow('ข้อมูลความรู้');
   });
+});
+describe('cached config boundary', () => {
+  it('uses the served threshold without replacing it with a frontend default', () => {
+    expect(parseConfig({ ...configShape, min_confidence: 0.85 }).min_confidence).toBe(0.85);
+  });
+  it.each([
+    { ...configShape, min_confidence: -1 },
+    { ...configShape, onnx: { ...configShape.onnx, file: '../secret.onnx' } },
+    { ...configShape, class_order: ['physical_burn', ...configShape.class_order.slice(1)] },
+    { ...configShape, preprocessing: { ...configShape.preprocessing, std: [0, 1, 1] } },
+  ])('refuses unsafe inference settings', (input) => expect(() => parseConfig(input)).toThrow('การตั้งค่า'));
 });
