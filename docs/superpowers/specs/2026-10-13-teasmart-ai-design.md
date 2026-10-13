@@ -241,11 +241,15 @@ the chemical treatment; mild leads with cultural control). The knowledge base is
 data, never code, and is served to the frontend so it can be cached for offline
 use.
 
-**Knowledge base schema** (per record): `class_id`, `class_name`,
-`disease_name_th`, `pathogen`, `symptoms`, `immediate_action`,
-`cultural_control`, `chemical_treatment`, `preventive_measures`. Records 0-3 are
-the four supplied verbatim; records 4 (`other_disease`) and 5 (`physical_burn`)
-are added by this design and written in the same voice.
+**Knowledge base schema** (per record): `class_id`, `canonical`,
+`class_name`, `disease_name_th`, `pathogen`, `symptoms`, `immediate_action`,
+`cultural_control`, `chemical_treatment`, `preventive_measures`. Records 0-3
+carry the four supplied advice texts verbatim; records 4 (`other_disease`) and 5
+(`physical_burn`) are added by this design and written in the same voice.
+
+`canonical` is the snake_case name from section 5 and is the key the lookup
+uses, because that is the name stage 3 emits and the name section 8 puts in the
+response. `class_name` remains the English display name.
 
 ## 8. API contract
 
