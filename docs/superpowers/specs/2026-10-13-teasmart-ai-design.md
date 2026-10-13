@@ -138,16 +138,39 @@ Probed 2026-10-13. Only no-authentication sources are used in Phase 1.
 | `mendeley_sjmy` | Mendeley `sjmy6k24d6` | **HTTP 451, unavailable** | — | dropped |
 | `kaggle_*` x2, `hf_ttkqwe123` | Kaggle / gated HF | needs credentials | deferred | `sources.py` keeps the entries so they can be enabled later by dropping in a token |
 
-Usable immediately: **6,752 labelled images plus bounding-box annotations.**
+Usable immediately: **11,853 labelled images plus bounding-box annotations**, which deduplicate to a corpus of **8,316**. Counted on 2026-10-13; the
+estimate here before the sources were opened was 6,752, which missed that
+`mendeley_mz598` carries 5,180 images of its own rather than annotations alone.
 
 ### Leakage control
 
-The sources overlap (several derive from the same Roboflow upload). Before
-splitting, every image is perceptual-hashed (pHash, Hamming distance of 5 or
-less treated as duplicate); duplicates are collapsed to a single record keeping
-the highest-resolution copy. Splits are then stratified 70/15/15 **after** dedup,
-so a near-duplicate can never straddle train and test. The manifest records each
-image's source and pHash so this is auditable.
+A duplicate is defined by pixels: two images are the same photograph when the
+mean absolute difference of their 32x32 greyscale thumbnails is at most 8.0 of
+255. Every pair is compared, made tractable by an exact lower bound (the mean
+absolute difference of 4x4 block means can never exceed that of the pixels they
+average), so nothing is discarded on an approximation. Confirmed duplicates
+collapse to the highest-resolution copy; a group spanning two classes is
+dropped rather than resolved. Splits are then stratified 70/15/15 **after**
+dedup. The manifest records each image's source and perceptual hash so the
+result is auditable, and its paths are relative to the interim root.
+
+A perceptual hash is **not** used to decide anything, and this is the most
+expensive lesson of D2. Using pHash within a Hamming distance of 5 as the test
+collapsed pairs that were not the same photograph 24% of the time. Using it to
+generate candidates for a pixel confirmation looked right and was worse in the
+way that matters: it silently capped recall, and the manifest it produced
+contained 127 cross-split duplicate pairs, leaving 3.24% of the evaluation set
+with a twin in training. pHash thresholds DCT coefficients at their median, so a
+low-contrast image has many coefficients sitting on it and a near-identical copy
+flips them - two images measured 0.01 of 255 apart hashed 26 bits apart.
+
+**Verified, not asserted.** After each build, every pair of manifest rows is
+compared in pixel terms, and the check is stated without reference to how
+candidates are generated: the earlier version only examined pairs the hash had
+proposed, which is why it reported zero while those 127 pairs existed. The
+current corpus reports 0 cross-split duplicate pairs out of 8,316 rows. See
+`docs/eval/2026-10-13-dataset-summary.md` for the numbers and the two wrong
+answers that preceded them.
 
 ## 7. Inference pipeline
 
@@ -253,27 +276,248 @@ response. `class_name` remains the English display name.
 
 ## 8. API contract
 
+This section is the interface between the backend and the PWA. Neither side
+changes it alone: a change is written here first, noted in `docs/STATE.md`, and
+raised with the user.
+
 | method | path | purpose |
 |---|---|---|
 | `GET` | `/health` | liveness, model version |
-| `POST` | `/api/v1/scan` | multipart image, returns the full result |
+| `POST` | `/api/v1/scan` | one image, full result |
 | `GET` | `/api/v1/kb` | the knowledge base, for offline caching |
+| `GET` | `/api/v1/config` | the constants both sides need, for offline caching |
 | `POST` | `/api/v1/sync/batch` | replay scans queued while offline |
 
-`POST /api/v1/scan` response shape:
+### 8.1 `POST /api/v1/scan`
+
+`Content-Type: multipart/form-data` with these parts:
+
+| part | required | type | notes |
+|---|---|---|---|
+| `image` | yes | file | The field name is **`image`**. The declared content type and the filename are ignored; the format is decided by magic bytes. JPEG, PNG and WebP only. |
+| `scan_id` | no | text | A client-generated UUIDv4. Supply it: it is the idempotency key (8.3) and it is what ties a queued scan to its result. When absent the server generates one. |
+| `captured_at` | no | text | ISO 8601 with offset, from the device clock. Recorded, never trusted. |
+
+Limits, from `Settings`: `max_upload_bytes` 8388608 (8 MiB) and
+`max_image_pixels` 40000000. Over either one the request is refused before the
+image is decoded.
+
+Responses:
+
+| status | when | body |
+|---|---|---|
+| `200` | analysed | the result object below |
+| `422` | the quality gate rejected the frame | `{"detail", "detail_th", "quality"}` |
+| `415` | not a JPEG, PNG or WebP | `{"detail", "detail_th"}` |
+| `413` | over the byte or pixel cap | `{"detail", "detail_th"}` |
+| `400` | truncated or undecodable | `{"detail", "detail_th"}` |
+
+Only `detail_th` is ever shown to a worker. `detail` is English, for logs.
+
+A `422` is not an error page: it carries the Thai instruction that tells the
+worker what to change, and the UI offers an immediate retake.
 
 ```json
 {
-  "scan_id": "uuid",
-  "quality": { "passed": true, "blur_score": 0.0, "exposure_score": 0.0 },
-  "prediction": { "class_id": 0, "class_name": "grey_blight", "confidence": 0.0, "top_k": [] },
-  "burn_analysis": { "verdict": "disease", "burn_likelihood": 0.0, "features": {} },
-  "severity": { "affected_pct": 0.0, "level": "moderate" },
-  "advice": { "disease_name_th": "", "immediate_action": "" },
+  "scan_id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+  "captured_at": "2026-10-13T09:12:04+07:00",
+  "quality": {
+    "passed": true,
+    "blur_score": 704.5,
+    "exposure_mean": 93.4,
+    "clipped_low_pct": 0.0,
+    "clipped_high_pct": 0.0
+  },
+  "prediction": {
+    "class_id": 0,
+    "class_name": "grey_blight",
+    "confidence": 0.93,
+    "top_k": [
+      { "class_name": "grey_blight", "confidence": 0.93 },
+      { "class_name": "brown_blight", "confidence": 0.04 }
+    ],
+    "low_confidence": false
+  },
+  "burn_analysis": {
+    "verdict": "disease",
+    "burn_likelihood": 0.12,
+    "features": {
+      "edge_sharpness": 0.81,
+      "ring_score": 0.74,
+      "acervuli_score": 0.66,
+      "edge_affinity": 0.19,
+      "colour_zonation": 0.71
+    }
+  },
+  "severity": { "affected_pct": 0.11, "level": "moderate" },
+  "advice": {
+    "canonical": "grey_blight",
+    "disease_name_th": "โรคใบไหม้เทา",
+    "immediate_action": "...",
+    "cultural_control": "...",
+    "chemical_treatment": "...",
+    "preventive_measures": "..."
+  },
+  "analysis_mode": "full",
   "model_version": "teasmart-v1",
-  "processing_ms": 0
+  "processing_ms": 412
 }
 ```
+
+`verdict` is `"disease"` or `"physical_burn"`. `level` is `"mild"`,
+`"moderate"` or `"severe"`. `analysis_mode` is `"full"` or
+`"classifier_only"`, and the result card states which: a worker must never be
+left thinking an on-device answer was a complete analysis.
+
+When `verdict` is `"physical_burn"`, `advice` comes from knowledge-base record 5
+and prescribes no fungicide. The UI shows that distinction prominently; it is
+the feature the product exists for.
+
+### 8.2 `POST /api/v1/sync/batch`
+
+Replays scans the browser queued while offline, each of which already has a
+local classifier-only result. The server redoes them in full.
+
+`Content-Type: multipart/form-data`:
+
+| part | required | notes |
+|---|---|---|
+| `items` | yes | a JSON array, one object per queued scan: `{"scan_id", "captured_at", "local_prediction": {"class_name", "confidence"}}`. `local_prediction` is optional and is recorded for comparison, never used as an answer. |
+| `images` | yes | one file part per item, repeated. **Each part's filename must be its `scan_id`.** |
+
+Items and files are matched by `scan_id`, not by position: an off-by-one would
+attach a diagnosis to the wrong photograph, and a worker would treat the wrong
+plot. A `scan_id` in `items` with no matching file, or a file with no matching
+item, is a `422` for the whole request.
+
+Limits, from `Settings`: `max_batch_items` 20 and `max_batch_bytes` 33554432
+(32 MiB). A longer queue is sent as several requests; the client chunks it.
+
+`200` with a per-item outcome, so one unusable frame does not fail the batch:
+
+```json
+{
+  "results": [ { "scan_id": "...", "...": "the full scan result object" } ],
+  "failed": [
+    {
+      "scan_id": "9f1c...",
+      "status": 422,
+      "detail": "blurry",
+      "detail_th": "ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น"
+    }
+  ]
+}
+```
+
+Every `scan_id` sent appears in exactly one of the two arrays. `422` is returned
+for the envelope only: a malformed `items`, a mismatch, or over the limits.
+
+### 8.3 Idempotency
+
+`scan_id` is the idempotency key for both endpoints. A dropped connection on a
+mountain plot means retries are normal, and a retry must not produce a second
+diagnosis or a second history entry.
+
+- The client generates a UUIDv4 at capture time, stores it with the queued
+  image, and sends it on every attempt including retries.
+- The server keeps a bounded in-memory map of recently completed `scan_id`s to
+  their results (`Settings.idempotency_cache_size`, 512). A repeat returns the
+  stored result with `200` and `"replayed": true` on the result object.
+- **This cache does not survive a restart, and that is deliberate for Phase 1:**
+  there is no database (section 2). The client is the durable record and must
+  dedupe locally by `scan_id` as well. The server-side cache only covers the
+  common case of a retry seconds later.
+
+### 8.5 `GET /api/v1/config`
+
+Everything the PWA needs that also exists in the backend, in one cacheable
+document. The browser fetches it alongside the knowledge base and keeps both in
+the service-worker cache.
+
+It exists because two things are necessarily implemented twice - the quality
+gate, because it is cheap and must work offline, and the classifier
+preprocessing, because onnxruntime-web runs the model in the browser - and a
+second copy of each constant in TypeScript drifts the first time one is retuned.
+
+```json
+{
+  "model_version": "teasmart-v1",
+  "min_confidence": 0.6,
+  "class_order": ["grey_blight", "brown_blight", "algal_spot", "healthy", "other_disease"],
+  "preprocessing": {
+    "size": [224, 224],
+    "resize": "bilinear",
+    "preserve_aspect_ratio": false,
+    "scale": 255.0,
+    "mean": [0.485, 0.456, 0.406],
+    "std": [0.229, 0.224, 0.225],
+    "layout": "NCHW",
+    "dtype": "float32"
+  },
+  "onnx": {
+    "file": "teasmart-v1-int8.onnx",
+    "input": "input",
+    "output": "logits",
+    "output_is_logits": true
+  },
+  "quality": {
+    "blur_threshold": 80.0,
+    "exposure_min_mean": 40.0,
+    "exposure_max_mean": 215.0,
+    "clip_max_pct": 0.1
+  }
+}
+```
+
+`class_order` is derived from the knowledge base in `class_id` order, with
+`physical_burn` excluded because the classifier never emits it. It is derived
+rather than listed a second time, so it cannot disagree with the records the
+advice is looked up by.
+
+`min_confidence` is **0.60 provisionally**, and the value shipped today. With
+five classes chance is 0.20, and a softmax maximum below roughly 0.5 means the
+model is genuinely unsure. D3 replaces it with a measured floor: the smallest
+value at which accepted predictions reach 0.90 accuracy on the validation
+split, reported together with the fraction of predictions it downgrades to
+`other_disease`.
+
+### 8.4 ONNX model contract
+
+The browser and the server must agree on preprocessing or their answers diverge
+for reasons nobody can see. Both sides implement exactly this:
+
+1. decode to RGB `uint8`
+2. resize to **224x224, bilinear, aspect ratio not preserved**
+3. divide by 255 into `[0, 1]`
+4. normalise per channel, ImageNet statistics: mean `(0.485, 0.456, 0.406)`,
+   std `(0.229, 0.224, 0.225)`
+5. transpose to NCHW, `float32`, batch 1
+
+| | |
+|---|---|
+| file | `frontend/public/models/teasmart-v1-int8.onnx` |
+| input | `input`, `float32[1, 3, 224, 224]`, NCHW |
+| output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
+| class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
+
+Softmax is applied by the caller. `low_confidence` is set when the top
+probability falls below `min_confidence`, and the result is then reported as
+`other_disease` with the flag set. **Read that floor from
+`GET /api/v1/config`; do not hard-code it.** It is provisional until D3
+measures it, and a copy in TypeScript would drift the moment it is retuned -
+silently, because neither codebase can see the other.
+
+**The browser does not segment.** Stage 2 exists only in Python, so an
+on-device run preprocesses the whole frame while the server preprocesses the
+segmented crop. The two therefore disagree on some images, which is part of why
+an on-device result is labelled `classifier_only` rather than presented as
+equivalent. The quality gate is duplicated in JavaScript because it is cheap;
+nothing else is.
+
+**Parity test**, required before D7 is called done: over a fixed set of 50
+manifest images, the browser and Python pipelines must agree on top-1 for every
+image, and no class probability may differ by more than 0.05. Int8 quantisation
+moves logits; it must not move a decision.
 
 ## 9. Frontend and offline behaviour
 
