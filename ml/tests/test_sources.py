@@ -7,6 +7,7 @@ from teasmart_ml.datasets.sources import (
     download_source,
     enabled_sources,
     resolve_mendeley_download,
+    validate_mendeley_url,
 )
 
 
@@ -63,3 +64,29 @@ def test_download_skips_a_file_that_is_already_present(tmp_path):
     paths = download_source("agml", tmp_path, hf_download=fail)
     assert paths == (existing,)
     assert existing.read_bytes() == b"already here"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://data.mendeley.com/public-files/x",
+        "https://evil.example.com/public-files/x",
+        "https://data.mendeley.com.evil.example.com/x",
+        "file:///c:/windows/system32/drivers/etc/hosts",
+        "ftp://data.mendeley.com/x",
+    ],
+)
+def test_a_download_url_outside_mendeley_over_https_is_refused(url):
+    # The download URL arrives inside an API response, so it is network data.
+    # An unchecked URL handed to a fetcher that writes to disk is an arbitrary
+    # download waiting to happen.
+    with pytest.raises(SourceUnavailableError):
+        validate_mendeley_url(url)
+
+
+def test_a_genuine_mendeley_download_url_is_accepted():
+    url = (
+        "https://data.mendeley.com/public-files/datasets/mz598gxfw9/files/"
+        "bc2642b5-a056-4466-857d-a00cdb8a375f/file_downloaded"
+    )
+    assert validate_mendeley_url(url) == url

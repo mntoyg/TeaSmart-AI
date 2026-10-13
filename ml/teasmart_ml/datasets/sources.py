@@ -8,11 +8,14 @@ registry be tested offline, and it is the reason a registry mistake surfaces in
 a 0.2 second test run rather than after 900MB of download.
 """
 
+import json
 import shutil
+import subprocess
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+from urllib.parse import urlparse
 
 _MENDELEY_FILES = (
     "https://data.mendeley.com/public-api/datasets/{dataset_id}/files"
@@ -116,22 +119,54 @@ def enabled_sources() -> tuple[str, ...]:
     return tuple(sid for sid, source in SOURCES.items() if source.enabled)
 
 
-def _fetch_json(url: str):
-    import requests
+# Mendeley's edge refuses urllib3 outright: curl gets 200 from the public API
+# even when sent the python-requests User-Agent, so the discriminator is the TLS
+# or HTTP fingerprint, not a header we can set. Shelling out to curl is the
+# cheapest thing that actually works, and curl ships with Windows 10+, macOS and
+# every Linux this will run on.
+_CURL_TIMEOUT_SECONDS = "900"
+_MENDELEY_HOST = "data.mendeley.com"
 
-    response = requests.get(url, timeout=60)
-    response.raise_for_status()
-    return response.json()
+
+def validate_mendeley_url(url: str) -> str:
+    """Refuse any URL that is not HTTPS on Mendeley's own host.
+
+    The download URL arrives inside an API response, so it is data from the
+    network. Handing an unchecked URL to a fetcher that writes to disk is how a
+    surprising response turns into an arbitrary download.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname != _MENDELEY_HOST:
+        raise SourceUnavailableError(f"refusing to fetch a non-Mendeley URL: {url!r}")
+    return url
+
+
+def _curl(url: str, dest: Path | None) -> bytes:
+    command = [
+        "curl",
+        "-sSL",
+        "--fail",
+        "--max-time",
+        _CURL_TIMEOUT_SECONDS,
+        validate_mendeley_url(url),
+    ]
+    if dest is not None:
+        command += ["-o", str(dest)]
+    try:
+        completed = subprocess.run(command, check=True, capture_output=True)
+    except FileNotFoundError as exc:
+        raise SourceUnavailableError("curl is not installed; it is required for Mendeley sources") from exc
+    except subprocess.CalledProcessError as exc:
+        raise SourceUnavailableError(f"curl failed for {url!r}: {exc.stderr.decode(errors='replace')[:200]}") from exc
+    return completed.stdout
+
+
+def _fetch_json(url: str):
+    return json.loads(_curl(url, dest=None))
 
 
 def _fetch_file(url: str, dest: Path) -> None:
-    import requests
-
-    with requests.get(url, timeout=600, stream=True) as response:
-        response.raise_for_status()
-        with dest.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=1 << 20):
-                handle.write(chunk)
+    _curl(url, dest=dest)
 
 
 def _hf_download(repo_id: str, filename: str, dest: Path) -> None:
