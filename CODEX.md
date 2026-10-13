@@ -14,6 +14,27 @@ working here as Codex.
 3. Run tests through the package venv: `./.venv/Scripts/python.exe -m pytest -q`
    from `backend/` or from `ml/`. A bare `python` has none of the dependencies.
 
+## Your daily usage ceiling: 13.5% of weekly capacity
+
+This is a hard limit, not a target. Claude Code works to 15% per day in the same
+repository, so the two ceilings together are what keeps the week solvent through
+the 2026-10-22 deadline.
+
+How to hold it:
+
+- **Estimate before you start, not while you work.** Decide what the slice costs
+  before the first file read. If it does not fit in what is left today, do the
+  part that does and leave the rest in `docs/STATE.md`.
+- **Orient from `docs/STATE.md`**, not from a tree walk, a `git log`, or reading
+  the spec end to end. That file is written to answer where things stand in 60
+  lines.
+- **Read the one task you are on**, not the whole plan.
+- **Stop at a committed boundary.** When the ceiling is close, finish the step in
+  progress, commit, push, update `docs/STATE.md`, and report what is left. Never
+  stop with work only on your machine, and never stop mid-file.
+- Scope every search. `grep -rn` from the repository root walks two `.venv`
+  trees and `data/` and will hit the command timeout.
+
 ## Division of labour
 
 Claude Code and Codex both work in this repository, on separate branches, and

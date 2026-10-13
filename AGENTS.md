@@ -29,6 +29,32 @@ is right now. Do not reconstruct that from git log or by reading the whole tree.
    guard for exactly this reason.
 7. **OWASP mindset on every input from outside.** Uploads, downloaded archives,
    and API responses are hostile until proven otherwise.
+8. **Stay inside your daily usage ceiling**, measured against weekly capacity:
+   **Claude Code 15% per day, Codex 13.5% per day.** Re-estimate before starting
+   each item rather than discovering the limit mid-slice. If a ceiling is close,
+   stop at a committed boundary, update `docs/STATE.md`, push, and say what is
+   left — never leave work uncommitted on a machine.
+
+## 1a. Two agents, one repository
+
+Claude Code and Codex both work here, in parallel, on separate slices. The split
+is by directory so that neither waits on the other:
+
+| agent | owns | meets the other at |
+|---|---|---|
+| Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the API contract in spec section 8 |
+| Codex | `frontend/`, `mobile/` — PWA, camera, Thai result cards, Capacitor | the same contract |
+
+Rules that keep this from going wrong:
+
+- **One branch per slice; never two agents on one branch.**
+- Check `docs/STATE.md` for what is already in flight before you start. If your
+  slice is taken, take the next independent one.
+- Whoever finishes a slice updates `docs/STATE.md` in the same push. That file
+  is how the other agent learns what happened without reading a diff.
+- **The API contract is a shared interface: do not change it unilaterally.** If
+  it has to change, write the change into the spec, say so in `docs/STATE.md`,
+  and flag it to the user in the same message.
 
 ## 2. What this project is
 

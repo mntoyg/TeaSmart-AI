@@ -7,7 +7,10 @@ here. Whoever finishes a slice updates this file in the same push.
 - **Demo deadline:** 2026-10-22
 - **Open branch:** `feat/d2-dataset-pipeline` — finished and reviewed, waiting
   on a human to merge
-- **Next slice:** D3, model training
+- **Next slice:** D3, model training (Claude Code)
+- **In parallel:** D6/D7 frontend (Codex) — brief in
+  `docs/handoff/2026-10-13-codex-frontend.md`
+- **Daily usage ceilings:** Claude Code 15% of weekly capacity, Codex 13.5%
 
 ## Done
 
