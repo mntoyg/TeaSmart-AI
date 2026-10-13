@@ -13,6 +13,8 @@ Phase 1 MVP, under active development for a 2026-10-22 hackathon demo.
 - Design spec: `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md`
 - Current plan: `docs/superpowers/plans/2026-10-13-d1-foundation.md`
 
+Joining the project? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Backend setup
 
 ```bash
