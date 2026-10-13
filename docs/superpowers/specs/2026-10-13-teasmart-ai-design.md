@@ -138,16 +138,28 @@ Probed 2026-10-13. Only no-authentication sources are used in Phase 1.
 | `mendeley_sjmy` | Mendeley `sjmy6k24d6` | **HTTP 451, unavailable** | — | dropped |
 | `kaggle_*` x2, `hf_ttkqwe123` | Kaggle / gated HF | needs credentials | deferred | `sources.py` keeps the entries so they can be enabled later by dropping in a token |
 
-Usable immediately: **6,752 labelled images plus bounding-box annotations.**
+Usable immediately: **11,853 labelled images plus bounding-box annotations**, which deduplicate to a corpus of **8,541**. Counted on 2026-10-13; the
+estimate here before the sources were opened was 6,752, which missed that
+`mendeley_mz598` carries 5,180 images of its own rather than annotations alone.
 
 ### Leakage control
 
-The sources overlap (several derive from the same Roboflow upload). Before
-splitting, every image is perceptual-hashed (pHash, Hamming distance of 5 or
-less treated as duplicate); duplicates are collapsed to a single record keeping
-the highest-resolution copy. Splits are then stratified 70/15/15 **after** dedup,
-so a near-duplicate can never straddle train and test. The manifest records each
-image's source and pHash so this is auditable.
+The sources overlap heavily: measured on the real corpus, 3,245 of 3,261
+duplicate groups span two sources. Before splitting, every image is
+perceptual-hashed, and a hash match within a Hamming distance of 5 of a group
+leader is treated as a **candidate**, then confirmed by a 32x32 greyscale mean
+absolute difference of at most 8.0 of 255. Confirmed duplicates collapse to a
+single record keeping the highest-resolution copy; a group spanning two classes
+is dropped rather than resolved. Splits are then stratified 70/15/15 **after**
+dedup, so a near-duplicate can never straddle train and test. The manifest
+records each image's source and pHash so this is auditable.
+
+The pixel confirmation is not belt-and-braces. The hash alone, at the same
+distance, collapsed pairs that were not the same photograph 24% of the time -
+two different leaves centred on the same background share a coarse layout and a
+64-bit hash sees little else - and judging membership transitively instead of
+against a leader chained near misses into a single group of 866 images. See
+`docs/eval/2026-10-13-dataset-summary.md` for the measurements.
 
 ## 7. Inference pipeline
 
