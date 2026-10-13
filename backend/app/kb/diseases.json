@@ -1,6 +1,7 @@
 [
   {
     "class_id": 0,
+    "canonical": "grey_blight",
     "class_name": "Tea Grey Blight",
     "disease_name_th": "โรคใบไหม้เทา",
     "pathogen": "Pestalotiopsis theae",
@@ -12,6 +13,7 @@
   },
   {
     "class_id": 1,
+    "canonical": "brown_blight",
     "class_name": "Tea Brown Blight",
     "disease_name_th": "โรคใบไหม้น้ำตาล",
     "pathogen": "Colletotrichum camelliae / Glomerella cingulata",
@@ -23,6 +25,7 @@
   },
   {
     "class_id": 2,
+    "canonical": "algal_spot",
     "class_name": "Algal Leaf Spot",
     "disease_name_th": "โรคจุดสาหร่าย / สนิมสาหร่าย",
     "pathogen": "Cephaleuros virescens",
@@ -34,6 +37,7 @@
   },
   {
     "class_id": 3,
+    "canonical": "healthy",
     "class_name": "Healthy",
     "disease_name_th": "ใบปกติ / สุขภาพดี",
     "pathogen": "None",
@@ -45,6 +49,7 @@
   },
   {
     "class_id": 4,
+    "canonical": "other_disease",
     "class_name": "Other Disease",
     "disease_name_th": "ความผิดปกติอื่น ๆ (ไม่ตรงโรคหลัก)",
     "pathogen": "ไม่ระบุ (อาจเป็น Anthracnose, Bird Eye Spot, Red Leaf Spot, Helopeltis หรือความเสียหายจากแมลงศัตรูพืช)",
@@ -56,6 +61,7 @@
   },
   {
     "class_id": 5,
+    "canonical": "physical_burn",
     "class_name": "Physical Burn / Sun Scorch",
     "disease_name_th": "รอยไหม้ทางกายภาพ (แดดเผา / สารเคมี)",
     "pathogen": "ไม่มีเชื้อก่อโรค เกิดจากสภาพแวดล้อมหรือการจัดการแปลง",

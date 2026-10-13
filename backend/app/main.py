@@ -1,6 +1,6 @@
 """FastAPI application factory for the TeaSmart AI backend."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +14,17 @@ from app.core.images import (
     ImageTooLargeError,
     UnsupportedImageError,
 )
+from app.services.expert import load_kb
+
+Handler = Callable[[Request, Exception], Awaitable[JSONResponse]]
 
 # Every rejection the upload door can make, with the status and the Thai line a
-# field worker sees. Nothing from the exception itself reaches the client, so no
-# internal path or traceback leaks through a rejected upload.
+# field worker sees. Nothing from the exception itself reaches the client, so a
+# rejected upload cannot leak an internal path or a traceback.
+#
+# ImageLoadError itself is registered last as a catch-all: Starlette resolves a
+# handler by walking the exception's MRO, so the specific entries still win, and
+# a rejection class added in a later stage answers 400 instead of 500.
 _IMAGE_ERRORS: tuple[tuple[type[ImageLoadError], int, str, str], ...] = (
     (
         UnsupportedImageError,
@@ -37,10 +44,16 @@ _IMAGE_ERRORS: tuple[tuple[type[ImageLoadError], int, str, str], ...] = (
         "corrupt image",
         "ไฟล์ภาพเสียหายหรือไม่สมบูรณ์ กรุณาถ่ายใหม่",
     ),
+    (
+        ImageLoadError,
+        400,
+        "image rejected",
+        "ไม่สามารถใช้ภาพนี้ได้ กรุณาถ่ายใหม่",
+    ),
 )
 
 
-def _image_error_handler(status: int, detail: str, detail_th: str) -> Callable:
+def _image_error_handler(status: int, detail: str, detail_th: str) -> Handler:
     async def handler(_request: Request, _exc: Exception) -> JSONResponse:
         return JSONResponse(
             status_code=status, content={"detail": detail, "detail_th": detail_th}
@@ -51,6 +64,12 @@ def _image_error_handler(status: int, detail: str, detail_th: str) -> Callable:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+
+    # Load and validate the knowledge base here, not on the first request: a
+    # malformed or missing file should stop the service from starting rather than
+    # answer 500 to a worker standing in a field.
+    load_kb(settings.kb_path)
+
     app = FastAPI(title=settings.app_name, version=settings.model_version)
 
     # Explicit allowlist only; a wildcard origin would expose the scan API.
