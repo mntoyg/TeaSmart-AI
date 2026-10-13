@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { scanImage } from '../lib/api';
-import type { ScanResponse } from '../lib/scan-contract';
+import { transportLimits, type ClientConfig } from '../lib/scan-contract';
+import type { StoredResult } from '../lib/local-result';
+import { inferOffline } from '../lib/offline';
+import { store } from '../lib/storage';
 
 type Capture = { file: File; id: string; at: string };
-export function ScanPage({ onResult, multipartField = 'image' }: {
-  onResult: (result: ScanResponse) => void | Promise<void>; multipartField?: string;
+export function ScanPage({ onResult, multipartField = 'image', config }: {
+  onResult: (result: StoredResult) => void | Promise<void>; multipartField?: string; config?: ClientConfig;
 }) {
   const [capture, setCapture] = useState<Capture>();
   const [preview, setPreview] = useState('');
@@ -38,7 +41,7 @@ export function ScanPage({ onResult, multipartField = 'image' }: {
   function choose(file?: File) {
     if (!file) return;
     setError('');
-    if (file.size > 8_388_608) { setError('ภาพมีขนาดเกิน 8 เมกะไบต์ กรุณาเลือกภาพที่เล็กลง'); return; }
+    if (file.size > transportLimits.max_upload_bytes) { setError('ภาพมีขนาดเกิน 8 เมกะไบต์ กรุณาเลือกภาพที่เล็กลง'); return; }
     stopCamera(); setCamera(false);
     setCapture({ file, id: crypto.randomUUID(), at: new Date().toISOString() });
   }
@@ -66,12 +69,15 @@ export function ScanPage({ onResult, multipartField = 'image' }: {
       else setError('ถ่ายภาพไม่ได้ กรุณาลองใหม่');
     }, 'image/jpeg', 0.9);
   }
-  async function submit() {
+  async function submit(local = !navigator.onLine) {
     if (!capture || busy) return;
     setBusy(true); setError(''); controller.current = new AbortController();
     try {
-      const result = await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+      const result = local
+        ? await inferOffline(capture.file, capture.id, capture.at, config)
+        : await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
       if (result.scan_id !== capture.id) throw new Error('ผลวิเคราะห์ไม่ตรงกับภาพ กรุณาลองใหม่');
+      if (local) await store.enqueue(capture.file, { ...result, analysis_mode: 'classifier_only' });
       if (mounted.current) await onResult(result);
     } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : 'วิเคราะห์ไม่ได้ กรุณาลองใหม่'); }
     finally { if (mounted.current) setBusy(false); }
@@ -94,8 +100,9 @@ export function ScanPage({ onResult, multipartField = 'image' }: {
             disabled={busy || opening} onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ''; }} /></label>
       </div>
       {error && <p role="alert" className="notice">{error}</p>}
-      {capture && <div className="actions"><button onClick={submit} disabled={busy}>{busy ? 'กำลังวิเคราะห์…' : 'วิเคราะห์ใบชา'}</button>
-        <button className="secondary" disabled={busy} onClick={() => { setCapture(undefined); setError(''); }}>ถ่ายใหม่</button></div>}
+      {capture && <><div className="actions"><button onClick={() => void submit()} disabled={busy}>{busy ? 'กำลังวิเคราะห์…' : 'วิเคราะห์ใบชา'}</button>
+        <button className="secondary" disabled={busy} onClick={() => { setCapture(undefined); setError(''); }}>ถ่ายใหม่</button></div>
+        <button className="secondary local-button" onClick={() => void submit(true)} disabled={busy || !config}>ประเมินบนอุปกรณ์</button></>}
       <p className="hint">ถ่ายทีละใบ หลีกเลี่ยงเงามืดและแสงสะท้อน</p>
     </section>
   </>;
