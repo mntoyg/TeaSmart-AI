@@ -8,6 +8,9 @@
   Four routes, camera/file capture, Thai result cards, IndexedDB history and KB.
   Evidence: 22 Vitest tests pass; contract check and production build pass;
   scan/history/KB browser smoke checks at desktop and 390px viewport.
+- **D6 PR:** https://github.com/mntoyg/TeaSmart-AI/pull/2 (human merge only).
+- **D7:** in progress on `feat/d7-offline`; includes D6 as a dependency.
+  ONNX preprocessing, stable softmax and client quality gate have 10 tests.
 - **Daily ceilings:** Claude Code 15%, Codex 13.5% of weekly capacity.
   Codex session baseline: 19% consumed weekly; 81% remains.
 
@@ -21,7 +24,10 @@
 
 ## Next
 
-Codex: D7 offline PWA in a separate slice. D6 uses fixtures until the server
+Codex: D7 IndexedDB queue, per-item sync, offline shell and ONNX runtime wiring.
+Client settings are generated from backend defaults. `min_confidence` and batch
+settings are not yet in the referenced backend config; no guessed defaults.
+D6 uses fixtures until the server
 scan endpoint lands. Actual camera capture on the demo phone is still unverified.
 
 Claude Code: D3 training, then D4 segmentation/lesion/severity and D5 scan API.
