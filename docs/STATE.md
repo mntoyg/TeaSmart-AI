@@ -13,8 +13,12 @@
   Preprocessing, client quality gate, durable queue and validated batch replay
   are implemented with ONNX worker and PWA shell. 47 Vitest tests, contract check
   and production build pass. D7 remains incomplete pending the actual model.
+- **D7 draft PR:** https://github.com/mntoyg/TeaSmart-AI/pull/3.
+- **Frontend evidence:** `docs/eval/2026-10-13-frontend-validation.md`.
 - **Daily ceilings:** Claude Code 15%, Codex 13.5% of weekly capacity.
   Codex session baseline: 19% consumed weekly; 81% remains.
+  Last quota check: 29% consumed weekly (about 10 percentage points added in
+  this session, below 13.5%). Figures are rounded; keep headroom for bookkeeping.
 
 ## Done
 
@@ -51,3 +55,7 @@ The model target remains `frontend/public/models/teasmart-v1-int8.onnx`.
 
 D6 live API/phone validation; D7 offline shell, model caching, ONNX inference and sync;
 D8 Capacitor; D9 demo validation. Burn is rule-based, never a trained class.
+
+The D7 implementation is pushed; model/parity/live integration remains, not
+additional mocked diagnoses. Continue once D3-D5 supply the actual model and
+endpoints. Model assets are ignored and must be copied into the D7 worktree.
