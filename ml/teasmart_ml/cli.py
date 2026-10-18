@@ -1,6 +1,7 @@
-"""Prepare the training corpus: download, normalise, deduplicate, split.
+"""Command line for the ML package.
 
     python -m teasmart_ml.cli prepare
+    python -m teasmart_ml.cli train
 
 Paths default to data/ beside the repository root rather than the process cwd,
 so the command behaves the same wherever it is run from.
@@ -10,26 +11,20 @@ import argparse
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from teasmart_ml.datasets.ingest import (
-    IngestReport,
-    ingest_parquet_source,
-    ingest_yolo_zip_source,
-)
-from teasmart_ml.datasets.manifest import build_manifest, summarise, write_manifest
-from teasmart_ml.datasets.sources import (
-    SOURCES,
-    HFParquetSource,
-    download_source,
-    enabled_sources,
-)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from teasmart_ml.datasets.ingest import IngestReport
+
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RAW = _REPO_ROOT / "data" / "raw"
 DEFAULT_INTERIM = _REPO_ROOT / "data" / "interim"
 DEFAULT_MANIFEST = _REPO_ROOT / "data" / "processed" / "manifest.csv"
+DEFAULT_ARTIFACTS = _REPO_ROOT / "data" / "artifacts"
 
 
-def _report_line(report: IngestReport) -> str:
+def _report_line(report: "IngestReport") -> str:
     return (
         f"{report.source_id:16} {report.written:6} written  "
         f"{report.skipped_corrupt:5} corrupt  "
@@ -44,7 +39,7 @@ def prepare(
     out_csv: Path,
     *,
     seed: int = 42,
-    downloader: Callable[..., tuple[Path, ...]] = download_source,
+    downloader: Callable[..., tuple[Path, ...]] | None = None,
 ) -> Mapping[str, Mapping[str, int]]:
     """Run the whole pipeline and return counts per class per split.
 
@@ -52,6 +47,28 @@ def prepare(
     clears its own output folder, so a second run reproduces the first rather
     than doubling it.
     """
+    # Imported here, not at module level. `import pyarrow` poisons a later
+    # `import onnx` on Windows - both ship a protobuf runtime and the second
+    # one in loses - so the export command must be able to run in a process
+    # that never touches the dataset pipeline. See tests/conftest.py.
+    from teasmart_ml.datasets.ingest import (
+        ingest_parquet_source,
+        ingest_yolo_zip_source,
+    )
+    from teasmart_ml.datasets.manifest import (
+        build_manifest,
+        summarise,
+        write_manifest,
+    )
+    from teasmart_ml.datasets.sources import (
+        SOURCES,
+        HFParquetSource,
+        download_source,
+        enabled_sources,
+    )
+
+    downloader = downloader or download_source
+
     for source_id in enabled_sources():
         source = SOURCES[source_id]
         paths = downloader(source_id, raw_root)
@@ -84,9 +101,45 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--interim", type=Path, default=DEFAULT_INTERIM)
     run.add_argument("--out", type=Path, default=DEFAULT_MANIFEST)
     run.add_argument("--seed", type=int, default=42)
+    fit = sub.add_parser("train", help="train the five-class classifier")
+    fit.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    fit.add_argument("--interim", type=Path, default=DEFAULT_INTERIM)
+    fit.add_argument("--out", type=Path, default=DEFAULT_ARTIFACTS)
+    fit.add_argument("--epochs", type=int, default=30)
+    fit.add_argument("--batch-size", type=int, default=32)
+    fit.add_argument("--lr", type=float, default=3e-4)
+    fit.add_argument("--patience", type=int, default=5)
+    fit.add_argument("--device", default="cuda")
+    fit.add_argument("--num-workers", type=int, default=4)
+
     args = parser.parse_args(argv)
 
-    prepare(args.raw, args.interim, args.out, seed=args.seed)
+    if args.command == "prepare":
+        prepare(args.raw, args.interim, args.out, seed=args.seed)
+        return 0
+
+    # Imported here: torch costs several seconds to load and `prepare` has no
+    # reason to pay for it.
+    from teasmart_ml.train import TrainConfig, train
+
+    result = train(
+        args.manifest,
+        args.interim,
+        args.out,
+        TrainConfig(
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            lr=args.lr,
+            patience=args.patience,
+            device=args.device,
+            num_workers=args.num_workers,
+        ),
+    )
+    print(
+        f"best epoch {result.best_epoch}  "
+        f"val_macro_f1 {result.best_macro_f1:.4f}  "
+        f"checkpoint {result.checkpoint}"
+    )
     return 0
 
 
