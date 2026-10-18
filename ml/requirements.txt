@@ -5,3 +5,8 @@ pillow==11.1.0
 numpy==2.2.1
 imagehash==4.3.1
 pytest==8.3.4
+# Install the CUDA build, not the CPU wheel. The 4 GB laptop card is the
+# reason every training choice in train.py is what it is:
+#   pip install torch==2.5.1 torchvision==0.20.1 #       --index-url https://download.pytorch.org/whl/cu124
+torch==2.5.1
+torchvision==0.20.1
