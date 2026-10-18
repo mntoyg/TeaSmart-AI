@@ -10,3 +10,11 @@ pytest==8.3.4
 #   pip install torch==2.5.1 torchvision==0.20.1 #       --index-url https://download.pytorch.org/whl/cu124
 torch==2.5.1
 torchvision==0.20.1
+
+# ONNX export for the browser. protobuf is pinned because onnx 1.17 fails to
+# initialise its extension DLL against protobuf 7, and because `import pyarrow`
+# before `import onnx` fails on Windows whatever the version - see
+# ml/tests/conftest.py.
+onnx==1.17.0
+onnxruntime==1.20.1
+protobuf==5.29.1

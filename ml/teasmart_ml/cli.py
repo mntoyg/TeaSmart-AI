@@ -93,6 +93,142 @@ def prepare(
     return summary
 
 
+def _evenly_spaced(total: int, count: int) -> list[int]:
+    """Deterministic sample indices spread across a dataset.
+
+    Spread rather than random so the parity set is the same on every machine
+    and the same before and after a re-export: a parity number measured on a
+    different 50 images is not comparable to the last one.
+    """
+    if total <= count:
+        return list(range(total))
+    step = total / count
+    return [min(total - 1, int(index * step)) for index in range(count)]
+
+
+def _evaluate_command(args) -> int:
+    from teasmart_ml.dataset import ManifestDataset
+    from teasmart_ml.evaluate import evaluate_dataset, load_checkpoint, report_markdown
+
+    model = load_checkpoint(args.checkpoint)
+    dataset = ManifestDataset(args.manifest, args.interim, split=args.split)
+    report = evaluate_dataset(
+        model,
+        dataset,
+        device=args.device,
+        num_workers=args.num_workers,
+    )
+    text = report_markdown(report, title=f"{args.split} split")
+    if args.out is not None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(text, encoding="utf-8")
+        print(f"wrote {args.out}")
+    else:
+        print(text)
+
+    print(
+        f"{args.split}: n {report.n}  accuracy {report.accuracy:.4f}  "
+        f"macro_f1 {report.macro_f1:.4f}"
+    )
+    if report.floor is not None:
+        print(
+            f"min_confidence {report.floor.floor:.2f}  "
+            f"accepted_accuracy {report.floor.accepted_accuracy:.4f}  "
+            f"downgraded {report.floor.downgraded_pct:.2f}%"
+        )
+    else:
+        print(f"no usable min_confidence: {report.floor_error}")
+    return 0
+
+
+def _export_command(args) -> int:
+    import json
+
+    import numpy as np
+    from PIL import Image
+
+    from teasmart_ml.dataset import ManifestDataset
+    from teasmart_ml.evaluate import load_checkpoint
+    from teasmart_ml.export_onnx import (
+        PARITY_PROB_BOUND,
+        export_fp32,
+        measure_parity,
+        quantize_int8,
+    )
+    from teasmart_ml.transforms import eval_array
+
+    def arrays(dataset: ManifestDataset, indices: list[int]) -> list[np.ndarray]:
+        out = []
+        for index in indices:
+            with Image.open(dataset.paths[index]) as image:
+                image.load()
+                out.append(eval_array(image))
+        return out
+
+    model = load_checkpoint(args.checkpoint)
+    val_set = ManifestDataset(args.manifest, args.interim, split="val")
+    test_set = ManifestDataset(args.manifest, args.interim, split="test")
+
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    fp32_path = args.out_dir / "teasmart-v1.onnx"
+    int8_path = args.out_dir / "teasmart-v1-int8.onnx"
+
+    export_fp32(model, fp32_path)
+    print(f"fp32 {fp32_path}  {fp32_path.stat().st_size / 1e6:.1f} MB")
+
+    parity_images = arrays(
+        test_set, _evenly_spaced(len(test_set), args.parity_images)
+    )
+    fp32_parity = measure_parity(model, fp32_path, parity_images)
+    print(
+        f"fp32 parity: n {fp32_parity.n}  top1 {fp32_parity.top1_agreement:.4f}  "
+        f"max_prob_delta {fp32_parity.max_prob_delta:.5f}"
+    )
+
+    calibration = arrays(
+        val_set, _evenly_spaced(len(val_set), args.calibration_images)
+    )
+    quantize_int8(fp32_path, int8_path, calibration)
+    print(f"int8 {int8_path}  {int8_path.stat().st_size / 1e6:.1f} MB")
+
+    int8_parity = measure_parity(model, int8_path, parity_images)
+    print(
+        f"int8 parity: n {int8_parity.n}  top1 {int8_parity.top1_agreement:.4f}  "
+        f"max_prob_delta {int8_parity.max_prob_delta:.5f}"
+    )
+
+    summary = {
+        "bound": PARITY_PROB_BOUND,
+        "parity_images": fp32_parity.n,
+        "fp32": {
+            "size_bytes": fp32_path.stat().st_size,
+            "top1_agreement": fp32_parity.top1_agreement,
+            "max_prob_delta": fp32_parity.max_prob_delta,
+            "passed": fp32_parity.passed,
+        },
+        "int8": {
+            "size_bytes": int8_path.stat().st_size,
+            "top1_agreement": int8_parity.top1_agreement,
+            "max_prob_delta": int8_parity.max_prob_delta,
+            "passed": int8_parity.passed,
+        },
+    }
+    (args.out_dir / "parity.json").write_text(
+        json.dumps(summary, indent=2), encoding="utf-8"
+    )
+
+    if not int8_parity.passed:
+        # Not a failure of the export: a measured fact about MobileNetV3 in
+        # int8. The caller decides which file to ship, and the number is on
+        # record either way.
+        print(
+            "int8 is OUTSIDE the contract bound of "
+            f"{PARITY_PROB_BOUND}. Ship the fp32 graph and say so.",
+            flush=True,
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="teasmart_ml.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -112,6 +248,23 @@ def main(argv: list[str] | None = None) -> int:
     fit.add_argument("--device", default="cuda")
     fit.add_argument("--num-workers", type=int, default=4)
 
+    report = sub.add_parser("evaluate", help="score a checkpoint and write a report")
+    report.add_argument("--checkpoint", type=Path, default=DEFAULT_ARTIFACTS / "teasmart-v1.pt")
+    report.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    report.add_argument("--interim", type=Path, default=DEFAULT_INTERIM)
+    report.add_argument("--split", default="val", choices=["train", "val", "test"])
+    report.add_argument("--out", type=Path, default=None)
+    report.add_argument("--device", default="cuda")
+    report.add_argument("--num-workers", type=int, default=4)
+
+    export = sub.add_parser("export", help="export ONNX for the browser")
+    export.add_argument("--checkpoint", type=Path, default=DEFAULT_ARTIFACTS / "teasmart-v1.pt")
+    export.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    export.add_argument("--interim", type=Path, default=DEFAULT_INTERIM)
+    export.add_argument("--out-dir", type=Path, default=_REPO_ROOT / "frontend" / "public" / "models")
+    export.add_argument("--calibration-images", type=int, default=200)
+    export.add_argument("--parity-images", type=int, default=50)
+
     args = parser.parse_args(argv)
 
     if args.command == "prepare":
@@ -120,6 +273,11 @@ def main(argv: list[str] | None = None) -> int:
 
     # Imported here: torch costs several seconds to load and `prepare` has no
     # reason to pay for it.
+    if args.command == "evaluate":
+        return _evaluate_command(args)
+    if args.command == "export":
+        return _export_command(args)
+
     from teasmart_ml.train import TrainConfig, train
 
     result = train(
@@ -135,11 +293,14 @@ def main(argv: list[str] | None = None) -> int:
             num_workers=args.num_workers,
         ),
     )
-    print(
-        f"best epoch {result.best_epoch}  "
-        f"val_macro_f1 {result.best_macro_f1:.4f}  "
-        f"checkpoint {result.checkpoint}"
-    )
+    if args.command == "train":
+        print(
+            f"best epoch {result.best_epoch}  "
+            f"val_macro_f1 {result.best_macro_f1:.4f}  "
+            f"checkpoint {result.checkpoint}"
+        )
+        return 0
+
     return 0
 
 
