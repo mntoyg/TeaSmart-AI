@@ -3,8 +3,8 @@
 **Single source of truth.** `CLAUDE.md` and `CODEX.md` point here and add only
 what is specific to their tool. If they disagree with this file, this file wins.
 
-**Read `docs/STATE.md` first.** It is 60 lines and tells you where the project
-is right now. Do not reconstruct that from git log or by reading the whole tree.
+**Read `docs/STATE.md` first.** It tells you where the project is right now.
+Do not reconstruct that from git log or by reading the whole tree.
 
 ---
 
@@ -29,9 +29,15 @@ is right now. Do not reconstruct that from git log or by reading the whole tree.
    guard for exactly this reason.
 7. **OWASP mindset on every input from outside.** Uploads, downloaded archives,
    and API responses are hostile until proven otherwise.
-8. **Stay inside your daily usage ceiling**, measured against weekly capacity:
-   **Claude Code 15% per day, Codex 13.5% per day.** Re-estimate before starting
-   each item rather than discovering the limit mid-slice. If a ceiling is close,
+8. **Every AI agent has a hard daily ceiling of 14% of its own weekly capacity.**
+   This applies equally to Claude Code, Codex, and any other AI used here. It is
+   a ceiling, not a target, and means 14 percentage points of the full weekly
+   capacity, not 14% of the remaining balance. Count all sessions using the same
+   provider/account during the local calendar day (`Asia/Bangkok`); restarting
+   a chat or using another worktree does not reset the allowance. Record the
+   available usage reading and daily baseline in `docs/STATE.md`. If daily usage
+   is unavailable, say so and use a conservative bound rather than inventing it.
+   Re-estimate before starting each item. If a ceiling is close,
    stop at a committed boundary, update `docs/STATE.md`, push, and say what is
    left — never leave work uncommitted on a machine.
 
@@ -99,6 +105,9 @@ wrong one. Do not remove it.
 | path | holds |
 |---|---|
 | `docs/STATE.md` | **read first** — current state, next step |
+| `docs/PROJECT_STRUCTURE.md` | readable project map and tracked versus local folders |
+| `docs/FRONTEND_TEAM.md` | frontend onboarding, file ownership and review workflow |
+| `frontend/` | team-facing React/PWA source; normal checkout, not a hidden worktree |
 | `docs/superpowers/specs/` | the design spec: the binding authority |
 | `docs/superpowers/plans/` | the current day's task-by-task plan |
 | `docs/superpowers/decisions/` | rulings taken during execution, and deferred items |

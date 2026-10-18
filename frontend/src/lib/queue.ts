@@ -1,0 +1,46 @@
+import { parseScan, request } from './api';
+import { transportLimits, type ScanResponse } from './scan-contract';
+import type { createStore, QueueEntry } from './storage';
+export function chunkQueue(entries: QueueEntry[]) {
+  const batches: QueueEntry[][] = [];
+  let batch: QueueEntry[] = [], bytes = 0;
+  const payloadLimit = transportLimits.max_batch_bytes - 65_536;
+  for (const entry of entries) {
+    if (!entry.image.size || entry.image.size > transportLimits.max_upload_bytes) throw new Error('ภาพในคิวมีขนาดไม่ถูกต้อง');
+    if (batch.length >= transportLimits.max_batch_items || bytes + entry.image.size > payloadLimit) {
+      batches.push(batch); batch = []; bytes = 0;
+    }
+    batch.push(entry); bytes += entry.image.size;
+  }
+  if (batch.length) batches.push(batch);
+  return batches;
+}
+export async function syncQueue(repository: ReturnType<typeof createStore>) {
+  for (const batch of chunkQueue(await repository.pending())) {
+    const form = new FormData();
+    form.append('items', JSON.stringify(batch.map((entry) => ({ scan_id: entry.scan_id,
+      captured_at: entry.result.captured_at, local_prediction: {
+        class_name: entry.result.prediction.class_name, confidence: entry.result.prediction.confidence,
+      } }))));
+    for (const entry of batch) form.append('images', entry.image, entry.scan_id);
+    const response = await request('/api/v1/sync/batch', { method: 'POST', body: form });
+    if (!response || typeof response !== 'object' || !('results' in response) || !('failed' in response)
+      || !Array.isArray(response.results) || !Array.isArray(response.failed)) throw new Error('ผลการส่งคิวไม่ครบถ้วน');
+    const results: ScanResponse[] = response.results.map(parseScan);
+    if (results.some((result) => result.analysis_mode !== 'full')) throw new Error('คิวยังไม่ได้วิเคราะห์ครบขั้นตอน');
+    const failed = response.failed.map((entry: unknown) => {
+      if (!entry || typeof entry !== 'object' || !('scan_id' in entry) || typeof entry.scan_id !== 'string'
+        || !('status' in entry) || typeof entry.status !== 'number' || !Number.isInteger(entry.status)
+        || entry.status < 400 || entry.status > 599 || !('detail_th' in entry) || typeof entry.detail_th !== 'string') {
+        throw new Error('ข้อมูลภาพที่ส่งไม่สำเร็จไม่ถูกต้อง');
+      }
+      return { scan_id: entry.scan_id, status: entry.status, detail_th: entry.detail_th };
+    });
+    const sent = new Set(batch.map((entry) => entry.scan_id));
+    const returned = [...results, ...failed].map((entry) => entry.scan_id);
+    if (returned.length !== batch.length || new Set(returned).size !== returned.length || returned.some((id) => !sent.has(id))) {
+      throw new Error('ผลการส่งคิวไม่ตรงกับภาพ กรุณาลองใหม่');
+    }
+    await repository.applyBatch(results, failed);
+  }
+}

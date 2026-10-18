@@ -6,7 +6,8 @@ model and the API in parallel. Read this file, then `AGENTS.md`, then
 
 ## Your ceiling
 
-**13.5% of weekly capacity per day.** Hard limit. Estimate the slice before the
+**14% of each AI's own weekly capacity per day**, updated 2026-10-19; `AGENTS.md`
+defines the shared rule for every AI. Hard limit. Estimate the slice before the
 first file read; if it does not fit in what is left today, build the part that
 does and write the rest into `docs/STATE.md`. Stop at a committed, pushed
 boundary — never with work only on your machine.

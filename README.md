@@ -11,7 +11,28 @@ keeps working where the mountain network does not.
 Phase 1 MVP, under active development for a 2026-10-22 hackathon demo.
 
 - Design spec: `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md`
-- Current plan: `docs/superpowers/plans/2026-10-13-d1-foundation.md`
+- Current status and next work: [docs/STATE.md](docs/STATE.md)
+- Project map: [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
+- Frontend team: [docs/FRONTEND_TEAM.md](docs/FRONTEND_TEAM.md)
+
+D1/D2 and the shared config endpoint are on `main`. The scan UI and offline
+infrastructure are available together on `codex/team-onboarding`, pending human
+review. D3-D5 model/API delivery and D7 integration validation remain open.
+
+## Frontend quick start
+
+For a fresh team clone, use the integration branch until its PR is merged:
+
+```powershell
+git clone --branch codex/team-onboarding https://github.com/mntoyg/TeaSmart-AI.git
+cd TeaSmart-AI/frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173/scan`. The source is in normal root `frontend/`.
+Read [frontend/README.md](frontend/README.md) for checks and offline limitations.
+Existing contributors should commit their own work before switching branches.
 
 Joining the project? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 Working here as an AI agent? Read [AGENTS.md](AGENTS.md), then

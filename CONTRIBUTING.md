@@ -3,6 +3,11 @@
 Phase 1 MVP, hackathon demo on **2026-10-22**. One vertical slice lands per day;
 read the spec before touching code.
 
+Frontend contributors: read [the team guide](docs/FRONTEND_TEAM.md) and
+[the project map](docs/PROJECT_STRUCTURE.md). Work in root `frontend/` on the
+integration branch until it is merged; do not develop inside historical hidden
+worktrees. Every AI contributor follows the 14% daily ceiling in `AGENTS.md`.
+
 | document | what it is |
 |---|---|
 | `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md` | the design spec — the binding authority when anything disagrees |

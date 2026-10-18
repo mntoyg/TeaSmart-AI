@@ -14,11 +14,11 @@ working here as Codex.
 3. Run tests through the package venv: `./.venv/Scripts/python.exe -m pytest -q`
    from `backend/` or from `ml/`. A bare `python` has none of the dependencies.
 
-## Your daily usage ceiling: 13.5% of weekly capacity
+## Every AI's daily usage ceiling: 14% of its own weekly capacity
 
-This is a hard limit, not a target. Claude Code works to 15% per day in the same
-repository, so the two ceilings together are what keeps the week solvent through
-the 2026-10-22 deadline.
+This is a hard limit, not a target. The same rule applies to Claude Code and any
+other AI used here. Follow the accounting rule in `AGENTS.md`, including usage
+across all sessions on the same account during the Bangkok calendar day.
 
 How to hold it:
 
@@ -38,8 +38,8 @@ How to hold it:
 ## Division of labour
 
 Claude Code and Codex both work in this repository, on separate branches, and
-the daily usage budgets are separate too (Codex is held to a tighter share than
-Claude). To avoid two agents rediscovering the same ground:
+each provider/account has the same 14% daily ceiling. To avoid two agents
+rediscovering the same ground:
 
 - **Check `docs/STATE.md` for the open branch before starting.** If a slice is
   already in flight, pick the next independent one rather than a second opinion

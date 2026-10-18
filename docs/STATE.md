@@ -3,21 +3,20 @@
 **Read this before anything else.** It says where the work is, not how it got
 here. Whoever finishes a slice updates this file in the same push.
 
-- **Last updated:** 2026-10-13
+- **Last updated:** 2026-10-19
 - **Demo deadline:** 2026-10-22
-- **Open branch:** `feat/d2-dataset-pipeline` — finished and reviewed, waiting
-  on a human to merge
+- **Open branch:** `codex/team-onboarding` — frontend consolidation and team onboarding.
 - **Next slice:** D3, model training (Claude Code)
 - **In parallel:** D6/D7 frontend (Codex) — brief in
   `docs/handoff/2026-10-13-codex-frontend.md`
-- **Daily usage ceilings:** Claude Code 15% of weekly capacity, Codex 13.5%
+- **Daily usage ceilings:** Every AI: at most 14% of its own weekly capacity per day
 
 ## Done
 
 | day | slice | evidence |
 |---|---|---|
 | D1 | Backend foundation: `/health`, `/api/v1/kb`, hardened image decoding, stage-1 quality gate | 40 tests, merged in `mntoyg/TeaSmart-AI#1` |
-| D2 | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/eval/2026-10-13-dataset-summary.md` |
+| D2 (merged PR #4) | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/eval/2026-10-13-dataset-summary.md` |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
@@ -108,3 +107,25 @@ or `idempotency_cache_size`. They land with D5, when the endpoints do.
   `docs/superpowers/decisions/2026-10-13-d2-rulings.md`.
 - **`data/interim/` needs its `.teasmart-interim` marker file** before the
   pipeline will clear anything inside it.
+## Frontend team handoff — 2026-10-19
+
+- D2 merged to main in PR #4. D3-D5 delivery is still pending: no trained model,
+  scan endpoint or sync endpoint has been delivered in the tracked source.
+- D6 UI and D7 infrastructure are consolidated into root `frontend/` on
+  `codex/team-onboarding`. PR #2 remains open and PR #3 remains draft; this
+  integration branch includes their existing commits for a single team checkout.
+- Previously measured frontend evidence: 47 Vitest tests, contract check and PWA
+  build; see `docs/eval/2026-10-13-frontend-validation.md`.
+- Team entrypoint: `frontend/README.md`; project map: `docs/PROJECT_STRUCTURE.md`.
+- D7 is incomplete until the actual model, 50-image parity check, live API/sync
+  integration and demo-phone checks pass. No fabricated diagnosis is shipped.
+- Historical `.superpowers/worktrees/d6` and `d7` checkouts remain intact.
+  Team members work in normal `frontend/` after checking out the team branch;
+  do not copy source files between worktrees.
+- Usage check at return: 11% weekly consumed; daily usage is unavailable. Use a
+  conservative allowance of at most 3 additional percentage points this run.
+- Fresh verification from root `frontend/` on 2026-10-19: 47 tests passed,
+  contract test passed (1/1), PWA build passed with 11 precache entries. The
+  existing VitePWA inlineDynamicImports deprecation warning is still present.
+- Latest usage reading this run: 13% weekly consumed, up from 11%; daily usage
+  remains unknown. Stop after the committed/pushed onboarding boundary.
