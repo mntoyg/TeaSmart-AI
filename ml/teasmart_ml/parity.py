@@ -200,7 +200,9 @@ For each case in `manifest.json`:
 
 1. build the source image from `source` (see the generators below),
 2. resize it to 224x224 with the algorithm below,
-3. compare against `expected`, a lossless PNG of what PIL produces.
+3. compare against `expected`: raw RGB bytes, row-major, channel last, so
+   `expected[(y * 224 + x) * 3 + c]`. 224*224*3 = 150,528 bytes, no decoder
+   needed on either side.
 
 Pass when **every channel is within `tolerance.max`** and the **mean absolute
 difference is within `tolerance.mean`**. Pillow uses fixed-point integer
@@ -287,9 +289,13 @@ def write_fixtures(out_dir: Path) -> Path:
     cases = []
     for case in FIXTURE_CASES:
         expected = reference_resize(generate_source(case))
-        filename = f"{case.name}.png"
-        Image.fromarray(expected, mode="RGB").save(
-            out_dir / filename, format="PNG", optimize=True
+        # Raw RGB bytes rather than a PNG. The Vitest suite has to read these,
+        # and a decoder would be a dependency added to the frontend for the
+        # sake of a test fixture. 224*224*3 is 147 KB, which is a fair price
+        # for both sides reading the file with no library at all.
+        filename = f"{case.name}.bin"
+        (out_dir / filename).write_bytes(
+            np.ascontiguousarray(expected, dtype=np.uint8).tobytes()
         )
         cases.append(
             {
