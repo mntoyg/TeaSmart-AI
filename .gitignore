@@ -10,6 +10,11 @@ __pycache__/
 # Datasets and model weights are never committed
 data/
 *.onnx
+# ...except the one graph the PWA loads. 16.8 MB, committed on purpose: a fresh
+# checkout has to be able to run the demo without a GPU and without rebuilding
+# the model. The int8 graph stays ignored - it fails the parity bound in spec
+# section 8.4 and must not be shipped by accident.
+!frontend/public/models/teasmart-v1.onnx
 *.pt
 *.pth
 

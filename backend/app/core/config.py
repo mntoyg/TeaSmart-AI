@@ -26,12 +26,20 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 8388608
     max_image_pixels: int = 40000000
 
-    # Stage 3 classifier. PROVISIONAL until D3 measures it: with five classes,
-    # chance is 0.20, and a softmax maximum below roughly 0.5 means the model is
-    # genuinely unsure. The D3 criterion is the smallest floor at which accepted
-    # predictions reach 0.90 accuracy on the validation split, reported together
-    # with the fraction it downgrades. Served to the PWA via /api/v1/config so
-    # retuning it does not leave the browser behind.
+    # Stage 3 classifier. MEASURED on 2026-10-19 against the trained model; see
+    # docs/eval/2026-10-19-d3-model.md section 4. The criterion D3 was given -
+    # the smallest floor reaching 0.90 accuracy among accepted predictions -
+    # returns 0.20 against a model already at 0.987, which would switch the
+    # other_disease safety net off entirely. The operative criterion is 0.99
+    # accuracy among accepted, which asks for 0.55 on the validation split and
+    # 0.63 on the test split. At 0.60 the test split gives 0.9895 accuracy while
+    # declining 0.72% of photographs, under one in a hundred.
+    #
+    # It does not catch every confident error: one test image is wrong at 0.983.
+    # Nothing in the UI may imply that a result above this floor is certain.
+    #
+    # Served to the PWA via /api/v1/config so retuning it does not leave the
+    # browser behind.
     min_confidence: float = 0.60
 
     # Stage 1 quality gate thresholds.

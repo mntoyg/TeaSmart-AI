@@ -57,6 +57,11 @@ def predict_probs(
 
     Softmax is applied here rather than in the model because the ONNX graph
     emits raw logits by contract (spec 8.4), and the browser applies its own.
+
+    Calling this with `num_workers > 0` from a script needs an
+    `if __name__ == "__main__"` guard. Windows starts DataLoader workers by
+    re-importing the calling file, and without the guard the re-import starts
+    more workers until the process wedges. `teasmart_ml.cli` has the guard.
     """
     loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers

@@ -45,7 +45,7 @@ network switched off*.
 | Constraint | Consequence for the design |
 |---|---|
 | RTX 3050 Laptop, 4 GB VRAM | MobileNetV3-Large at 224 px, batch 32, mixed precision. No ViT, no high-res backbone. |
-| Unstable mountain internet | On-device ONNX int8 inference is the primary path; the server is an enhancement, not a dependency. |
+| Unstable mountain internet | On-device ONNX inference is the primary path; the server is an enhancement, not a dependency. |
 | 9 days, capped daily AI usage | One vertical slice per day, each independently testable and committed. |
 | No labelled burn images exist | Burn detection is **rule-based computer vision**, never a trained class. |
 | Variable phone image quality | A quality gate runs before inference and rejects unusable frames instead of guessing. |
@@ -63,7 +63,7 @@ TeaSmart AI/
 │  │  ├─ transforms.py           train/eval augmentation
 │  │  ├─ train.py                transfer learning loop
 │  │  ├─ evaluate.py             confusion matrix, per-class P/R/F1
-│  │  └─ export_onnx.py          fp32 to int8 ONNX for the browser
+│  │  └─ export_onnx.py          ONNX for the browser, with parity measurement
 │  └─ tests/
 ├─ backend/                 FastAPI service
 │  ├─ app/
@@ -82,7 +82,7 @@ TeaSmart AI/
 │  ├─ src/features/scan/, result/, history/, kb/
 │  ├─ src/lib/onnx.ts            onnxruntime-web on-device inference
 │  ├─ src/lib/queue.ts           IndexedDB offline queue + sync
-│  └─ public/models/             teasmart-v1-int8.onnx
+│  └─ public/models/             teasmart-v1.onnx (fp32, 16.8 MB)
 ├─ mobile/                  Capacitor project (added D8)
 ├─ data/                    gitignored
 │  ├─ raw/<source-id>/           untouched downloads
@@ -455,7 +455,7 @@ second copy of each constant in TypeScript drifts the first time one is retuned.
     "dtype": "float32"
   },
   "onnx": {
-    "file": "teasmart-v1-int8.onnx",
+    "file": "teasmart-v1.onnx",
     "input": "input",
     "output": "logits",
     "output_is_logits": true
@@ -474,12 +474,16 @@ second copy of each constant in TypeScript drifts the first time one is retuned.
 rather than listed a second time, so it cannot disagree with the records the
 advice is looked up by.
 
-`min_confidence` is **0.60 provisionally**, and the value shipped today. With
-five classes chance is 0.20, and a softmax maximum below roughly 0.5 means the
-model is genuinely unsure. D3 replaces it with a measured floor: the smallest
-value at which accepted predictions reach 0.90 accuracy on the validation
-split, reported together with the fraction of predictions it downgrades to
-`other_disease`.
+`min_confidence` is **0.60, measured** on 2026-10-19 and no longer
+provisional. The criterion D3 was given - the smallest floor reaching 0.90
+accuracy among accepted predictions - returns 0.20 against a model already at
+0.987, which switches the `other_disease` safety net off. The operative
+criterion is **0.99 accuracy among accepted**, which asks for 0.55 on the
+validation split and 0.63 on the test split. At 0.60 the held-out split gives
+0.9895 accuracy and declines 0.72% of photographs.
+
+The floor does not catch every confident error: one test image is wrong at
+0.983. No UI may imply that a result above the floor is certain.
 
 ### 8.4 ONNX model contract
 
@@ -495,7 +499,7 @@ for reasons nobody can see. Both sides implement exactly this:
 
 | | |
 |---|---|
-| file | `frontend/public/models/teasmart-v1-int8.onnx` |
+| file | `frontend/public/models/teasmart-v1.onnx` — **fp32** |
 | input | `input`, `float32[1, 3, 224, 224]`, NCHW |
 | output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
 | class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
@@ -516,8 +520,15 @@ nothing else is.
 
 **Parity test**, required before D7 is called done: over a fixed set of 50
 manifest images, the browser and Python pipelines must agree on top-1 for every
-image, and no class probability may differ by more than 0.05. Int8 quantisation
-moves logits; it must not move a decision.
+image, and no class probability may differ by more than 0.05.
+
+**Int8 failed that bound and is not shipped** (2026-10-19). Statically
+calibrated int8 agreed on top-1 for all 50 images but moved a probability by
+**0.248**. Top-1 agreement alone is not the acceptance test, because the
+product thresholds on the probability: a shift that size moves predictions
+across `min_confidence` in both directions, and neither side can see the
+disagreement. The file to load is `teasmart-v1.onnx`, fp32, 16.8 MB.
+Measurements in `docs/eval/2026-10-19-d3-model.md` section 5.
 
 ## 9. Frontend and offline behaviour
 

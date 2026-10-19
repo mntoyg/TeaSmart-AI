@@ -52,11 +52,15 @@ plot is not reliable.
 
 - Service worker precaches the shell, the ONNX model and the knowledge base
   from `GET /api/v1/kb`.
-- `onnxruntime-web` runs the int8 model in the browser. Claude Code exports it
-  on D5 to `frontend/public/models/teasmart-v1-int8.onnx`. Until it lands,
-  build against a stub with the same input and output shape: input
-  `[1, 3, 224, 224]` float32 NCHW, output `[1, 5]` logits over
+- `onnxruntime-web` runs the model in the browser. **It has landed**:
+  `frontend/public/models/teasmart-v1.onnx`, fp32, 16.8 MB, input
+  `[1, 3, 224, 224]` float32 NCHW, output `[1, 5]` raw logits over
   `["grey_blight", "brown_blight", "algal_spot", "healthy", "other_disease"]`.
+  The stub can go. Read the file name from `GET /api/v1/config`, not from
+  this sentence.
+- **It is fp32, not int8.** Int8 was built and measured and it moved a
+  probability by 0.248 against a bound of 0.05, so it is not committed. If you
+  find a `-int8` file on your machine from an earlier checkout, delete it.
 - Queue the image and its local result in IndexedDB, and replay it through
   `POST /api/v1/sync/batch` when connectivity returns, which fills in the
   lesion analysis and severity the browser cannot compute.
