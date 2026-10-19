@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     excess_green_min: int = 18
     leaf_saturation_min: int = 40
     leaf_min_area_frac: float = 0.02
+    # The hull, so that damage at the leaf margin is inside the leaf. Without
+    # it a straw-coloured burn at the edge is neither green nor an enclosed
+    # hole, so it is not in the mask at all and the burn verdict is
+    # unreachable. Measured 2026-10-20; docs/EVIDENCE.md section 5.
+    leaf_use_convex_hull: bool = True
 
     # Stage 4 burn-versus-disease. The weights are expert priors, not fitted
     # values: no labelled burn photograph exists in any source, so there is
@@ -88,10 +93,22 @@ class Settings(BaseSettings):
     # 2G - R - B, so a constant cut-off that excludes healthy tissue excludes
     # the lesion too. The comparison is against the median over this leaf,
     # which is healthy tissue under this light.
-    lesion_green_fraction: float = 0.45
+    # MEASURED 2026-10-20 over the test split; docs/EVIDENCE.md section 5.
+    # The reference is a high percentile rather than the median because a
+    # heavily damaged leaf drags its own median below the lesion. The rim is
+    # excluded from the search because it is less green on every leaf and made
+    # the mask fire on 96% of HEALTHY leaves - separation went from -0.201 to
+    # +0.352 once 8 px came off.
+    lesion_green_fraction: float = 0.55
+    lesion_reference_pct: int = 75
+    lesion_search_erode_px: int = 8
     lesion_min_healthy_green: float = 15.0
     lesion_min_area_px: int = 400
-    leaf_edge_band_px: float = 18.0
+    # 35 px, not 18. The lesion search excludes an 8 px rim, so an 18 px band
+    # left only a 10 px shell for edge_affinity to count in - a marginal burn
+    # 100 px across scored 0.21 on a feature that is supposed to be its
+    # signature. 35 px is a blotch-scale neighbourhood rather than an edge test.
+    leaf_edge_band_px: float = 35.0
     burn_threshold: float = 0.60
     burn_bias: float = -0.90
     burn_weights: dict[str, float] = {

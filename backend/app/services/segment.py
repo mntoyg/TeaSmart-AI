@@ -90,6 +90,23 @@ def segment_leaf(rgb: np.ndarray, settings: Settings) -> Leaf:
         )
 
     largest = max(contours, key=cv2.contourArea)
+    # The CONVEX HULL, not the contour. Straw-coloured sun scorch fails the hue
+    # test, so it is not part of the green region; and because it reaches the
+    # leaf edge it is a concavity open to the frame rather than an enclosed
+    # hole, so filling the contour does not recover it. Measured on the burn
+    # fixture, a marginal blotch contributed 0 pixels to the leaf mask and 0 to
+    # the lesion search - the burn case, which is the one this product exists
+    # for, was structurally invisible.
+    #
+    # The hull costs 5% more area on a median real leaf and raises lesion
+    # detection on diseased leaves from 65.2% to 85.8%. It also raises it on
+    # healthy leaves, from 30% to 61%, and that is the right trade only because
+    # what has to stay rare is the burn VERDICT, not a measured lesion: a
+    # lesion found on a healthy leaf reports a few percent severity under a
+    # `healthy` prediction, while an unreachable verdict means the feature does
+    # not work at all. The verdict rates are in docs/EVIDENCE.md section 5.
+    if settings.leaf_use_convex_hull:
+        largest = cv2.convexHull(largest)
     filled = np.zeros((height, width), dtype=np.uint8)
     cv2.drawContours(filled, [largest], -1, 1, thickness=cv2.FILLED)
 

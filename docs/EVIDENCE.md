@@ -9,6 +9,7 @@ estimate; where something is unknown it says so.
 | 2 | the classifier: training, held-out scores, `min_confidence`, ONNX parity |
 | 3 | the frontend: test suites, contract check, PWA build |
 | 4 | the quality gate, recalibrated against real photographs |
+| 5 | burn versus disease: measured specificity, unmeasurable sensitivity |
 
 ---
 
@@ -655,3 +656,127 @@ cd frontend && npm run dev
 curl -s -X POST http://localhost:5173/api/v1/scan \
   -F "image=@data/interim/mendeley_mz598/brown_blight/mendeley_mz598-000001.jpg"
 ```
+
+---
+
+# 5. Burn versus disease: what can and cannot be claimed
+
+**Measured 2026-10-20 on the test split**, 1,245 images, 1,030 of them with a
+disease. Reproduce with the analyser against the manifest; the script is a
+one-off measurement and the behaviour it established is pinned by tests in
+`backend/tests/test_lesion.py`.
+
+## 5.1 The headline, and why the first version of it was misleading
+
+**Specificity on confirmed-disease images: 97.18%** — 29 of 1,030 wrongly
+called `physical_burn`, a false-burn rate of **2.82%** against the spec's target
+of below 5%.
+
+The first run of this measurement reported **99.22%**, and that number was
+worthless. The analyser was finding **no measurable lesion on 610 of 1,030
+diseased leaves (59%)**, and a non-finding returns `disease` with a likelihood
+of 0.0. The median `burn_likelihood` over disease images was exactly 0.000.
+Specificity was high because the analyser was not looking, not because it was
+discriminating — the same censoring that made "the two populations no longer
+overlap" wrong during D2.
+
+## 5.2 Two structural faults, found by measuring
+
+**The leaf rim was being read as a lesion.** The rim just inside the leaf
+outline is where green fades: antialiasing, the shadow at the leaf edge, a
+little blur. It is less green than the interior on *every* leaf, so it crossed
+any fractional cut-off. Swept over four reference percentiles and five
+fractions, **every single combination had negative separation** — the mask
+fired on healthy leaves more often than on diseased ones:
+
+| rim excluded | cut-off | lesion on disease | lesion on healthy | separation |
+|---|---|---|---|---|
+| 0 px | 0.55 | 75.9% | 96.0% | **−0.201** |
+| 0 px | 0.75 | 99.3% | 100.0% | −0.007 |
+| **8 px** | **0.55** | **65.2%** | **30.0%** | **+0.352** |
+| 14 px | 0.55 | 59.6% | 27.0% | +0.326 |
+
+**Marginal damage was outside the leaf mask entirely.** The mask was the filled
+external contour of the green region. Straw-coloured sun scorch fails the hue
+test, so it is not green; and because it reaches the leaf edge it is a concavity
+open to the frame rather than an enclosed hole, so filling the contour did not
+recover it. Measured directly on the burn fixture: the blotch contributed **0
+pixels** to the leaf mask and 0 to the lesion search.
+
+**The burn case — the one thing this product exists to detect — was
+structurally invisible.** The convex hull of the green region fixes it:
+
+| leaf mask | lesion on disease | lesion on healthy | area |
+|---|---|---|---|
+| filled contour | 65.2% | 30.0% | x1.000 |
+| **convex hull** | **85.8%** | 61.0% | x1.051 |
+
+The hull is the right trade despite the worse separation, because what has to
+stay rare is the burn **verdict**, not a measured lesion. A lesion found on a
+healthy leaf reports a few percent of severity under a `healthy` prediction; an
+unreachable verdict means the feature does not work at all.
+
+An earlier test compared the filled contour against filling only enclosed
+holes and found them identical, which was the wrong pair: both exclude a
+concavity that is open to the frame.
+
+## 5.3 After both fixes
+
+| | before | after |
+|---|---|---|
+| diseased leaves with no measurable lesion | 610 of 1,030 (59%) | **325 of 1,030 (32%)** |
+| specificity on disease images | 99.22% (censored) | **97.18%** |
+| false burn rate | 0.78% (censored) | **2.82%**, target < 5% |
+| median `burn_likelihood` on disease | 0.000 | 0.080 |
+| synthetic burns flagged | 1 of 112 (0.9%) | 8 of 145 (5.5%) |
+| untouched healthy leaves called burn | 3 of 200 | 5 of 200 |
+
+By class, false burns: `grey_blight` 4/207 (1.93%), `brown_blight` 4/177
+(2.26%), `algal_spot` 2/200 (1.00%), `other_disease` 19/446 (4.26%).
+
+## 5.4 The features do discriminate
+
+On the fixtures, with every feature in its intended direction:
+
+| | edge_sharpness | ring_score | acervuli | edge_affinity | colour_zonation | score | likelihood |
+|---|---|---|---|---|---|---|---|
+| disease | 1.00 | 1.00 | 1.00 | 0.00 | 0.83 | −6.07 | 0.002 |
+| burn | 0.04 | 0.00 | 0.00 | 0.21 | 0.34 | −0.73 | 0.325 |
+
+A gap of 5.3 score units. The features are not reading noise.
+
+## 5.5 Sensitivity is unknown, and that is the honest answer
+
+**Synthetic burns score a median likelihood of 0.254, while real disease images
+reach 0.714 at the 99th percentile. The two overlap.** Only 5.5% of synthetic
+burns clear the 0.60 threshold.
+
+Two explanations fit this data equally well:
+
+1. the features do not capture real burns, or
+2. the synthetic burns are not burn-like enough — they were painted from the
+   same feature definitions they are being tested against, which cannot
+   independently confirm anything.
+
+**Nothing in the available data distinguishes those two.** No labelled burn
+photograph exists in any of the nine sources surveyed, so there is no ground
+truth to calibrate against. **No sensitivity figure should be quoted for this
+feature, in a demo or anywhere else.**
+
+What can be said: the analyser is heavily biased toward reporting `disease`,
+and that is the safe direction. A false burn tells a farmer not to spray a leaf
+that may be infected; a missed burn tells them to spray a leaf that did not
+need it. The first is the expensive error, so `burn_threshold` stays at 0.60
+even though it means the burn verdict is rare.
+
+The threshold is deliberately above the fixture's 0.325. Lowering it to catch
+that case would pull in real disease images, whose 90th percentile is 0.430 —
+specificity would collapse. That trade is recorded rather than taken.
+
+## 5.6 What would settle it
+
+A few hundred photographs of real sun-scorched and spray-damaged tea leaves,
+labelled. Two hundred would be enough to fit the five weights properly and to
+quote a sensitivity. Until then this feature is a conservative prior with a
+measured specificity and an unmeasurable sensitivity, and the demo should say
+exactly that.
