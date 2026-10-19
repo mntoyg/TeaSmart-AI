@@ -69,7 +69,7 @@ def test_macro_f1_is_one_when_every_prediction_is_right() -> None:
 def _probs(top: list[float], n_classes: int = 5) -> np.ndarray:
     """Probability rows whose maximum is `top`, in column 0."""
     rest = [(1.0 - t) / (n_classes - 1) for t in top]
-    return np.array([[t] + [r] * (n_classes - 1) for t, r in zip(top, rest)])
+    return np.array([[t] + [r] * (n_classes - 1) for t, r in zip(top, rest, strict=False)])
 
 
 def test_confidence_floor_is_the_smallest_grid_value_reaching_the_target() -> None:

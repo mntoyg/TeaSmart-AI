@@ -1,7 +1,8 @@
 # TeaSmart AI — directives for AI agents
 
-**Single source of truth.** `CLAUDE.md` and `CODEX.md` point here and add only
-what is specific to their tool. If they disagree with this file, this file wins.
+**Single source of truth.** Codex and most other agents read this file by name.
+`CLAUDE.md` points here and adds only what is specific to Claude Code. If
+anything disagrees with this file, this file wins.
 
 **Read `docs/STATE.md` first.** It is 60 lines and tells you where the project
 is right now. Do not reconstruct that from git log or by reading the whole tree.
@@ -155,7 +156,8 @@ Records are keyed by the `canonical` snake_case class the classifier emits.
 
 **Warnings are errors.** Both suites run with `filterwarnings = error`, so a
 green run is a clean run. A third-party warning gets a targeted ignore in that
-package's `pytest.ini` — message, category and module — never a blanket one.
+package's `pyproject.toml`, under `[tool.pytest.ini_options]` — message,
+category and module — never a blanket one.
 
 **Uploads are the only door.** `backend/app/core/images.py` guarantees a
 C-contiguous uint8 RGB array, upright, metadata stripped. Every later stage

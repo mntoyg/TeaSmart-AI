@@ -122,7 +122,7 @@ def build_manifest(
         assignment = (
             ["train"] * train + ["val"] * validation + ["test"] * test
         )
-        for path, split in zip(shuffled, assignment):
+        for path, split in zip(shuffled, assignment, strict=False):
             with Image.open(path) as image:
                 width, height = image.width, image.height
             rows.append(

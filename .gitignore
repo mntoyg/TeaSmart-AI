@@ -50,3 +50,16 @@ private/*
 
 # Interrupted downloads
 *.part
+
+# Tool caches and build leftovers. These were in the working tree and showing
+# up in every `git status`, which trains people to ignore git status.
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.superpowers/
+*.tsbuildinfo
+
+# Export by-products. The fp32 graph is committed (see the rule above); the
+# int8 graph and its measurements are not, because int8 fails the parity bound
+# in docs/DESIGN.md section 8.4 and must not ship by accident.
+frontend/public/models/parity.json

@@ -68,8 +68,7 @@ def quantize_int8(
     Calibration uses images from the validation split, preprocessed exactly as
     inference will preprocess them.
     """
-    from onnxruntime.quantization import CalibrationDataReader, QuantType
-    from onnxruntime.quantization import quantize_static
+    from onnxruntime.quantization import CalibrationDataReader, QuantType, quantize_static
     from onnxruntime.quantization.shape_inference import quant_pre_process
 
     class _Reader(CalibrationDataReader):

@@ -133,7 +133,7 @@ def ingest_parquet_source(
         ):
             payloads = batch.column("image").to_pylist()
             labels = batch.column("label").to_pylist()
-            for payload, label in zip(payloads, labels):
+            for payload, label in zip(payloads, labels, strict=False):
                 index += 1
                 # HuggingFace writes -1 for "no label", and Python would index
                 # that as the LAST class, with nothing to show anything was wrong.

@@ -143,7 +143,7 @@ def test_write_fixtures_emits_a_manifest_and_lossless_images(tmp_path) -> None:
     assert manifest["generator"]["mix_2"] == HASH_MIX_2
     assert len(manifest["cases"]) == len(FIXTURE_CASES)
 
-    for entry, case in zip(manifest["cases"], FIXTURE_CASES):
+    for entry, case in zip(manifest["cases"], FIXTURE_CASES, strict=False):
         assert entry["name"] == case.name
         assert entry["source"] == {
             "width": case.width,

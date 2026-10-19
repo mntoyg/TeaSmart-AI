@@ -131,7 +131,7 @@ def report_markdown(report: EvaluationReport, *, title: str) -> str:
         "| class | precision | recall | F1 | support |",
         "|---|---|---|---|---|",
     ]
-    for canonical, row in zip(CANONICAL_CLASSES, report.per_class):
+    for canonical, row in zip(CANONICAL_CLASSES, report.per_class, strict=False):
         lines.append(
             f"| `{canonical}` | {row.precision:.4f} | {row.recall:.4f} | "
             f"{row.f1:.4f} | {row.support} |"
@@ -140,7 +140,7 @@ def report_markdown(report: EvaluationReport, *, title: str) -> str:
     lines += ["", "### Confusion matrix", "", "Rows are the true class."]
     header = " | ".join(f"`{name}`" for name in CANONICAL_CLASSES)
     lines += ["", f"| true \\ predicted | {header} |", "|---" * 6 + "|"]
-    for canonical, row in zip(CANONICAL_CLASSES, report.confusion):
+    for canonical, row in zip(CANONICAL_CLASSES, report.confusion, strict=False):
         cells = " | ".join(str(int(value)) for value in row)
         lines.append(f"| `{canonical}` | {cells} |")
 

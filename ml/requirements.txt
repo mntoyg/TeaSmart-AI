@@ -18,3 +18,9 @@ torchvision==0.20.1
 onnx==1.17.0
 onnxruntime==1.20.1
 protobuf==5.29.1
+
+# Tooling. Lives here rather than in a separate dev file because scripts/test.*
+# and CI lint BOTH packages with this interpreter - the backend venv has no
+# reason to carry a linter. Without this line a fresh checkout runs setup and
+# then fails at the first lint step with "No module named ruff".
+ruff==0.9.4

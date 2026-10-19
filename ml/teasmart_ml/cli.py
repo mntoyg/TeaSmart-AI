@@ -13,7 +13,6 @@ so the command behaves the same wherever it is run from.
 import argparse
 from collections.abc import Callable, Mapping
 from pathlib import Path
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -264,7 +263,11 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--checkpoint", type=Path, default=DEFAULT_ARTIFACTS / "teasmart-v1.pt")
     export.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     export.add_argument("--interim", type=Path, default=DEFAULT_INTERIM)
-    export.add_argument("--out-dir", type=Path, default=_REPO_ROOT / "frontend" / "public" / "models")
+    export.add_argument(
+        "--out-dir",
+        type=Path,
+        default=_REPO_ROOT / "frontend" / "public" / "models",
+    )
     export.add_argument("--calibration-images", type=int, default=200)
     export.add_argument("--parity-images", type=int, default=50)
 

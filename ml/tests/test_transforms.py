@@ -10,9 +10,9 @@ import pytest
 from PIL import Image
 
 from teasmart_ml.transforms import (
+    EVAL_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
-    EVAL_SIZE,
     eval_array,
     eval_tensor,
     train_transform,
