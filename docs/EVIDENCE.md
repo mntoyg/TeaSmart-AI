@@ -434,6 +434,15 @@ mode      injectManifest
 format:   es
 precache  11 entries (14306.59 KiB)
 files generated
+```
+
+**Superseded on 2026-10-19**, once the model existed. Measured in CI on the
+merge commit, which is the figure that ships:
+
+```text
+Scan contract matches section 8
+precache  12 entries (30736.26 KiB)
+
   dist/sw.js
 
 npm audit --omit=dev --audit-level=high
@@ -497,3 +506,16 @@ are local review artifacts, not committed private imagery.
 
 Merge D6 first. Combine `docs/STATE.md` with Claude Code's parallel state when
 merging either PR; preserve both agents' completed work and remaining tasks.
+
+## 3.1 What the first visit costs
+
+The precache is **30.7 MB over 12 entries**: 14.2 MB of onnxruntime-web WASM and
+16.8 MB of fp32 model, and the rest is noise by comparison. That is the download
+before the app works offline, on a connection chosen for being unreliable.
+
+It is a known cost, not an accident. The int8 graph would have taken the model
+from 16.8 MB to 4.7 MB and was rejected on accuracy grounds (section 2.5). fp16
+is the untested middle at roughly 8.4 MB. A local run measures 13 entries and
+35 MB only when a stale `teasmart-v1-int8.onnx` is left in
+`frontend/public/models/` - it is gitignored for this reason as well as the
+accuracy one, because anything in that folder gets precached.
