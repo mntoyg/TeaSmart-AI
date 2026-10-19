@@ -43,10 +43,28 @@ class Settings(BaseSettings):
     # browser behind.
     min_confidence: float = 0.60
 
-    # Stage 1 quality gate thresholds.
-    blur_threshold: float = 80.0
+    # Stage 1 quality gate. MEASURED on 2026-10-19 over 400 corpus images,
+    # after the 4 MP downscale, because downscaling smooths and lowers the
+    # Laplacian variance. See docs/EVIDENCE.md section 4.
+    #
+    # blur_threshold was 80, guessed from one synthetic fixture during D1. It
+    # rejected 52.8% of real photographs as blurry, and live scans of corpus
+    # leaves came back at 13.3 and 52.1. The corpus median is 75.9, p5 is 22.3
+    # and p1 is 9.8, so 80 sat near the middle of the distribution it was
+    # supposed to be the floor of.
+    #
+    # 15 rejects 2.0% of the corpus and still catches real blur: the sharpest
+    # 20 images re-measured after a 9x9 Gaussian top out at 11.6, below the
+    # threshold, while the 2nd percentile of untouched images is 15.8. A 5x5
+    # blur reaches 41.4 and does pass - mild camera shake is not rejected, and
+    # pretending otherwise would mean rejecting a third of good photographs.
+    blur_threshold: float = 15.0
     exposure_min_mean: float = 40.0
-    exposure_max_mean: float = 215.0
+    # Was 215, which rejected 6.0% of the corpus. Nothing in 400 images exceeds
+    # a mean of 232.3; a tea leaf photographed on white paper in daylight is
+    # legitimately bright. 235 rejects none of them and still catches a frame
+    # that is essentially white.
+    exposure_max_mean: float = 235.0
     clip_max_pct: float = 0.10
 
     # Stage 2 leaf segmentation. Excess green (2G - R - B) is brightness

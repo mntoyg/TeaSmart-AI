@@ -66,7 +66,11 @@ def test_a_dark_image_fails_as_underexposed_not_as_blurry():
 
 
 def test_a_blown_out_image_fails_as_overexposed():
-    result = assess_quality(scale_brightness(sharp_leaf_image(), 4.0), **thresholds())
+    # 8.0 rather than 4.0 since 2026-10-19: at 4.0 this fixture has a grey mean
+    # of 201.6, inside the band, and used to be rejected by the high-clipping
+    # check. That check now reports without deciding - see assess_quality - so
+    # the fixture has to be genuinely blown for the mean to carry it.
+    result = assess_quality(scale_brightness(sharp_leaf_image(), 8.0), **thresholds())
     assert result.passed is False
     assert result.reason == "overexposed"
     assert result.reason_th == "ภาพสว่างเกินไป กรุณาหลีกเลี่ยงแสงแดดจัดส่องตรง"
@@ -85,7 +89,7 @@ def test_a_deeply_shaded_frame_is_called_underexposed_not_overexposed():
 
 def test_clipping_is_reported_separately_for_each_end_of_the_histogram():
     shaded = assess_quality(crushed_blacks_image(), **thresholds())
-    blown = assess_quality(scale_brightness(sharp_leaf_image(), 4.0), **thresholds())
+    blown = assess_quality(scale_brightness(sharp_leaf_image(), 8.0), **thresholds())
     assert shaded.clipped_low_pct > 0.10
     assert shaded.clipped_high_pct == 0.0
     assert blown.clipped_high_pct > 0.10
