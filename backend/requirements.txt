@@ -1,6 +1,13 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic-settings==2.7.1
+# Required for multipart/form-data, which is how POST /api/v1/scan takes an
+# image. FastAPI raises at import time without it, not at request time.
+python-multipart==0.0.20
+# The server runs the same ONNX graph the browser runs, so there is no second
+# inference implementation to diverge. torch would add 2.5 GB to an API that
+# does one forward pass per request.
+onnxruntime==1.20.1
 pillow==11.1.0
 numpy==2.2.1
 opencv-python-headless==4.11.0.86

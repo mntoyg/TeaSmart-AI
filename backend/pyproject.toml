@@ -22,6 +22,18 @@ filterwarnings = [
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint.flake8-bugbear]
+# B008 flags a call in an argument default, which is exactly how FastAPI
+# declares dependencies and multipart fields. These four are the framework's
+# idiom, not a mutable-default bug, so they are exempted by name rather than
+# by switching the rule off.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Query",
+]
+
 [tool.ruff.lint]
 select = [
     "E",   # pycodestyle
