@@ -22,12 +22,12 @@ class Settings(BaseSettings):
     model_version: str = "teasmart-v1"
     cors_origins: list[str] = ["http://localhost:5173"]
 
-    # Upload hardening (see docs/superpowers/specs, section 10).
+    # Upload hardening (see docs/DESIGN.md, section 10).
     max_upload_bytes: int = 8388608
     max_image_pixels: int = 40000000
 
     # Stage 3 classifier. MEASURED on 2026-10-19 against the trained model; see
-    # docs/eval/2026-10-19-d3-model.md section 4. The criterion D3 was given -
+    # docs/EVIDENCE.md section 2.4. The criterion D3 was given -
     # the smallest floor reaching 0.90 accuracy among accepted predictions -
     # returns 0.20 against a model already at 0.987, which would switch the
     # other_disease safety net off entirely. The operative criterion is 0.99

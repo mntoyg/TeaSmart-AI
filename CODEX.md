@@ -47,7 +47,7 @@ Claude). To avoid two agents rediscovering the same ground:
 - One branch per slice, never two agents on one branch.
 - Whoever finishes a slice updates `docs/STATE.md` in the same push. That file
   is how the other agent learns what happened without reading a diff.
-- Rulings and deviations go in `docs/superpowers/decisions/`, with the reason
+- Rulings and deviations go in `docs/DESIGN.md` section 13, with the reason
   and what it costs if the call was wrong. The next agent needs the reason more
   than the decision.
 

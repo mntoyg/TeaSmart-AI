@@ -2,7 +2,7 @@
 
 The report is the evidence. Nobody on the team will re-run the training to
 check a claim three days before a demo, so the numbers that go into
-`docs/eval/` have to be produced by this module and not by hand.
+`docs/EVIDENCE.md` have to be produced by this module and not by hand.
 
 `other_disease` gets its own row for the same reason macro-F1 is the selection
 metric: it is 36% of the corpus, and a model that hides behind it would look

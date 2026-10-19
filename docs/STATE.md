@@ -10,8 +10,9 @@ here. Whoever finishes a slice updates this file in the same push.
   also edits this file and `AGENTS.md`; on the merge its version of the usage
   ceiling wins, and the D3 rows below should be kept.
 - **Next slice:** D4 lesion analyser (burn vs disease), then D5 `/api/v1/scan`
-- **In parallel:** D6/D7 frontend (Codex) — brief in
-  `docs/handoff/2026-10-13-codex-frontend.md`
+- **In parallel:** D6/D7 frontend (Codex) — ownership and the rules
+  that keep two agents out of each other's way are in `docs/DESIGN.md`
+  section 14
 - **Daily usage ceilings:** Claude Code 15% of weekly capacity, Codex 13.5%
 
 ## Done
@@ -19,8 +20,8 @@ here. Whoever finishes a slice updates this file in the same push.
 | day | slice | evidence |
 |---|---|---|
 | D1 | Backend foundation: `/health`, `/api/v1/kb`, hardened image decoding, stage-1 quality gate | 40 tests, merged in `mntoyg/TeaSmart-AI#1` |
-| D2 | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/eval/2026-10-13-dataset-summary.md` |
-| D3 (PR #6) | Classifier: training, evaluation, measured `min_confidence`, ONNX export with parity | 109 ml tests, test macro-F1 **0.9873**, `docs/eval/2026-10-19-d3-model.md` |
+| D2 | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/EVIDENCE.md` section 1 |
+| D3 (PR #6) | Classifier: training, evaluation, measured `min_confidence`, ONNX export with parity | 109 ml tests, test macro-F1 **0.9873**, `docs/EVIDENCE.md` section 2 |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
@@ -64,7 +65,7 @@ same leaf rather than a second opinion from the same source.
 | D5 | expert system wiring, `/api/v1/scan` end to end, downscale after decode |
 | D6 | frontend scan UI, camera capture, Thai result cards |
 | D7 | PWA offline, on-device ONNX, history, sync endpoint |
-| D8 | Capacitor `.apk`, polish |
+| ~~D8~~ | ~~Capacitor `.apk`~~ — **cut 2026-10-19.** PWA installed from Chrome demos the same thing; the time goes to D4. |
 | D9 | demo data, pitch script, buffer |
 
 ## Contract changes (read if you own either side)
@@ -106,7 +107,7 @@ contract changes, both from D3:
    the acceptance test because the product thresholds on the probability.
 
 Both are served from `GET /api/v1/config`, so a client that reads the endpoint
-needed no change. Evidence: `docs/eval/2026-10-19-d3-model.md`.
+needed no change. Evidence: `docs/EVIDENCE.md` section 2.
 
 Still open: `Settings` does not yet carry `max_batch_items`, `max_batch_bytes`
 or `idempotency_cache_size`. They land with D5, when the endpoints do.
@@ -145,6 +146,6 @@ or `idempotency_cache_size`. They land with D5, when the endpoints do.
   and not relative to the repository.
 - **A duplicate is defined by pixels** (32×32 greyscale MAE ≤ 8.0), not by a
   perceptual hash. The hash is an audit column. The reason this matters is in
-  `docs/superpowers/decisions/2026-10-13-d2-rulings.md`.
+  `docs/DESIGN.md` section 13.
 - **`data/interim/` needs its `.teasmart-interim` marker file** before the
   pipeline will clear anything inside it.

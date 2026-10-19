@@ -44,7 +44,7 @@ class OnnxContract(BaseModel):
 
     # fp32, not int8. Static int8 quantisation of MobileNetV3 moved a
     # probability by 0.248 against a contract bound of 0.05, measured on
-    # 2026-10-19; see docs/eval/2026-10-19-d3-model.md section 5. Top-1 still
+    # 2026-10-19; see docs/EVIDENCE.md section 2.5. Top-1 still
     # agreed on all 50 parity images, which is why top-1 agreement is not the
     # acceptance test: the product thresholds on the probability, so a shift
     # that size moves predictions across min_confidence in both directions.

@@ -43,7 +43,7 @@ is by directory so that neither waits on the other:
 | agent | owns | meets the other at |
 |---|---|---|
 | Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the API contract in spec section 8 |
-| Codex | `frontend/`, `mobile/` — PWA, camera, Thai result cards, Capacitor | the same contract |
+| Codex | `frontend/` — PWA, camera, Thai result cards | the same contract |
 
 Rules that keep this from going wrong:
 
@@ -99,10 +99,8 @@ wrong one. Do not remove it.
 | path | holds |
 |---|---|
 | `docs/STATE.md` | **read first** — current state, next step |
-| `docs/superpowers/specs/` | the design spec: the binding authority |
-| `docs/superpowers/plans/` | the current day's task-by-task plan |
-| `docs/superpowers/decisions/` | rulings taken during execution, and deferred items |
-| `docs/eval/` | measured evidence: dataset summary, model reports |
+| `docs/DESIGN.md` | design, the API contract, and the decisions behind both: **the binding authority** |
+| `docs/EVIDENCE.md` | measured evidence: corpus and model, with the commands |
 | `backend/app/core/` | config and the hardened image door |
 | `backend/app/services/` | one module per pipeline stage |
 | `backend/app/kb/diseases.json` | the Thai advice a farmer acts on |
@@ -167,7 +165,7 @@ trusts that. Changes there need a test for the input class you are worried about
 was a verification that only examined the cases the implementation had already
 chosen, and so reported success while 3.24% of the evaluation set was leaking.
 State an invariant in terms of the property, never in terms of your own
-algorithm. `docs/superpowers/decisions/2026-10-13-d2-rulings.md` has the detail.
+algorithm. `docs/DESIGN.md` section 13 has the detail.
 
 ## 6. Git
 
