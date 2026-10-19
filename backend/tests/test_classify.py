@@ -101,9 +101,18 @@ def test_server_preprocessing_matches_the_shared_fixtures() -> None:
     std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
 
     assert manifest["cases"], "fixture manifest is empty"
+    size = manifest["size"][0]
     for case in manifest["cases"]:
-        with Image.open(FIXTURES / case["expected"]) as image:
-            expected = np.asarray(image.convert("RGB"), dtype=np.float32)
+        # Raw RGB bytes, not an image file: the Vitest suite reads these too,
+        # and a PNG decoder would be a dependency added to the frontend for the
+        # sake of a test fixture.
+        raw = (FIXTURES / case["expected"]).read_bytes()
+        assert len(raw) == size * size * 3, case["name"]
+        expected = (
+            np.frombuffer(raw, dtype=np.uint8)
+            .reshape(size, size, 3)
+            .astype(np.float32)
+        )
 
         # preprocess returns the normalised NCHW tensor; undo the normalisation
         # so the comparison is against the fixture's uint8 scale.
