@@ -29,6 +29,9 @@ here. Whoever finishes a slice updates this file in the same push.
 | — (PR #6) | Repository: CI, `scripts/setup` and `scripts/test`, `pyproject.toml`, ruff clean, docs down to three files | `./scripts/test.sh` ends in `All green.` |
 | D4/D5 (PR #8) | Stages 2-5 and `POST /api/v1/scan`: segmentation, ONNX classify, lesion analyser, severity, expert advice, downscale after decode | 84 backend tests, live end to end, `docs/EVIDENCE.md` section 4 |
 | D4 fix (PR #9) | Lesion mask: rim exclusion and the convex hull. **The burn case was structurally invisible before this** | specificity 97.18%, `docs/EVIDENCE.md` section 5 |
+| D5 (PR #10) | `POST /api/v1/sync/batch` and `scan_id` idempotency on both endpoints | 102 backend tests, verified live |
+| D9 (PR #11) | Demo runbook generated from the real pipeline, six slots | `docs/DEMO.md` |
+| D7 gate (PR #13) | Browser resize matched to PIL; the 50-image parity check **passes** | 58 frontend tests, `docs/EVIDENCE.md` section 6 |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**

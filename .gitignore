@@ -70,3 +70,8 @@ frontend/public/models/parity.json
 # docs/DEMO.md records which source file went in each slot, so the set is
 # reproducible without shipping it.
 demo/
+
+# The 50-image parity sample, staged by scripts/prepare_parity.py. Corpus
+# photographs and a generated answer sheet; rebuilt in seconds, and the same
+# redistribution reasoning as demo/.
+frontend/public/parity/
