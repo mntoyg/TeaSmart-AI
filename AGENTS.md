@@ -1,7 +1,8 @@
 # TeaSmart AI — directives for AI agents
 
-**Single source of truth.** `CLAUDE.md` and `CODEX.md` point here and add only
-what is specific to their tool. If they disagree with this file, this file wins.
+**Single source of truth.** Codex and most other agents read this file by name.
+`CLAUDE.md` points here and adds only what is specific to Claude Code. If
+anything disagrees with this file, this file wins.
 
 **Read `docs/STATE.md` first.** It tells you where the project is right now.
 Do not reconstruct that from git log or by reading the whole tree.
@@ -49,7 +50,7 @@ is by directory so that neither waits on the other:
 | agent | owns | meets the other at |
 |---|---|---|
 | Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the API contract in spec section 8 |
-| Codex | `frontend/`, `mobile/` — PWA, camera, Thai result cards, Capacitor | the same contract |
+| Codex | `frontend/` — PWA, camera, Thai result cards | the same contract |
 
 Rules that keep this from going wrong:
 
@@ -105,13 +106,10 @@ wrong one. Do not remove it.
 | path | holds |
 |---|---|
 | `docs/STATE.md` | **read first** — current state, next step |
-| `docs/PROJECT_STRUCTURE.md` | readable project map and tracked versus local folders |
-| `docs/FRONTEND_TEAM.md` | frontend onboarding, file ownership and review workflow |
-| `frontend/` | team-facing React/PWA source; normal checkout, not a hidden worktree |
-| `docs/superpowers/specs/` | the design spec: the binding authority |
-| `docs/superpowers/plans/` | the current day's task-by-task plan |
-| `docs/superpowers/decisions/` | rulings taken during execution, and deferred items |
-| `docs/eval/` | measured evidence: dataset summary, model reports |
+| `docs/DESIGN.md` | design, the API contract, and the decisions behind both: **the binding authority** |
+| `docs/EVIDENCE.md` | measured evidence: corpus, model, frontend — with the commands |
+| `frontend/` | the React/PWA source; a normal checkout, not a hidden worktree |
+| `scripts/` | `setup` and `test`, for both shells. `test` runs what CI runs |
 | `backend/app/core/` | config and the hardened image door |
 | `backend/app/services/` | one module per pipeline stage |
 | `backend/app/kb/diseases.json` | the Thai advice a farmer acts on |
@@ -166,7 +164,8 @@ Records are keyed by the `canonical` snake_case class the classifier emits.
 
 **Warnings are errors.** Both suites run with `filterwarnings = error`, so a
 green run is a clean run. A third-party warning gets a targeted ignore in that
-package's `pytest.ini` — message, category and module — never a blanket one.
+package's `pyproject.toml`, under `[tool.pytest.ini_options]` — message,
+category and module — never a blanket one.
 
 **Uploads are the only door.** `backend/app/core/images.py` guarantees a
 C-contiguous uint8 RGB array, upright, metadata stripped. Every later stage
@@ -176,7 +175,7 @@ trusts that. Changes there need a test for the input class you are worried about
 was a verification that only examined the cases the implementation had already
 chosen, and so reported success while 3.24% of the evaluation set was leaking.
 State an invariant in terms of the property, never in terms of your own
-algorithm. `docs/superpowers/decisions/2026-10-13-d2-rulings.md` has the detail.
+algorithm. `docs/DESIGN.md` section 13 has the detail.
 
 ## 6. Git
 

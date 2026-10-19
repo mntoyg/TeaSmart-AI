@@ -1,0 +1,30 @@
+# Git normalises line endings on commit (.gitattributes), but that only fixes
+# what is already in a commit. This is what stops editors writing CRLF in the
+# first place, which is where the "1 file changed, 400 insertions, 400
+# deletions" diffs come from.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+[*.{ts,tsx,js,jsx,mjs,json,css,html,yml,yaml}]
+indent_size = 2
+
+[*.{ps1,sh}]
+indent_size = 4
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab

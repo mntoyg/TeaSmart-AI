@@ -1,7 +1,10 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const source = new URL('../../docs/superpowers/specs/2026-10-13-teasmart-ai-design.md', import.meta.url);
+// docs/ was collapsed to three files; the spec moved here and the section
+// numbering did not change. Kept as a path into the document rather than a
+// copy of the contract, which is the point of generating this.
+const source = new URL('../../docs/DESIGN.md', import.meta.url);
 const spec = readFileSync(source, 'utf8').split('## 8. API contract')[1]?.split('## 9.')[0];
 const example = spec?.match(/```json\s*([\s\S]*?)```/)?.[1];
 if (!example) throw new Error('Section 8 scan response sample is missing');

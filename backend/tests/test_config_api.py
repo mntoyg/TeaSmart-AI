@@ -43,3 +43,20 @@ def test_the_class_order_comes_from_the_knowledge_base_not_a_second_list(client)
     order = client.get("/api/v1/config").json()["class_order"]
     assert [kb[name] for name in order] == [0, 1, 2, 3, 4]
     assert "physical_burn" not in order
+
+
+def test_config_names_the_fp32_graph_and_promises_logits(client):
+    # Pinned because int8 failed the parity bound in spec 8.4 by moving a
+    # probability 0.248 against a limit of 0.05. Reverting this name would send
+    # the browser a graph that disagrees with the server around min_confidence,
+    # where the product makes its decisions.
+    onnx = client.get("/api/v1/config").json()["onnx"]
+    assert onnx["file"] == "teasmart-v1.onnx"
+    assert onnx["output_is_logits"] is True
+    assert onnx["output"] == "logits"
+
+
+def test_config_serves_the_measured_confidence_floor(client):
+    # Measured 2026-10-19: docs/eval/2026-10-19-d3-model.md section 4. The
+    # browser reads this rather than carrying its own copy.
+    assert client.get("/api/v1/config").json()["min_confidence"] == 0.60

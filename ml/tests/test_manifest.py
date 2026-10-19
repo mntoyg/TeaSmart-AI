@@ -1,7 +1,7 @@
-import pytest
-
 from collections import Counter
 from pathlib import Path
+
+import pytest
 
 from teasmart_ml.datasets.dedup import DUPLICATE_MAE, pixel_mae, thumbnail
 from teasmart_ml.datasets.manifest import (

@@ -1,0 +1,34 @@
+[project]
+name = "teasmart-backend"
+version = "0.1.0"
+description = "TeaSmart AI API: image intake, pipeline stages, expert system"
+requires-python = ">=3.12"
+# Runtime dependencies are pinned in requirements.txt, which is what the setup
+# scripts and CI install. They are not duplicated here: one list, one place to
+# bump a version.
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]
+filterwarnings = [
+    # A green run is also a clean run. Any warning this suite does not know
+    # about is a failure, and an exception is added narrowly - message,
+    # category and module - never as a blanket ignore.
+    "error",
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning:starlette.testclient",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "W",   # warnings
+    "I",   # import order
+    "UP",  # pyupgrade
+    "B",   # bugbear
+    "SIM", # simplify
+]

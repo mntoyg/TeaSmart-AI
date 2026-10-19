@@ -5,3 +5,22 @@ pillow==11.1.0
 numpy==2.2.1
 imagehash==4.3.1
 pytest==8.3.4
+# Install the CUDA build, not the CPU wheel. The 4 GB laptop card is the
+# reason every training choice in train.py is what it is:
+#   pip install torch==2.5.1 torchvision==0.20.1 #       --index-url https://download.pytorch.org/whl/cu124
+torch==2.5.1
+torchvision==0.20.1
+
+# ONNX export for the browser. protobuf is pinned because onnx 1.17 fails to
+# initialise its extension DLL against protobuf 7, and because `import pyarrow`
+# before `import onnx` fails on Windows whatever the version - see
+# ml/tests/conftest.py.
+onnx==1.17.0
+onnxruntime==1.20.1
+protobuf==5.29.1
+
+# Tooling. Lives here rather than in a separate dev file because scripts/test.*
+# and CI lint BOTH packages with this interpreter - the backend venv has no
+# reason to carry a linter. Without this line a fresh checkout runs setup and
+# then fails at the first lint step with "No module named ruff".
+ruff==0.9.4

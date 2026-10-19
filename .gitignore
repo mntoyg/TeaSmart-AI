@@ -10,6 +10,11 @@ __pycache__/
 # Datasets and model weights are never committed
 data/
 *.onnx
+# ...except the one graph the PWA loads. 16.8 MB, committed on purpose: a fresh
+# checkout has to be able to run the demo without a GPU and without rebuilding
+# the model. The int8 graph stays ignored - it fails the parity bound in spec
+# section 8.4 and must not be shipped by accident.
+!frontend/public/models/teasmart-v1.onnx
 *.pt
 *.pth
 
@@ -45,3 +50,16 @@ private/*
 
 # Interrupted downloads
 *.part
+
+# Tool caches and build leftovers. These were in the working tree and showing
+# up in every `git status`, which trains people to ignore git status.
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.superpowers/
+*.tsbuildinfo
+
+# Export by-products. The fp32 graph is committed (see the rule above); the
+# int8 graph and its measurements are not, because int8 fails the parity bound
+# in docs/DESIGN.md section 8.4 and must not ship by accident.
+frontend/public/models/parity.json

@@ -1,4 +1,17 @@
-# TeaSmart AI — Phase 1 MVP Design Spec
+# TeaSmart AI — design and contract
+
+**The binding authority.** When this file and any other disagree, this one
+wins. The API contract in section 8 is a shared interface between the backend
+and the PWA: neither side changes it alone. A change is written here first,
+noted in `docs/STATE.md`, and raised with the user.
+
+Three files are the whole of `docs/`:
+
+| file | what it is for |
+|---|---|
+| `docs/STATE.md` | where the work is right now. **Read it first.** |
+| `docs/DESIGN.md` | this file: scope, pipeline, contract, decisions |
+| `docs/EVIDENCE.md` | measured results, with the methods that produced them |
 
 - **Date:** 2026-10-13
 - **Deadline:** 2026-10-22 (hackathon submission) — 9 working days
@@ -31,7 +44,10 @@ network switched off*.
 - Severity estimation from lesion-to-leaf area ratio
 - Rule-based expert system returning Thai advice
 - PWA web app (camera capture, on-device ONNX inference, offline queue)
-- Android `.apk` via Capacitor wrapping the same frontend
+- ~~Android `.apk` via Capacitor~~ — **cut on 2026-10-19.** A PWA installed
+  from Chrome demonstrates the same thing on the same phone, and the time it
+  frees goes to the burn-versus-disease analyser, which is the feature the
+  product exists for. Nothing in the codebase depends on it.
 
 ### Out of scope (Phase 2+)
 
@@ -45,7 +61,7 @@ network switched off*.
 | Constraint | Consequence for the design |
 |---|---|
 | RTX 3050 Laptop, 4 GB VRAM | MobileNetV3-Large at 224 px, batch 32, mixed precision. No ViT, no high-res backbone. |
-| Unstable mountain internet | On-device ONNX int8 inference is the primary path; the server is an enhancement, not a dependency. |
+| Unstable mountain internet | On-device ONNX inference is the primary path; the server is an enhancement, not a dependency. |
 | 9 days, capped daily AI usage | One vertical slice per day, each independently testable and committed. |
 | No labelled burn images exist | Burn detection is **rule-based computer vision**, never a trained class. |
 | Variable phone image quality | A quality gate runs before inference and rejects unusable frames instead of guessing. |
@@ -63,7 +79,7 @@ TeaSmart AI/
 │  │  ├─ transforms.py           train/eval augmentation
 │  │  ├─ train.py                transfer learning loop
 │  │  ├─ evaluate.py             confusion matrix, per-class P/R/F1
-│  │  └─ export_onnx.py          fp32 to int8 ONNX for the browser
+│  │  └─ export_onnx.py          ONNX for the browser, with parity measurement
 │  └─ tests/
 ├─ backend/                 FastAPI service
 │  ├─ app/
@@ -82,15 +98,15 @@ TeaSmart AI/
 │  ├─ src/features/scan/, result/, history/, kb/
 │  ├─ src/lib/onnx.ts            onnxruntime-web on-device inference
 │  ├─ src/lib/queue.ts           IndexedDB offline queue + sync
-│  └─ public/models/             teasmart-v1-int8.onnx
-├─ mobile/                  Capacitor project (added D8)
+│  └─ public/models/             teasmart-v1.onnx (fp32, 16.8 MB)
 ├─ data/                    gitignored
 │  ├─ raw/<source-id>/           untouched downloads
 │  ├─ interim/<source-id>/       extracted
 │  └─ processed/{train,val,test}/<class>/
-└─ docs/
-   ├─ superpowers/specs/         this document
-   └─ eval/                      model evaluation reports
+└─ docs/                   three files, no subfolders
+   ├─ STATE.md                   where the work is; read first
+   ├─ DESIGN.md                  this document
+   └─ EVIDENCE.md                measured results
 ```
 
 ## 5. Canonical class taxonomy
@@ -169,7 +185,7 @@ compared in pixel terms, and the check is stated without reference to how
 candidates are generated: the earlier version only examined pairs the hash had
 proposed, which is why it reported zero while those 127 pairs existed. The
 current corpus reports 0 cross-split duplicate pairs out of 8,316 rows. See
-`docs/eval/2026-10-13-dataset-summary.md` for the numbers and the two wrong
+`docs/EVIDENCE.md` section 1 for the numbers and the two wrong
 answers that preceded them.
 
 ## 7. Inference pipeline
@@ -254,7 +270,7 @@ Weights and thresholds live in config so they can be tuned without code changes.
 `affected_pct = lesion_area / leaf_area`, mapped to mild (below 5%), moderate
 (5-20%), severe (above 20%). Bounding boxes from `mendeley_mz598` are used to
 sanity-check that the lesion mask overlaps the annotated lesions (IoU report in
-`docs/eval/`).
+`docs/EVIDENCE.md`).
 
 ### Stage 6 — Expert system (`services/expert.py`)
 
@@ -428,6 +444,51 @@ diagnosis or a second history entry.
   dedupe locally by `scan_id` as well. The server-side cache only covers the
   common case of a retry seconds later.
 
+### 8.4 ONNX model contract
+
+The browser and the server must agree on preprocessing or their answers diverge
+for reasons nobody can see. Both sides implement exactly this:
+
+1. decode to RGB `uint8`
+2. resize to **224x224, bilinear, aspect ratio not preserved**
+3. divide by 255 into `[0, 1]`
+4. normalise per channel, ImageNet statistics: mean `(0.485, 0.456, 0.406)`,
+   std `(0.229, 0.224, 0.225)`
+5. transpose to NCHW, `float32`, batch 1
+
+| | |
+|---|---|
+| file | `frontend/public/models/teasmart-v1.onnx` — **fp32** |
+| input | `input`, `float32[1, 3, 224, 224]`, NCHW |
+| output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
+| class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
+
+Softmax is applied by the caller. `low_confidence` is set when the top
+probability falls below `min_confidence`, and the result is then reported as
+`other_disease` with the flag set. **Read that floor from
+`GET /api/v1/config`; do not hard-code it.** It is provisional until D3
+measures it, and a copy in TypeScript would drift the moment it is retuned -
+silently, because neither codebase can see the other.
+
+**The browser does not segment.** Stage 2 exists only in Python, so an
+on-device run preprocesses the whole frame while the server preprocesses the
+segmented crop. The two therefore disagree on some images, which is part of why
+an on-device result is labelled `classifier_only` rather than presented as
+equivalent. The quality gate is duplicated in JavaScript because it is cheap;
+nothing else is.
+
+**Parity test**, required before D7 is called done: over a fixed set of 50
+manifest images, the browser and Python pipelines must agree on top-1 for every
+image, and no class probability may differ by more than 0.05.
+
+**Int8 failed that bound and is not shipped** (2026-10-19). Statically
+calibrated int8 agreed on top-1 for all 50 images but moved a probability by
+**0.248**. Top-1 agreement alone is not the acceptance test, because the
+product thresholds on the probability: a shift that size moves predictions
+across `min_confidence` in both directions, and neither side can see the
+disagreement. The file to load is `teasmart-v1.onnx`, fp32, 16.8 MB.
+Measurements in `docs/EVIDENCE.md` section 2.5.
+
 ### 8.5 `GET /api/v1/config`
 
 Everything the PWA needs that also exists in the backend, in one cacheable
@@ -455,7 +516,7 @@ second copy of each constant in TypeScript drifts the first time one is retuned.
     "dtype": "float32"
   },
   "onnx": {
-    "file": "teasmart-v1-int8.onnx",
+    "file": "teasmart-v1.onnx",
     "input": "input",
     "output": "logits",
     "output_is_logits": true
@@ -474,50 +535,16 @@ second copy of each constant in TypeScript drifts the first time one is retuned.
 rather than listed a second time, so it cannot disagree with the records the
 advice is looked up by.
 
-`min_confidence` is **0.60 provisionally**, and the value shipped today. With
-five classes chance is 0.20, and a softmax maximum below roughly 0.5 means the
-model is genuinely unsure. D3 replaces it with a measured floor: the smallest
-value at which accepted predictions reach 0.90 accuracy on the validation
-split, reported together with the fraction of predictions it downgrades to
-`other_disease`.
+`min_confidence` is **0.60, measured** on 2026-10-19 and no longer
+provisional. The criterion D3 was given - the smallest floor reaching 0.90
+accuracy among accepted predictions - returns 0.20 against a model already at
+0.987, which switches the `other_disease` safety net off. The operative
+criterion is **0.99 accuracy among accepted**, which asks for 0.55 on the
+validation split and 0.63 on the test split. At 0.60 the held-out split gives
+0.9895 accuracy and declines 0.72% of photographs.
 
-### 8.4 ONNX model contract
-
-The browser and the server must agree on preprocessing or their answers diverge
-for reasons nobody can see. Both sides implement exactly this:
-
-1. decode to RGB `uint8`
-2. resize to **224x224, bilinear, aspect ratio not preserved**
-3. divide by 255 into `[0, 1]`
-4. normalise per channel, ImageNet statistics: mean `(0.485, 0.456, 0.406)`,
-   std `(0.229, 0.224, 0.225)`
-5. transpose to NCHW, `float32`, batch 1
-
-| | |
-|---|---|
-| file | `frontend/public/models/teasmart-v1-int8.onnx` |
-| input | `input`, `float32[1, 3, 224, 224]`, NCHW |
-| output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
-| class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
-
-Softmax is applied by the caller. `low_confidence` is set when the top
-probability falls below `min_confidence`, and the result is then reported as
-`other_disease` with the flag set. **Read that floor from
-`GET /api/v1/config`; do not hard-code it.** It is provisional until D3
-measures it, and a copy in TypeScript would drift the moment it is retuned -
-silently, because neither codebase can see the other.
-
-**The browser does not segment.** Stage 2 exists only in Python, so an
-on-device run preprocesses the whole frame while the server preprocesses the
-segmented crop. The two therefore disagree on some images, which is part of why
-an on-device result is labelled `classifier_only` rather than presented as
-equivalent. The quality gate is duplicated in JavaScript because it is cheap;
-nothing else is.
-
-**Parity test**, required before D7 is called done: over a fixed set of 50
-manifest images, the browser and Python pipelines must agree on top-1 for every
-image, and no class probability may differ by more than 0.05. Int8 quantisation
-moves logits; it must not move a decision.
+The floor does not catch every confident error: one test image is wrong at
+0.983. No UI may imply that a result above the floor is certain.
 
 ## 9. Frontend and offline behaviour
 
@@ -565,39 +592,11 @@ one implementation, in Python.
 - **frontend:** vitest over the offline queue and the ONNX pre/post-processing,
   asserting that the browser pipeline and the Python pipeline agree on the same
   input within tolerance.
-- **model:** `docs/eval/` holds the confusion matrix, per-class precision /
+- **model:** `docs/EVIDENCE.md` holds the confusion matrix, per-class precision /
   recall / F1, and the burn-specificity figure. No accuracy claim is made in the
   README or the pitch without a committed report behind it.
 
-## 12. Nine-day plan
-
-| day | date | deliverable |
-|---|---|---|
-| D1 | 10-13 | repo scaffold, git + private GitHub, knowledge base (6 records), backend skeleton, quality gate + tests |
-| D2 | 10-14 | `sources.py` downloaders, ingest + dedup + manifest for the three live sources |
-| D3 | 10-15 | training pipeline, first trained model, evaluation report committed |
-| D4 | 10-16 | leaf segmentation, lesion analyser, severity, synthetic fixtures + tests |
-| D5 | 10-17 | expert system, `/api/v1/scan` end to end, ONNX int8 export |
-| D6 | 10-18 | frontend scan UI, camera capture, Thai result cards |
-| D7 | 10-19 | PWA offline, on-device ONNX, history, sync endpoint |
-| D8 | 10-20 | Capacitor `.apk`, polish, accessibility pass |
-| D9 | 10-21 | demo dataset, pitch script, buffer. Submit 10-22. |
-
-Each day ends with a committed, pushed, independently testable slice. If a day
-slips, the following day's scope is cut rather than the testing.
-
-## 13. Risks
-
-| risk | mitigation |
-|---|---|
-| The burn discriminator misfires on real disease photographs | Specificity is the headline metric and is measured on real data; the threshold is configurable and can be raised until specificity is acceptable. |
-| Cross-source duplicates inflate the test score | pHash dedup before splitting; the manifest makes it auditable. |
-| ONNX int8 drifts from the Python result | A parity test asserts agreement on a fixed input set within tolerance. |
-| `other_disease` becomes a dumping ground that hides real misses | The evaluation reports it as its own row with its own precision and recall. |
-| 4 GB VRAM limits the backbone | The architecture is fixed to MobileNetV3-Large up front rather than discovered by running out of memory on D3. |
-| Capacitor build problems on D8 | The PWA is already installable and demoable on a phone, so the `.apk` is an enhancement, not the demo's critical path. |
-
-## 14. Assumptions
+## 12. Assumptions
 
 1. Two knowledge-base records are added beyond the four supplied
    (`other_disease`, `physical_burn`); the four given records are used verbatim.
@@ -605,3 +604,70 @@ slips, the following day's scope is cut rather than the testing.
 3. Kaggle and gated-HuggingFace sources stay disabled until credentials are
    provided; `sources.py` is written so enabling them is a configuration change.
 4. The repository is private, matching the project default.
+
+## 13. Decisions that are easy to reverse by accident
+
+Each of these cost a measurement to establish. Reverting one looks harmless and
+is not.
+
+**A duplicate is defined by pixels, not by a perceptual hash.** 32x32 greyscale
+mean absolute error at or below 8.0, compared over every pair, with a 4x4
+block-mean lower bound to make that tractable. The hash is an audit column only.
+Using the hash to generate candidate pairs capped recall: 127 cross-split pairs
+had a pixel MAE inside the threshold and a Hamming distance between 6 and 30, so
+83 images - 3.24% of the evaluation set - had a near-twin in training. The
+verification that missed it was circular, because it only examined pairs the
+hash had already called close. `EVIDENCE.md` has the numbers.
+
+**Duplicate grouping is leader-based, not single-linkage.** Transitive closure
+chained near-misses into one group of 866 images.
+
+**Exposure is judged before blur.** A dark frame has a low Laplacian variance
+and would otherwise be reported as blurry, which tells the worker to hold the
+camera steadier when the real problem is that there is no light. Measured: the
+dark fixture scores 4.39 against a blur threshold of 80.
+
+**Clipping is measured per channel, split low and high.** A frame can sit inside
+the mean exposure band with a blown-out channel: the 4x-brightened fixture has a
+grey mean of 201.6, inside the band, and 0.322 of one channel clipped.
+
+**`other_disease` is a deliberate fifth class.** It lets the model decline to
+name a disease it was never shown, rather than confidently calling a red leaf
+spot grey blight.
+
+**The ONNX graph is fp32, not int8.** Int8 agreed on top-1 for all 50 parity
+images and moved a probability by 0.248 against a bound of 0.05. Top-1
+agreement is not the acceptance test because the product thresholds on the
+probability.
+
+**PIL is the definition of the resize.** The classifier was trained on PIL
+output, so the browser matches PIL and not the reverse. Fixtures in
+`frontend/src/test/fixtures/preprocess/`.
+
+**`data/interim/` needs its `.teasmart-interim` marker** before the pipeline
+clears anything inside it. The guard exists because the pipeline deletes.
+
+**32 photographs are labelled differently by two sources and are dropped**
+rather than adjudicated by guesswork.
+
+## 14. Who owns what
+
+Two agents work in this repository in parallel. The split is by directory so
+neither waits on the other.
+
+| agent | owns | meets the other at |
+|---|---|---|
+| Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the contract in section 8 |
+| Codex | `frontend/` — PWA, camera, Thai result cards | the same contract |
+
+- One branch per slice. Never two agents on one branch.
+- Check `docs/STATE.md` before starting; if your slice is taken, take the next
+  independent one.
+- Whoever finishes a slice updates `docs/STATE.md` in the same push.
+- Generate TypeScript types from section 8, rather than hand-writing them from
+  a summary of it.
+- **Do not hard-code a constant the backend also has.** `GET /api/v1/config`
+  serves the confidence floor, the class order, the ONNX preprocessing and the
+  quality thresholds. Fetch it once, cache it in the service worker next to the
+  knowledge base, and read from it.
+- Every string a worker sees is in Thai. Code, comments and commits in English.

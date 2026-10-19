@@ -159,7 +159,7 @@ export const configShape = {
     "dtype": "float32"
   },
   "onnx": {
-    "file": "teasmart-v1-int8.onnx",
+    "file": "teasmart-v1.onnx",
     "input": "input",
     "output": "logits",
     "output_is_logits": true

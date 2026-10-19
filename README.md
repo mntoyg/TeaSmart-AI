@@ -1,85 +1,82 @@
 # TeaSmart AI
 
-A smart-farming assistant for large-scale Oolong tea estates: photograph a tea
-leaf and the system reports the disease and its severity, tells you whether the
+A smart-farming assistant for large-scale Oolong tea estates. Photograph a tea
+leaf and the system reports the disease and its severity, says whether the
 damage is a biological disease or a physical burn, and returns actionable Thai
-treatment advice from a curated expert knowledge base. It runs on-device so it
-keeps working where the mountain network does not.
-
-## Status
+treatment advice from a curated knowledge base. It runs the model on-device, so
+it keeps working where the mountain network does not.
 
 Phase 1 MVP, under active development for a 2026-10-22 hackathon demo.
 
-- Design spec: `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md`
-- Current status and next work: [docs/STATE.md](docs/STATE.md)
-- Project map: [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
-- Frontend team: [docs/FRONTEND_TEAM.md](docs/FRONTEND_TEAM.md)
+## Quick start
 
-D1/D2 and the shared config endpoint are on `main`. The scan UI and offline
-infrastructure are available together on `codex/team-onboarding`, pending human
-review. D3-D5 model/API delivery and D7 integration validation remain open.
-
-## Frontend quick start
-
-For a fresh team clone, use the integration branch until its PR is merged:
+```bash
+./scripts/setup.sh --cpu     # Linux, macOS; drop --cpu if you have an NVIDIA card
+./scripts/test.sh
+```
 
 ```powershell
-git clone --branch codex/team-onboarding https://github.com/mntoyg/TeaSmart-AI.git
-cd TeaSmart-AI/frontend
-npm ci
-npm run dev
+./scripts/setup.ps1 -Cpu     # Windows; drop -Cpu if you have an NVIDIA card
+./scripts/test.ps1
 ```
 
-Open `http://localhost:5173/scan`. The source is in normal root `frontend/`.
-Read [frontend/README.md](frontend/README.md) for checks and offline limitations.
-Existing contributors should commit their own work before switching branches.
+Python 3.12 and Node 22. Nothing needs a `.env` to run; copy `.env.example` to
+`backend/.env` only to override a default. No secrets are required.
 
-Joining the project? Start with [CONTRIBUTING.md](CONTRIBUTING.md).
-Working here as an AI agent? Read [AGENTS.md](AGENTS.md), then
-[docs/STATE.md](docs/STATE.md).
-
-## Backend setup
+Run the frontend against it:
 
 ```bash
-cd backend
-python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements.txt    # Windows
-# source .venv/bin/activate && pip install -r requirements.txt  # Linux / macOS
+cd frontend && npm run dev     # http://localhost:5173/scan
 ```
 
-Copy `.env.example` to `backend/.env` if you need to override any default. No
-secrets are required to run the service.
+Vite forwards `/api` to `http://127.0.0.1:8000`, so both halves talk to each
+other with no CORS setup in development.
 
-## Run the service
-
-```bash
-cd backend
-.venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --reload
-```
-
-Then check it:
+Run the API:
 
 ```bash
+cd backend && .venv/bin/python -m uvicorn app.main:create_app --factory --reload
 curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/api/v1/kb
 ```
 
-## Run the tests
-
-```bash
-cd backend
-.venv/Scripts/python.exe -m pytest -v
-```
-
-The suite treats warnings as errors, so a green run is also a clean run.
+On Windows the interpreter is `.venv/Scripts/python.exe` instead.
 
 ## Layout
 
-| path | holds |
+```
+backend/        FastAPI service: image intake, pipeline stages, expert system
+  app/api/v1/     HTTP surface, one module per endpoint group
+  app/core/       config, and the single hardened door images come through
+  app/services/   one module per pipeline stage, each a pure function
+  app/kb/         the Thai disease knowledge base (data, never code)
+  tests/
+ml/             dataset pipeline, training, evaluation, ONNX export
+  teasmart_ml/    importable package; `python -m teasmart_ml.cli --help`
+  tests/
+frontend/       the PWA that runs the model on-device
+docs/           three files, no subfolders (see below)
+scripts/        setup and test, for both shells
+data/           datasets and intermediates, never committed
+private/        local-only material, never committed
+```
+
+Each Python package owns its own virtualenv and its own `pyproject.toml`. They
+are never activated: every command names the interpreter explicitly, so there is
+no "which venv am I in" failure mode.
+
+## Where to read
+
+| file | what it is |
 |---|---|
-| `backend/app/core/` | configuration and hardened image loading |
-| `backend/app/services/` | one module per pipeline stage |
-| `backend/app/kb/` | the Thai disease knowledge base (data, never code) |
-| `ml/` | dataset ingestion, training, evaluation, ONNX export |
-| `frontend/` | the PWA that runs the model on-device |
-| `data/` | datasets and intermediates, never committed |
+| [docs/STATE.md](docs/STATE.md) | where the work stands right now. **Start here.** |
+| [docs/DESIGN.md](docs/DESIGN.md) | design, the API contract, and the decisions behind both — the binding authority when anything disagrees |
+| [docs/EVIDENCE.md](docs/EVIDENCE.md) | the measured numbers, and the commands that produced them |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | how to work here: house rules, branches, commits |
+| [AGENTS.md](AGENTS.md) | the rules AI agents work under |
+
+## Current numbers
+
+Held-out test split, 1,245 images: **accuracy 0.9871, macro-F1 0.9873**. That is
+an upper bound on field accuracy rather than an estimate, for reasons set out in
+`docs/EVIDENCE.md` section 2.6. 166 Python tests and 47 frontend tests, run by
+CI on every pull request.

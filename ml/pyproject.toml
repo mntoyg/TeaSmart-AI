@@ -1,0 +1,21 @@
+[project]
+name = "teasmart-ml"
+version = "0.1.0"
+description = "TeaSmart AI dataset pipeline, training, evaluation and ONNX export"
+requires-python = ">=3.12"
+# Runtime dependencies are pinned in requirements.txt, which is what the setup
+# scripts and CI install. Note that requirements.txt pins the CUDA build of
+# torch and needs the PyTorch index; CI overrides it with the CPU wheel,
+# because every test here runs on the CPU.
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

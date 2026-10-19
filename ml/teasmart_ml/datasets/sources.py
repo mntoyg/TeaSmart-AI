@@ -167,9 +167,12 @@ def _curl(url: str, dest: Path | None) -> bytes:
     try:
         completed = subprocess.run(command, check=True, capture_output=True)
     except FileNotFoundError as exc:
-        raise SourceUnavailableError("curl is not installed; it is required for Mendeley sources") from exc
+        raise SourceUnavailableError(
+            "curl is not installed; it is required for Mendeley sources"
+        ) from exc
     except subprocess.CalledProcessError as exc:
-        raise SourceUnavailableError(f"curl failed for {url!r}: {exc.stderr.decode(errors='replace')[:200]}") from exc
+        detail = exc.stderr.decode(errors="replace")[:200]
+        raise SourceUnavailableError(f"curl failed for {url!r}: {detail}") from exc
     return completed.stdout
 
 

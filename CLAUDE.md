@@ -24,7 +24,7 @@ This project is built with the superpowers skills, in this order:
 | about to claim something works | `superpowers:verification-before-completion` |
 | a branch is finished | `superpowers:requesting-code-review`, then `finishing-a-development-branch` |
 
-Plans live in `docs/superpowers/plans/`. When executing one, read the task brief
+There is no separate plan file any more. When executing a slice, read its brief
 rather than the whole plan, and keep the ledger line in the same tool call as
 the commit — context does not survive compaction, the ledger does.
 
@@ -44,7 +44,7 @@ of its own weekly capacity in a Bangkok calendar day.
 - The two test suites have separate virtualenvs. Run them as two commands.
 - Mendeley refuses urllib3 and answers curl, so `ml` shells out to curl for
   those downloads. This is deliberate; see the ruling in
-  `docs/superpowers/decisions/`.
+  `docs/DESIGN.md` section 13, next to the decisions already recorded there.
 - Long runs (dataset preparation, training) belong in the background.
 
 ## What not to read

@@ -69,3 +69,56 @@ diagnosis until it is supplied. Shape-compatible stubs exist only in unit tests.
 Do not call D7 complete until the required 50-image browser/Python parity check
 passes, the offline scan/reconnect flow is exercised with the actual endpoints,
 and real-camera behavior is checked on the demo phone.
+
+---
+
+# Working here as a team
+
+Moved from `docs/FRONTEND_TEAM.md`, which no longer exists: `docs/` is three
+files, and guidance about this directory belongs next to it. The clone
+instructions it carried are gone because the integration branch is merged -
+branch from `main`, and set up with `./scripts/setup.ps1` or `./scripts/setup.sh`
+from the repository root.
+
+## Pick a task without colliding
+
+| task | primary files | coordinate before editing |
+|---|---|---|
+| scan/camera UX | `frontend/src/pages/ScanPage.tsx` | capture IDs, queue behavior |
+| result cards | `frontend/src/components/ResultCard.tsx` | analysis mode and supplied advice |
+| styles/accessibility | `frontend/src/styles.css`, relevant components | shared navigation/layout |
+| history/knowledge views | `frontend/src/App.tsx` | routing and app coordinator changes |
+| offline/sync | `frontend/src/lib/`, `frontend/src/sw.ts` | API/model contract and parity |
+
+Call out shared files in your PR description and keep branches short. Tests live
+beside the code they cover; shared fixtures are in `frontend/src/test/`.
+The [frontend source map](../frontend/README.md#source-map) explains each module.
+
+## Before opening a PR
+
+```bash
+cd frontend
+npm run test:contract
+npm test
+npm run build
+```
+
+Or `./scripts/test.*` from the root, which runs these plus the Python suites and
+the linter - the same steps CI runs, in the same order.
+
+Write the regression test before changing behaviour and watch it fail. UI text
+is Thai; code, comments, commits and documentation are English. Update
+`docs/STATE.md` when a slice is done, in the same push. Every AI follows the 14%
+hard daily ceiling in the root `AGENTS.md`.
+
+## Integration boundaries
+
+The contract in [section 8 of docs/DESIGN.md](../docs/DESIGN.md)
+is shared with Claude Code's backend/ML work. Do not change it alone. API types
+are generated; inference thresholds and preprocessing come from `/api/v1/config`.
+Advice comes from the curated KB and must not be rewritten casually.
+
+D6 UI and D7 infrastructure exist, but D7 is not certified complete. The real
+model, 50-image Python/browser parity, live endpoint/reconnect checks and demo
+phone validation are still required. A classifier-only result must never claim
+that burn analysis or severity was computed. The app ships no fake model.

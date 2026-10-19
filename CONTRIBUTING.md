@@ -1,7 +1,8 @@
 # Contributing to TeaSmart AI
 
-Phase 1 MVP, hackathon demo on **2026-10-22**. One vertical slice lands per day;
-read the spec before touching code.
+Phase 1 MVP, hackathon demo on **2026-10-22**. One vertical slice lands per day.
+Read `docs/STATE.md` to see where things stand, then `docs/DESIGN.md` before
+touching code.
 
 Frontend contributors: read [the team guide](docs/FRONTEND_TEAM.md) and
 [the project map](docs/PROJECT_STRUCTURE.md). Work in root `frontend/` on the
@@ -10,42 +11,54 @@ worktrees. Every AI contributor follows the 14% daily ceiling in `AGENTS.md`.
 
 | document | what it is |
 |---|---|
-| `docs/superpowers/specs/2026-10-13-teasmart-ai-design.md` | the design spec — the binding authority when anything disagrees |
-| `docs/superpowers/plans/` | the day's implementation plan, task by task |
-| `docs/superpowers/decisions/` | rulings taken during execution, and the deferred items |
 | `docs/STATE.md` | where the work stands right now — update it when you finish a slice |
-| `AGENTS.md` | the rules AI agents work under; `CLAUDE.md` and `CODEX.md` point there |
+| `docs/DESIGN.md` | design, the API contract and the decisions behind them — the binding authority when anything disagrees |
+| `docs/EVIDENCE.md` | the measured numbers, and the commands that produced them |
+| `AGENTS.md` | the rules AI agents work under |
 
 ## Get set up
 
 ```bash
-git clone https://github.com/mntoyg/TeaSmart-AI.git && cd TeaSmart-AI/backend && python -m venv .venv && .venv/Scripts/python.exe -m pip install -r requirements.txt && .venv/Scripts/python.exe -m pytest -q
+git clone https://github.com/mntoyg/TeaSmart-AI.git && cd TeaSmart-AI
+./scripts/setup.sh --cpu     # Windows: ./scripts/setup.ps1 -Cpu
+./scripts/test.sh            # Windows: ./scripts/test.ps1
 ```
 
-That last step should print `40 passed`. On Linux or macOS swap
-`.venv/Scripts/python.exe` for `.venv/bin/python` throughout.
+Drop `--cpu` if you have an NVIDIA card and intend to train. Everything in the
+test suites runs on the CPU, so the CPU wheel is enough to contribute.
 
-Python 3.12 is required. Nothing needs a `.env` to run; copy `.env.example` to
-`backend/.env` only if you want to override a default.
+`test.sh` should end with `All green.` It runs exactly what CI runs, in the same
+order, so a green run locally is a green run on the pull request. At the time of
+writing that is 46 backend tests, 120 ML tests and 47 frontend tests.
+
+Python 3.12 and Node 22 are required. Nothing needs a `.env` to run; copy
+`.env.example` to `backend/.env` only to override a default.
 
 ## Run the service
 
 ```bash
-cd backend && .venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --reload
+cd backend && .venv/bin/python -m uvicorn app.main:create_app --factory --reload
 ```
+
+On Windows the interpreter is `.venv/Scripts/python.exe`. The virtualenvs are
+never activated - naming the interpreter is one line longer and removes a whole
+class of "wrong environment" mistakes.
 
 ```bash
-curl http://127.0.0.1:8000/health && curl http://127.0.0.1:8000/api/v1/kb
+curl http://127.0.0.1:8000/health && curl http://127.0.0.1:8000/api/v1/config
 ```
 
-## Run the tests
+## The ML package
 
 ```bash
-cd backend && .venv/Scripts/python.exe -m pytest -q
+cd ml
+.venv/bin/python -m teasmart_ml.cli --help
+.venv/bin/python -m teasmart_ml.cli prepare     # rebuild the corpus
+.venv/bin/python -m teasmart_ml.cli train       # ~35 min on a 4 GB card
+.venv/bin/python -m teasmart_ml.cli evaluate --split test
+.venv/bin/python -m teasmart_ml.cli export      # ONNX for the browser
+.venv/bin/python -m teasmart_ml.cli fixtures    # browser parity fixtures
 ```
-
-Always run them from `backend/`, and always through the venv interpreter — the
-system Python has none of the dependencies.
 
 ## House rules
 
@@ -55,8 +68,13 @@ cannot fail, change a constant to make it fail, confirm it does, and change it
 back.
 
 **The suite treats warnings as errors.** A green run is also a clean run. If a
-third-party warning appears, add a targeted ignore in `backend/pytest.ini` —
-message, category and module — never a blanket one.
+third-party warning appears, add a targeted ignore in the `filterwarnings` list
+in that package's `pyproject.toml` — message, category and module — never a
+blanket one.
+
+**Lint is part of the suite, not a separate chore.** `ruff check` runs before
+the tests in `scripts/test.*` and in CI. It is currently clean; keep it that
+way rather than letting a backlog form.
 
 **Thresholds live in config, not at call sites.** Everything tunable is a field
 on `Settings` in `backend/app/core/config.py`, and `tests/test_config.py` pins
@@ -83,7 +101,9 @@ output. Changes there need a test for the input class you are worried about.
 ## Branches and commits
 
 Branch per slice, off `main`: `feat/d2-dataset-ingest`, `fix/...`, `docs/...`.
-Never commit straight to `main`.
+Never commit straight to `main`. Two agents work here in parallel and the split
+is by directory — `docs/DESIGN.md` section 14 says who owns what. One branch per
+slice; never two people on one branch.
 
 Conventional-commit subjects (`feat(kb):`, `fix:`, `docs:`), imperative mood,
 then a body explaining **why** — the diff already says what. Include the test
