@@ -5,11 +5,10 @@ here. Whoever finishes a slice updates this file in the same push.
 
 - **Last updated:** 2026-10-20 (D4/D5 on `main`; lesion calibration in PR #9)
 - **Demo deadline:** 2026-10-22 — three days
-- **Open branch:** `fix/d4-lesion-calibration` — PR #9, the lesion mask fixes.
-  PR #5, #6, #7 and #8 are merged, so `main` has the model, the frontend, the
-  repository tooling and the full scan pipeline.
-- **Next slice:** `POST /api/v1/sync/batch` and the three batch settings, then
-  demo data and the pitch. **The daily end-to-end check passes**: five real
+- **Open branch:** `feat/d5-sync-batch` — PR #10, the batch endpoint and
+  idempotency. PR #5 through #9 are merged.
+- **Next slice:** demo data and the pitch script. The API is complete: every
+  endpoint in section 8 exists and is verified live. **The daily end-to-end check passes**: five real
   corpus leaves scan through the Vite proxy with correct predictions, 0
   rejected. Command in `docs/EVIDENCE.md` section 4.6.
 - **Ownership:** by directory, in `docs/DESIGN.md` section 14. Claude Code has
@@ -114,8 +113,14 @@ contract changes, both from D3:
 Both are served from `GET /api/v1/config`, so a client that reads the endpoint
 needed no change. Evidence: `docs/EVIDENCE.md` section 2.
 
-Still open: `Settings` does not yet carry `max_batch_items`, `max_batch_bytes`
-or `idempotency_cache_size`. They land with D5, when the endpoints do.
+**2026-10-20 — the contract is fully implemented.** `max_batch_items` 20,
+`max_batch_bytes` 33554432 and `idempotency_cache_size` 512 are in `Settings`,
+`POST /api/v1/sync/batch` exists, and `scan_id` idempotency covers both
+endpoints with `replayed` on the result. Nothing in section 8 is unimplemented.
+
+`replayed` is always sent and is deliberately absent from the section 8.1
+example: that example becomes `scanShape` in the generated client, and a key
+there is one the client requires.
 
 ## Open decisions for the user
 

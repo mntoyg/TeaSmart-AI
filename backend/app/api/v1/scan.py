@@ -34,6 +34,7 @@ from app.core.config import Settings, get_settings
 from app.core.images import ImageTooLargeError, decode_image
 from app.services.classify import Runner, classify, load_session
 from app.services.expert import get_advice, load_kb
+from app.services.idempotency import ResultCache
 from app.services.lesion import analyse_lesion
 from app.services.quality import assess_quality
 from app.services.segment import segment_leaf
@@ -111,6 +112,52 @@ class ScanResult(BaseModel):
     analysis_mode: str
     model_version: str
     processing_ms: int
+    # True when this result came from the idempotency cache rather than from a
+    # fresh analysis. Always present, as a boolean.
+    #
+    # It is NOT in the section 8.1 example on purpose: the example is what
+    # frontend/scripts/generate-contract.mjs turns into `scanShape`, and a key
+    # there becomes one the client REQUIRES. The client's own type already has
+    # it as optional, and an extra key is allowed, so sending it always is the
+    # safe side of that asymmetry.
+    replayed: bool = False
+
+
+class QualityRejected(Exception):
+    """Stage 1 refused the frame.
+
+    An exception rather than a return value because `POST /api/v1/scan` turns
+    it into a 422 for the whole request while `POST /api/v1/sync/batch` turns
+    it into one entry in `failed` and carries on with the rest of the queue.
+    The two need the same information and different handling.
+    """
+
+    def __init__(self, detail: str, detail_th: str, quality: QualityOut) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.detail_th = detail_th
+        self.quality = quality
+
+    def body(self) -> dict:
+        return {
+            "detail": self.detail,
+            "detail_th": self.detail_th,
+            "quality": self.quality.model_dump(),
+        }
+
+
+@lru_cache(maxsize=1)
+def _result_cache(size: int) -> ResultCache:
+    return ResultCache(max_entries=size)
+
+
+def get_result_cache(settings: Settings = Depends(get_settings)) -> ResultCache:
+    """One cache per process, sized from Settings.
+
+    A dependency so a test can replace it, and so its size is configuration
+    rather than a constant in the module.
+    """
+    return _result_cache(settings.idempotency_cache_size)
 
 
 @lru_cache(maxsize=1)
@@ -156,17 +203,23 @@ async def _read_capped(upload: UploadFile, settings: Settings) -> bytes:
     return payload
 
 
-@router.post("/scan", response_model=ScanResult)
-async def scan(
-    image: UploadFile = File(...),
-    scan_id: str | None = Form(default=None),
-    captured_at: str | None = Form(default=None),
-    settings: Settings = Depends(get_settings),
-    runner: Runner = Depends(get_runner),
-) -> ScanResult | JSONResponse:
+def analyse(
+    payload: bytes,
+    *,
+    scan_id: str | None,
+    captured_at: str | None,
+    settings: Settings,
+    runner: Runner,
+) -> ScanResult:
+    """The whole pipeline over one image. Shared by scan and sync/batch.
+
+    Raises `QualityRejected` when stage 1 refuses the frame, and the image
+    errors from `app.core.images` when the bytes are not a usable image. Both
+    callers need the same stages in the same order; only the error handling
+    differs.
+    """
     started = time.perf_counter()
 
-    payload = await _read_capped(image, settings)
     decoded = decode_image(
         payload,
         max_bytes=settings.max_upload_bytes,
@@ -181,44 +234,30 @@ async def scan(
         exposure_max_mean=settings.exposure_max_mean,
         clip_max_pct=settings.clip_max_pct,
     )
+    quality_out = QualityOut(
+        passed=quality.passed,
+        blur_score=quality.blur_score,
+        exposure_mean=quality.exposure_mean,
+        clipped_low_pct=quality.clipped_low_pct,
+        clipped_high_pct=quality.clipped_high_pct,
+    )
     if not quality.passed:
         # Not an error page. The Thai message says what to change, and the UI
         # offers an immediate retake.
-        return JSONResponse(
-            status_code=422,
-            content={
-                "detail": quality.reason,
-                "detail_th": quality.reason_th,
-                "quality": QualityOut(
-                    passed=quality.passed,
-                    blur_score=quality.blur_score,
-                    exposure_mean=quality.exposure_mean,
-                    clipped_low_pct=quality.clipped_low_pct,
-                    clipped_high_pct=quality.clipped_high_pct,
-                ).model_dump(),
-            },
-        )
+        raise QualityRejected(quality.reason, quality.reason_th, quality_out)
 
     leaf = segment_leaf(rgb, settings)
     prediction = classify(leaf.crop, runner, settings)
     lesion = analyse_lesion(rgb, leaf, settings)
     severity = assess_severity(lesion.lesion_area_px, lesion.leaf_area_px, settings)
 
-    resolved = (
-        BURN_CLASS if lesion.verdict == BURN_CLASS else prediction.class_name
-    )
+    resolved = BURN_CLASS if lesion.verdict == BURN_CLASS else prediction.class_name
     advice = get_advice(resolved, load_kb(settings.kb_path))
 
     return ScanResult(
         scan_id=scan_id or str(uuid.uuid4()),
         captured_at=captured_at,
-        quality=QualityOut(
-            passed=quality.passed,
-            blur_score=quality.blur_score,
-            exposure_mean=quality.exposure_mean,
-            clipped_low_pct=quality.clipped_low_pct,
-            clipped_high_pct=quality.clipped_high_pct,
-        ),
+        quality=quality_out,
         prediction=PredictionOut(
             class_id=prediction.class_id,
             class_name=prediction.class_name,
@@ -249,3 +288,36 @@ async def scan(
         model_version=settings.model_version,
         processing_ms=int((time.perf_counter() - started) * 1000),
     )
+
+
+@router.post("/scan", response_model=ScanResult)
+async def scan(
+    image: UploadFile = File(...),
+    scan_id: str | None = Form(default=None),
+    captured_at: str | None = Form(default=None),
+    settings: Settings = Depends(get_settings),
+    runner: Runner = Depends(get_runner),
+    cache: ResultCache = Depends(get_result_cache),
+) -> ScanResult | JSONResponse:
+    # Checked before the upload is read: a retry seconds after a dropped
+    # connection should not decode and classify the image a second time, and
+    # must not produce a second diagnosis for one photograph.
+    if scan_id:
+        stored = cache.get(scan_id)
+        if stored is not None:
+            return ScanResult(**{**stored, "replayed": True})
+
+    payload = await _read_capped(image, settings)
+    try:
+        result = analyse(
+            payload,
+            scan_id=scan_id,
+            captured_at=captured_at,
+            settings=settings,
+            runner=runner,
+        )
+    except QualityRejected as rejection:
+        return JSONResponse(status_code=422, content=rejection.body())
+
+    cache.put(result.scan_id, result.model_dump())
+    return result
