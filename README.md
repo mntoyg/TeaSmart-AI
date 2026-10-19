@@ -71,6 +71,7 @@ no "which venv am I in" failure mode.
 | [docs/STATE.md](docs/STATE.md) | where the work stands right now. **Start here.** |
 | [docs/DESIGN.md](docs/DESIGN.md) | design, the API contract, and the decisions behind both — the binding authority when anything disagrees |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | the measured numbers, and the commands that produced them |
+| [docs/DEMO.md](docs/DEMO.md) | the demo runbook: running order, the measured outcome of every image, and the limits to state out loud |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | how to work here: house rules, branches, commits |
 | [AGENTS.md](AGENTS.md) | the rules AI agents work under |
 

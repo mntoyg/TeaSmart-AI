@@ -60,6 +60,10 @@ jobs:
       - name: Lint
         working-directory: ml
         run: ruff check teasmart_ml tests
+      - name: Lint scripts
+        # scripts/ belongs to no package, so neither pyproject lints it. Done
+        # in this job because it is the one with ruff and a checkout of both.
+        run: ruff check scripts --line-length 100
       - name: Test
         working-directory: ml
         # No -n auto: the parity fixtures resize a 3120x4160 image and the

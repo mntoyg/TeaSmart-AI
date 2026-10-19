@@ -42,6 +42,9 @@ step() {
 # four-minute suite.
 step 'lint backend' bash -c "cd '$root/backend' && '$ml' -m ruff check app tests"
 step 'lint ml' bash -c "cd '$root/ml' && '$ml' -m ruff check teasmart_ml tests"
+# scripts/ belongs to no package, so neither pyproject lints it. Checked here
+# with the ML interpreter and the same line length.
+step 'lint scripts' bash -c "'$ml' -m ruff check '$root/scripts' --line-length 100"
 step 'test backend' bash -c "cd '$root/backend' && '$backend' -m pytest -q"
 step 'test ml' bash -c "cd '$root/ml' && '$ml' -m pytest -q"
 

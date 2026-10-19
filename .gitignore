@@ -63,3 +63,10 @@ private/*
 # int8 graph and its measurements are not, because int8 fails the parity bound
 # in docs/DESIGN.md section 8.4 and must not ship by accident.
 frontend/public/models/parity.json
+
+# The demo set, rebuilt by scripts/prepare_demo.py. Not committed: the images
+# come from public research datasets whose redistribution terms differ, and
+# this repository has no business holding photographs it did not create.
+# docs/DEMO.md records which source file went in each slot, so the set is
+# reproducible without shipping it.
+demo/
