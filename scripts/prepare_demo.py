@@ -115,6 +115,104 @@ SLOTS: tuple[Slot, ...] = (
     ),
 )
 
+_PHONE_SECTION = """
+## Testing on a real phone
+
+Everything below that could be checked from the development machine has been,
+and the measurements are quoted. Pressing the buttons on the handset is the
+part nobody else can do.
+
+### 1. Make the app reachable
+
+Vite binds to `127.0.0.1` by default, so a phone cannot reach it at all —
+measured, the listener was `TCP 127.0.0.1:5173` and nothing else. Start it with
+the host flag instead:
+
+```bash
+cd frontend && npm run dev -- --host
+```
+
+The listener becomes `0.0.0.0:5173`, and the phone uses this machine's LAN
+address. The backend does **not** need the flag: the phone talks to Vite, and
+Vite proxies `/api` to `127.0.0.1:8000` on the development machine.
+
+Verified over the LAN address from this machine:
+
+```text
+GET  /                 200
+GET  /api/v1/config    200    blur 15.0, min_confidence 0.60
+POST /api/v1/scan      200    brown_blight 0.96, severe 28.2%, 100 ms
+```
+
+If the phone cannot load the page while the machine can, it is almost always
+Windows Firewall blocking inbound 5173 on the private network. Allow Node for
+private networks, or add a rule for the port.
+
+### 2. Expect the camera and offline to be missing over plain HTTP
+
+Measured in a browser at `http://<lan-ip>:5173`:
+
+```json
+{ "isSecureContext": false, "hasServiceWorker": false, "hasMediaDevices": false }
+```
+
+Those APIs are not merely blocked, they are **absent**. Over plain HTTP from a
+LAN address a phone therefore gets the file picker and online scanning, and
+none of: camera capture, the service worker, offline inference, or install to
+the home screen. That is a browser rule about secure contexts, not a fault in
+this app — `localhost` is exempt, which is why it all works on the development
+machine.
+
+So a phone test over `http://<lan-ip>` can only confirm the layout, the file
+picker and an online scan. **It cannot confirm the offline story, which is the
+part the demo is judged on.**
+
+Two ways to get a secure context, both of which need a decision:
+
+**Chrome flag, local and free.** On the phone open
+`chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add
+`http://<lan-ip>:5173`, set the flag to Enabled and relaunch Chrome. The origin
+is then treated as secure: camera, service worker, offline and install all
+work. Nothing leaves the network. Undo it after the demo.
+
+**A tunnel, if the demo is not on the same network.** `cloudflared` or `ngrok`
+gives a real HTTPS URL that any phone can open. It also sends every photograph
+and every result through a third party, so it is a decision for the owner of
+the data, not a default.
+
+### 3. What to check once the context is secure
+
+In this order, because each step depends on the one before:
+
+1. **Layout.** Already checked at 375x812 with no sideways scrolling, but a
+   real handset has a notch, a system font scale and a software keyboard.
+2. **Camera.** `เปิดกล้อง`, allow the permission, photograph a leaf. The rear
+   camera should open (`facingMode: environment`).
+3. **An online scan.** The result card should name the disease in Thai, state
+   the severity, and say `full` analysis.
+4. **Install.** Chrome's menu offers Add to home screen once the service worker
+   is registered. Open the installed app, not the tab.
+5. **Prepare offline.** Press `เตรียมใช้งานออฟไลน์` and wait. This downloads
+   **30.7 MB** — 14.2 MB of WASM and the 16.8 MB model — so do it on wifi,
+   before the demo, not on stage.
+6. **Offline.** Put the phone in aeroplane mode and scan. The result must be
+   labelled `classifier_only`: the browser does not segment, so there is no
+   lesion analysis and no severity, and the card has to say so.
+7. **Reconnect.** Turn the network back on. The queue replays through
+   `POST /api/v1/sync/batch` and the results are filled in. Scanning the same
+   photograph twice must not produce two history entries — the server returns
+   the stored result with `replayed: true`.
+
+### 4. Known gap before step 6 means anything
+
+The browser's resize does not match Python's yet, so an on-device result can
+differ from a server result for reasons that have nothing to do with the model.
+The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
+parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
+passes, treat an offline result as a demonstration of the plumbing rather than
+of the model.
+"""
+
 _SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
 
 
@@ -330,6 +428,7 @@ def main() -> int:
             "",
         ]
 
+    lines += _PHONE_SECTION.splitlines()
     lines += [
         "## The numbers to quote",
         "",
