@@ -3,13 +3,15 @@
 **Read this before anything else.** It says where the work is, not how it got
 here. Whoever finishes a slice updates this file in the same push.
 
-- **Last updated:** 2026-10-19 (D3 and the frontend both on `main`)
+- **Last updated:** 2026-10-20 (D4/D5 on `main`; lesion calibration in PR #9)
 - **Demo deadline:** 2026-10-22 — three days
-- **Open branch:** none. PR #5 (frontend) and PR #6 (model, repository
-  structure) are both merged.
-- **Next slice:** D4 lesion analyser (burn vs disease), then D5
-  `POST /api/v1/scan`. **Nothing renders end to end until D5 exists**: the
-  frontend's `parseScan` requires `burn_analysis`, `severity` and `advice`.
+- **Open branch:** `fix/d4-lesion-calibration` — PR #9, the lesion mask fixes.
+  PR #5, #6, #7 and #8 are merged, so `main` has the model, the frontend, the
+  repository tooling and the full scan pipeline.
+- **Next slice:** `POST /api/v1/sync/batch` and the three batch settings, then
+  demo data and the pitch. **The daily end-to-end check passes**: five real
+  corpus leaves scan through the Vite proxy with correct predictions, 0
+  rejected. Command in `docs/EVIDENCE.md` section 4.6.
 - **Ownership:** by directory, in `docs/DESIGN.md` section 14. Claude Code has
   `backend/` and `ml/`; Codex has `frontend/`.
 - **Daily usage ceilings:** Every AI: at most 14% of its own weekly capacity per day
@@ -23,6 +25,8 @@ here. Whoever finishes a slice updates this file in the same push.
 | D3 (PR #6) | Classifier: training, evaluation, measured `min_confidence`, ONNX export with parity | 120 ml tests, test macro-F1 **0.9873**, `docs/EVIDENCE.md` section 2 |
 | D6/D7 (PR #5) | Frontend: scan UI, Thai result cards, PWA shell, on-device ONNX worker, offline queue | 47 Vitest, `docs/EVIDENCE.md` section 3. **D7 is not certified**: parity, live endpoints and a demo phone are still owed |
 | — (PR #6) | Repository: CI, `scripts/setup` and `scripts/test`, `pyproject.toml`, ruff clean, docs down to three files | `./scripts/test.sh` ends in `All green.` |
+| D4/D5 (PR #8) | Stages 2-5 and `POST /api/v1/scan`: segmentation, ONNX classify, lesion analyser, severity, expert advice, downscale after decode | 84 backend tests, live end to end, `docs/EVIDENCE.md` section 4 |
+| D4 fix (PR #9) | Lesion mask: rim exclusion and the convex hull. **The burn case was structurally invisible before this** | specificity 97.18%, `docs/EVIDENCE.md` section 5 |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
@@ -127,6 +131,17 @@ or `idempotency_cache_size`. They land with D5, when the endpoints do.
    rather than guessed. Reviewing them by hand would recover real training data.
 
 ## Things that are true and easy to get wrong
+
+- **No sensitivity figure exists for burn detection, and none may be quoted.**
+  Specificity is measured at 97.18%; sensitivity is unmeasurable without real
+  burn photographs, and the synthetic fixtures cannot settle it because they
+  were painted from the feature definitions they test. `docs/EVIDENCE.md`
+  section 5.5.
+- **A high specificity can mean the analyser is not looking.** The first run
+  reported 99.22% while finding no lesion on 59% of diseased leaves. Check the
+  no-measurable-lesion count before believing any rate.
+- **Stage 1 thresholds are measured, not guessed**, as of 2026-10-19. The
+  originals rejected 69.8% of real photographs.
 
 - **0.987 test accuracy is an upper bound on field accuracy, not an estimate.**
   The split is random within each class and is not grouped by photography

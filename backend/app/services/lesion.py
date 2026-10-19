@@ -64,28 +64,51 @@ _ZERO_FEATURES = LesionFeatures(0.0, 0.0, 0.0, 0.0, 0.0)
 def _lesion_mask(rgb: np.ndarray, leaf: Leaf, settings: Settings) -> np.ndarray:
     """Tissue inside the leaf that is markedly less green than the leaf is.
 
-    Measured against this leaf rather than against a constant. A fixed excess
-    green cut-off does not work: brown and tan lesions score slightly POSITIVE
-    on 2G - R - B, because green sits between red and blue in them, so a
-    constant low enough to exclude healthy tissue also excludes the lesion. The
-    first version of this function used one and found nothing at all.
+    Three measured decisions, in the order they were found:
 
-    Taking the median over the leaf gives healthy tissue for this leaf under
-    this light, and anything below a fraction of it is damaged. That also makes
-    the stage independent of exposure and of leaf variety.
+    **Measured against this leaf, not a constant.** A fixed excess-green
+    cut-off finds nothing: brown and tan lesions score slightly POSITIVE on
+    2G - R - B, because green sits between red and blue in them, so a constant
+    low enough to exclude healthy tissue excludes the lesion too.
+
+    **The reference is the 75th percentile, not the median.** A leaf that is a
+    third damaged drags its own median down, below the lesion it is meant to
+    find. A high percentile is healthy tissue even when much of the leaf is not.
+
+    **A rim just inside the leaf outline is excluded from the search.** That rim
+    is where green fades - antialiasing, the shadow at the leaf edge, a little
+    blur - so it is less green than the interior on EVERY leaf and crosses any
+    fractional cut-off. With it included the mask fired on 96% of HEALTHY test
+    leaves and separation was negative at every parameter choice measured;
+    excluding 8 px moved separation from -0.201 to +0.352. The rim is a
+    segmentation artefact, not tissue.
+
+    The rim is excluded from the SEARCH only. Severity still divides by the
+    whole leaf, and 8 px is narrow enough to leave a marginal burn measurable -
+    a burn blotch is tens of pixels across.
     """
+    search = leaf.mask
+    if settings.lesion_search_erode_px > 0:
+        size = 2 * settings.lesion_search_erode_px + 1
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
+        search = cv2.erode(leaf.mask.astype(np.uint8), kernel).astype(bool)
+        if not search.any():
+            # A leaf thinner than the rim. Nothing can be measured in it.
+            return np.zeros(rgb.shape[:2], dtype=bool)
+
     channels = rgb.astype(np.int16)
     excess_green = 2 * channels[:, :, 1] - channels[:, :, 0] - channels[:, :, 2]
 
-    healthy = float(np.median(excess_green[leaf.mask])) if leaf.mask.any() else 0.0
-    # A leaf whose median is already near zero is not green at all - a fallback
-    # frame, or a photograph of something else. Nothing is called a lesion
-    # there, because everything would be.
+    inside = excess_green[search]
+    healthy = float(np.percentile(inside, settings.lesion_reference_pct))
+    # A leaf whose reference is already near zero is not green at all - a
+    # fallback frame, or a photograph of something else. Nothing is called a
+    # lesion there, because everything would be.
     if healthy < settings.lesion_min_healthy_green:
         return np.zeros(rgb.shape[:2], dtype=bool)
 
     cutoff = healthy * settings.lesion_green_fraction
-    mask = (leaf.mask & (excess_green < cutoff)).astype(np.uint8)
+    mask = (search & (excess_green < cutoff)).astype(np.uint8)
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
