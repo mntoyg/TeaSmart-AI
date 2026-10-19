@@ -136,6 +136,19 @@ class Settings(BaseSettings):
     # either works on ratios or resizes to 224x224 anyway.
     max_analysis_pixels: int = 4_000_000
 
+    # Section 8.2 batch limits. These exact numbers are parsed out of
+    # docs/DESIGN.md by frontend/scripts/generate-contract.mjs and compiled
+    # into the client's chunker, so changing one here without changing the spec
+    # text makes the two disagree about how much fits in a request.
+    max_batch_items: int = 20
+    max_batch_bytes: int = 33554432
+
+    # Section 8.3. In-memory and lost on restart, deliberately: Phase 1 has no
+    # database, the client is the durable record and dedupes locally too, and
+    # this only has to cover a retry seconds after a dropped connection. Set to
+    # 0 to switch replay detection off.
+    idempotency_cache_size: int = 512
+
     # Absolute by default so the knowledge base loads whatever the process cwd is.
     kb_path: Path = _APP_DIR / "kb" / "diseases.json"
 

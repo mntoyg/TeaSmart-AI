@@ -89,6 +89,7 @@ def test_a_scan_returns_every_field_the_frontend_parses(client, fake_model) -> N
         "analysis_mode",
         "model_version",
         "processing_ms",
+        "replayed",
     }
     assert set(body["quality"]) == {
         "passed",
@@ -116,6 +117,7 @@ def test_a_scan_returns_every_field_the_frontend_parses(client, fake_model) -> N
     assert body["analysis_mode"] == "full"
     assert body["model_version"] == get_settings().model_version
     assert body["processing_ms"] >= 0
+    assert body["replayed"] is False
 
 
 def test_the_multipart_field_is_named_image(client, fake_model) -> None:
