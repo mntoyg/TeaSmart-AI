@@ -4,8 +4,8 @@
 `CLAUDE.md` points here and adds only what is specific to Claude Code. If
 anything disagrees with this file, this file wins.
 
-**Read `docs/STATE.md` first.** It is 60 lines and tells you where the project
-is right now. Do not reconstruct that from git log or by reading the whole tree.
+**Read `docs/STATE.md` first.** It tells you where the project is right now.
+Do not reconstruct that from git log or by reading the whole tree.
 
 ---
 
@@ -30,9 +30,15 @@ is right now. Do not reconstruct that from git log or by reading the whole tree.
    guard for exactly this reason.
 7. **OWASP mindset on every input from outside.** Uploads, downloaded archives,
    and API responses are hostile until proven otherwise.
-8. **Stay inside your daily usage ceiling**, measured against weekly capacity:
-   **Claude Code 15% per day, Codex 13.5% per day.** Re-estimate before starting
-   each item rather than discovering the limit mid-slice. If a ceiling is close,
+8. **Every AI agent has a hard daily ceiling of 14% of its own weekly capacity.**
+   This applies equally to Claude Code, Codex, and any other AI used here. It is
+   a ceiling, not a target, and means 14 percentage points of the full weekly
+   capacity, not 14% of the remaining balance. Count all sessions using the same
+   provider/account during the local calendar day (`Asia/Bangkok`); restarting
+   a chat or using another worktree does not reset the allowance. Record the
+   available usage reading and daily baseline in `docs/STATE.md`. If daily usage
+   is unavailable, say so and use a conservative bound rather than inventing it.
+   Re-estimate before starting each item. If a ceiling is close,
    stop at a committed boundary, update `docs/STATE.md`, push, and say what is
    left — never leave work uncommitted on a machine.
 
@@ -101,7 +107,9 @@ wrong one. Do not remove it.
 |---|---|
 | `docs/STATE.md` | **read first** — current state, next step |
 | `docs/DESIGN.md` | design, the API contract, and the decisions behind both: **the binding authority** |
-| `docs/EVIDENCE.md` | measured evidence: corpus and model, with the commands |
+| `docs/EVIDENCE.md` | measured evidence: corpus, model, frontend — with the commands |
+| `frontend/` | the React/PWA source; a normal checkout, not a hidden worktree |
+| `scripts/` | `setup` and `test`, for both shells. `test` runs what CI runs |
 | `backend/app/core/` | config and the hardened image door |
 | `backend/app/services/` | one module per pipeline stage |
 | `backend/app/kb/diseases.json` | the Thai advice a farmer acts on |

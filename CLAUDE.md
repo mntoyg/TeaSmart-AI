@@ -29,8 +29,10 @@ rather than the whole plan, and keep the ledger line in the same tool call as
 the commit — context does not survive compaction, the ledger does.
 
 **At roughly 70% context**, finish the task in progress, then write the next
-session a handoff prompt, update `docs/STATE.md`, push, and hand it over. Not
-earlier, and not because a usage limit looks close.
+session a handoff prompt, update `docs/STATE.md`, push, and hand it over.
+The hard daily usage ceiling in `AGENTS.md` takes precedence over this context
+guideline: every AI must stop at a pushed boundary before using more than 14%
+of its own weekly capacity in a Bangkok calendar day.
 
 ## Environment notes that cost a round trip each
 

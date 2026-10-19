@@ -4,6 +4,11 @@ Phase 1 MVP, hackathon demo on **2026-10-22**. One vertical slice lands per day.
 Read `docs/STATE.md` to see where things stand, then `docs/DESIGN.md` before
 touching code.
 
+Frontend contributors: read [the team guide](docs/FRONTEND_TEAM.md) and
+[the project map](docs/PROJECT_STRUCTURE.md). Work in root `frontend/` on the
+integration branch until it is merged; do not develop inside historical hidden
+worktrees. Every AI contributor follows the 14% daily ceiling in `AGENTS.md`.
+
 | document | what it is |
 |---|---|
 | `docs/STATE.md` | where the work stands right now — update it when you finish a slice |

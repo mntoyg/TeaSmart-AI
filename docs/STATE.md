@@ -3,25 +3,26 @@
 **Read this before anything else.** It says where the work is, not how it got
 here. Whoever finishes a slice updates this file in the same push.
 
-- **Last updated:** 2026-10-19 (D3 model delivered)
+- **Last updated:** 2026-10-19 (D3 and the frontend both on `main`)
 - **Demo deadline:** 2026-10-22 — three days
-- **Open branches:** `feat/d3-training` (PR #6, the model) and
-  `codex/team-onboarding` (PR #5, the frontend). **`main` has neither.** PR #5
-  also edits this file and `AGENTS.md`; on the merge its version of the usage
-  ceiling wins, and the D3 rows below should be kept.
-- **Next slice:** D4 lesion analyser (burn vs disease), then D5 `/api/v1/scan`
-- **In parallel:** D6/D7 frontend (Codex) — ownership and the rules
-  that keep two agents out of each other's way are in `docs/DESIGN.md`
-  section 14
-- **Daily usage ceilings:** Claude Code 15% of weekly capacity, Codex 13.5%
+- **Open branch:** none. PR #5 (frontend) and PR #6 (model, repository
+  structure) are both merged.
+- **Next slice:** D4 lesion analyser (burn vs disease), then D5
+  `POST /api/v1/scan`. **Nothing renders end to end until D5 exists**: the
+  frontend's `parseScan` requires `burn_analysis`, `severity` and `advice`.
+- **Ownership:** by directory, in `docs/DESIGN.md` section 14. Claude Code has
+  `backend/` and `ml/`; Codex has `frontend/`.
+- **Daily usage ceilings:** Every AI: at most 14% of its own weekly capacity per day
 
 ## Done
 
 | day | slice | evidence |
 |---|---|---|
 | D1 | Backend foundation: `/health`, `/api/v1/kb`, hardened image decoding, stage-1 quality gate | 40 tests, merged in `mntoyg/TeaSmart-AI#1` |
-| D2 | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/EVIDENCE.md` section 1 |
-| D3 (PR #6) | Classifier: training, evaluation, measured `min_confidence`, ONNX export with parity | 109 ml tests, test macro-F1 **0.9873**, `docs/EVIDENCE.md` section 2 |
+| D2 (PR #4) | Dataset pipeline: source registry, ingest, pixel-exact dedup, stratified manifest, `prepare` CLI | 74 tests, `docs/EVIDENCE.md` section 1 |
+| D3 (PR #6) | Classifier: training, evaluation, measured `min_confidence`, ONNX export with parity | 120 ml tests, test macro-F1 **0.9873**, `docs/EVIDENCE.md` section 2 |
+| D6/D7 (PR #5) | Frontend: scan UI, Thai result cards, PWA shell, on-device ONNX worker, offline queue | 47 Vitest, `docs/EVIDENCE.md` section 3. **D7 is not certified**: parity, live endpoints and a demo phone are still owed |
+| — (PR #6) | Repository: CI, `scripts/setup` and `scripts/test`, `pyproject.toml`, ruff clean, docs down to three files | `./scripts/test.sh` ends in `All green.` |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
@@ -149,3 +150,25 @@ or `idempotency_cache_size`. They land with D5, when the endpoints do.
   `docs/DESIGN.md` section 13.
 - **`data/interim/` needs its `.teasmart-interim` marker file** before the
   pipeline will clear anything inside it.
+## Frontend team handoff — 2026-10-19
+
+- D2 merged to main in PR #4. D3-D5 delivery is still pending: no trained model,
+  scan endpoint or sync endpoint has been delivered in the tracked source.
+- D6 UI and D7 infrastructure are consolidated into root `frontend/` on
+  `codex/team-onboarding`. PR #2 remains open and PR #3 remains draft; this
+  integration branch includes their existing commits for a single team checkout.
+- Previously measured frontend evidence: 47 Vitest tests, contract check and PWA
+  build; see `docs/eval/2026-10-13-frontend-validation.md`.
+- Team entrypoint: `frontend/README.md`; project map: `docs/PROJECT_STRUCTURE.md`.
+- D7 is incomplete until the actual model, 50-image parity check, live API/sync
+  integration and demo-phone checks pass. No fabricated diagnosis is shipped.
+- Historical `.superpowers/worktrees/d6` and `d7` checkouts remain intact.
+  Team members work in normal `frontend/` after checking out the team branch;
+  do not copy source files between worktrees.
+- Usage check at return: 11% weekly consumed; daily usage is unavailable. Use a
+  conservative allowance of at most 3 additional percentage points this run.
+- Fresh verification from root `frontend/` on 2026-10-19: 47 tests passed,
+  contract test passed (1/1), PWA build passed with 11 precache entries. The
+  existing VitePWA inlineDynamicImports deprecation warning is still present.
+- Latest usage reading this run: 13% weekly consumed, up from 11%; daily usage
+  remains unknown. Stop after the committed/pushed onboarding boundary.

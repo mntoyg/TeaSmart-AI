@@ -23,6 +23,15 @@ Phase 1 MVP, under active development for a 2026-10-22 hackathon demo.
 Python 3.12 and Node 22. Nothing needs a `.env` to run; copy `.env.example` to
 `backend/.env` only to override a default. No secrets are required.
 
+Run the frontend against it:
+
+```bash
+cd frontend && npm run dev     # http://localhost:5173/scan
+```
+
+Vite forwards `/api` to `http://127.0.0.1:8000`, so both halves talk to each
+other with no CORS setup in development.
+
 Run the API:
 
 ```bash
