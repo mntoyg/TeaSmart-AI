@@ -1,3 +1,4 @@
+import { resizeToSquare } from './resize';
 import type { ClientConfig, ScanResponse } from './scan-contract';
 
 export function preprocess(rgb: Uint8Array, width: number, height: number, config: ClientConfig): Float32Array {
@@ -5,24 +6,23 @@ export function preprocess(rgb: Uint8Array, width: number, height: number, confi
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || rgb.length !== width * height * 3) {
     throw new Error('ข้อมูลภาพไม่ถูกต้อง');
   }
+  // PIL-compatible, because the model was trained on PIL output. The previous
+  // version sampled four neighbours, which at a phone photograph's reduction
+  // factor is nearly point sampling and differed from Python by up to 101 of
+  // 255 in a channel. See resize.ts and src/test/fixtures/preprocess/.
+  const resized = resizeToSquare(rgb, width, height, size);
   const output = new Float32Array(3 * size * size);
-  for (let y = 0; y < size; y++) {
-    const sy = Math.max(0, Math.min(height - 1, (y + 0.5) * height / size - 0.5));
-    const y0 = Math.floor(sy), y1 = Math.min(y0 + 1, height - 1), dy = sy - y0;
-    for (let x = 0; x < size; x++) {
-      const sx = Math.max(0, Math.min(width - 1, (x + 0.5) * width / size - 0.5));
-      const x0 = Math.floor(sx), x1 = Math.min(x0 + 1, width - 1), dx = sx - x0;
-      for (let channel = 0; channel < 3; channel++) {
-        const sample = (xx: number, yy: number) => rgb[(yy * width + xx) * 3 + channel];
-        const top = sample(x0, y0) * (1 - dx) + sample(x1, y0) * dx;
-        const bottom = sample(x0, y1) * (1 - dx) + sample(x1, y1) * dx;
-        const pixel = Math.round(top * (1 - dy) + bottom * dy);
-        output[channel * size * size + y * size + x] = (pixel / config.preprocessing.scale - mean[channel]) / standardDeviation[channel];
-      }
+  const plane = size * size;
+  for (let i = 0; i < plane; i++) {
+    const at = i * 3;
+    for (let channel = 0; channel < 3; channel++) {
+      output[channel * plane + i] =
+        (resized[at + channel] / config.preprocessing.scale - mean[channel]) / standardDeviation[channel];
     }
   }
   return output;
 }
+
 export function classifyLogits(logits: Float32Array, config: ClientConfig): ScanResponse['prediction'] {
   const classes = config.class_order, minConfidence = config.min_confidence;
   if (logits.length !== classes.length || !Array.from(logits).every(Number.isFinite)

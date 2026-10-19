@@ -133,7 +133,7 @@ def test_the_naive_four_neighbour_resize_fails_the_fixtures() -> None:
     assert worst > 30.0
 
 
-def test_write_fixtures_emits_a_manifest_and_lossless_images(tmp_path) -> None:
+def test_write_fixtures_emits_a_manifest_and_exact_bytes(tmp_path) -> None:
     manifest_path = write_fixtures(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
@@ -151,10 +151,11 @@ def test_write_fixtures_emits_a_manifest_and_lossless_images(tmp_path) -> None:
             "pattern": case.pattern,
             "seed": case.seed,
         }
-        with Image.open(tmp_path / entry["expected"]) as image:
-            stored = np.asarray(image.convert("RGB"))
-        # PNG is lossless, so the stored fixture must be bit-identical to what
-        # the reference produces. Anything else means the fixture drifted.
+        raw = (tmp_path / entry["expected"]).read_bytes()
+        assert len(raw) == 224 * 224 * 3
+        stored = np.frombuffer(raw, dtype=np.uint8).reshape(224, 224, 3)
+        # Raw bytes, so the stored fixture must be bit-identical to what the
+        # reference produces. Anything else means the fixture drifted.
         assert np.array_equal(stored, reference_resize(generate_source(case)))
 
 

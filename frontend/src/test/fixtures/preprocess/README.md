@@ -22,7 +22,9 @@ For each case in `manifest.json`:
 
 1. build the source image from `source` (see the generators below),
 2. resize it to 224x224 with the algorithm below,
-3. compare against `expected`, a lossless PNG of what PIL produces.
+3. compare against `expected`: raw RGB bytes, row-major, channel last, so
+   `expected[(y * 224 + x) * 3 + c]`. 224*224*3 = 150,528 bytes, no decoder
+   needed on either side.
 
 Pass when **every channel is within `tolerance.max`** and the **mean absolute
 difference is within `tolerance.mean`**. Pillow uses fixed-point integer

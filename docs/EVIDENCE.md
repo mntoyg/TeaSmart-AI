@@ -10,6 +10,7 @@ estimate; where something is unknown it says so.
 | 3 | the frontend: test suites, contract check, PWA build |
 | 4 | the quality gate, recalibrated against real photographs |
 | 5 | burn versus disease: measured specificity, unmeasurable sensitivity |
+| 6 | browser and Python preprocessing parity: the D7 gate |
 
 ---
 
@@ -780,3 +781,91 @@ labelled. Two hundred would be enough to fit the five weights properly and to
 quote a sensitivity. Until then this feature is a conservative prior with a
 measured specificity and an unmeasurable sensitivity, and the demo should say
 exactly that.
+
+---
+
+# 6. Browser and Python agree: the parity gate passes
+
+**Measured 2026-10-20.** `docs/DESIGN.md` section 8.4 makes this the condition
+for calling D7 done: over a fixed set of 50 manifest images, the browser and
+Python pipelines must agree on top-1 for every image, and no class probability
+may differ by more than **0.05**.
+
+```text
+images              50
+top-1 agreement     50/50
+max prob delta      0.00283      (bound 0.05)
+mean prob delta     0.00021
+worst image         12.jpg
+passes              true
+```
+
+**Eighteen times inside the bound.** The measurement includes the whole chain:
+JPEG decoding, the canvas round-trip the app uses to get pixels from a file,
+the resize, the ImageNet normalisation and the fp32 ONNX graph. Pillow and the
+browser do not decode a JPEG identically, and that difference is inside this
+number rather than assumed away.
+
+## 6.1 What it took
+
+The browser sampled four neighbours; PIL scales its triangle filter's support
+by the reduction factor. Over twelve corpus images the two preprocessing paths
+differed by **up to 101 of 255** in a channel, worst on a 3120x4160 phone
+photograph - the input the demo uses.
+
+| image | size | max channel difference |
+|---|---|---|
+| agml-005147 | 256x256 | 12 |
+| mendeley_mz598-004194 | 640x640 | 49 |
+| yunusserhat-000096 | 768x1024 | 53 |
+| **yunusserhat-000415** | **3120x4160** | **101** |
+
+Python could not move: the classifier was trained on PIL's output. So the
+browser now implements PIL's algorithm, and the missing step was one line -
+the filter support growing with the reduction factor. When scaling up it stays
+at 1 and the whole thing reduces to ordinary bilinear, which is why the
+256x256 case agreed even before the fix and why a fixture set of small images
+would have certified the bug as fixed.
+
+## 6.2 Reproducing it
+
+```bash
+backend/.venv/Scripts/python.exe scripts/prepare_parity.py   # 50 images + answers
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/scan` and paste `scripts/parity_browser.js` into
+the console, then `await runParity()`.
+
+The sample is every 24th row of the test split rather than random, so the
+number means the same thing on every machine and before and after a re-export.
+The images and the answer sheet are gitignored: they are corpus photographs.
+
+## 6.3 The unit-level fixtures underneath it
+
+`frontend/src/test/fixtures/preprocess/` holds five sources both languages
+build from a coordinate hash, and the exact bytes PIL produces for each. The
+Vitest suite checks the browser against them and the pytest suite checks the
+server, so all three implementations answer to one definition. Reductions span
+1.14x to 18.6x deliberately: the defect is proportional to the reduction
+factor.
+
+All five pass within **2 of 255** per channel and **0.30** mean.
+
+Two tests guard that result beyond the fixtures themselves. One runs the old
+four-neighbour sampler against the large-reduction fixture and requires it to
+miss by more than 30, so the fixtures cannot quietly stop testing what they
+were built for. The other puts a single bright row at a position no output
+centre lands on and requires it to survive a 9x reduction, which states the
+filter-widening property directly rather than leaving it implied.
+
+## 6.4 What this does and does not license
+
+It licenses the offline path: an on-device result now differs from a server
+result only by what the browser genuinely cannot do, not by an accident of
+resampling.
+
+It does **not** make an on-device result equivalent to a server one. The
+browser does not segment, so it has no lesion analysis and no severity, and the
+result card still has to say `classifier_only`. That is a product difference,
+not a defect, and the parity gate was never about it.

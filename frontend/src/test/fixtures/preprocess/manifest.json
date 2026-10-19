@@ -27,7 +27,7 @@
         "seed": 12345
       },
       "reduction": 18.57,
-      "expected": "phone-noise-3120x4160.png"
+      "expected": "phone-noise-3120x4160.bin"
     },
     {
       "name": "corpus-noise-768x1024",
@@ -38,7 +38,7 @@
         "seed": 777
       },
       "reduction": 4.57,
-      "expected": "corpus-noise-768x1024.png"
+      "expected": "corpus-noise-768x1024.bin"
     },
     {
       "name": "corpus-blocks-640x640",
@@ -49,7 +49,7 @@
         "seed": 4242
       },
       "reduction": 2.86,
-      "expected": "corpus-blocks-640x640.png"
+      "expected": "corpus-blocks-640x640.bin"
     },
     {
       "name": "landscape-gradient-1920x1080",
@@ -60,7 +60,7 @@
         "seed": 31337
       },
       "reduction": 8.57,
-      "expected": "landscape-gradient-1920x1080.png"
+      "expected": "landscape-gradient-1920x1080.bin"
     },
     {
       "name": "corpus-noise-256x256",
@@ -71,7 +71,7 @@
         "seed": 99
       },
       "reduction": 1.14,
-      "expected": "corpus-noise-256x256.png"
+      "expected": "corpus-noise-256x256.bin"
     }
   ]
 }
