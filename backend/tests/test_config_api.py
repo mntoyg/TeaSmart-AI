@@ -30,9 +30,9 @@ def test_config_serves_the_quality_thresholds_the_browser_duplicates(client):
     # copies have to judge a frame the same way or a worker gets contradictory
     # advice depending on whether the network is up.
     quality = client.get("/api/v1/config").json()["quality"]
-    assert quality["blur_threshold"] == 80.0
+    assert quality["blur_threshold"] == 15.0
     assert quality["exposure_min_mean"] == 40.0
-    assert quality["exposure_max_mean"] == 215.0
+    assert quality["exposure_max_mean"] == 235.0
     assert quality["clip_max_pct"] == 0.10
 
 

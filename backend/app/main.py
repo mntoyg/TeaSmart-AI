@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.config import router as config_router
 from app.api.v1.kb import router as kb_router
+from app.api.v1.scan import router as scan_router
 from app.core.config import get_settings
 from app.core.images import (
     CorruptImageError,
@@ -89,6 +90,7 @@ def create_app() -> FastAPI:
 
     app.include_router(config_router)
     app.include_router(kb_router)
+    app.include_router(scan_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

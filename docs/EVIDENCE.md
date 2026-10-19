@@ -8,6 +8,7 @@ estimate; where something is unknown it says so.
 | 1 | the training corpus: sources, deduplication, splits |
 | 2 | the classifier: training, held-out scores, `min_confidence`, ONNX parity |
 | 3 | the frontend: test suites, contract check, PWA build |
+| 4 | the quality gate, recalibrated against real photographs |
 
 ---
 
@@ -519,3 +520,138 @@ is the untested middle at roughly 8.4 MB. A local run measures 13 entries and
 35 MB only when a stale `teasmart-v1-int8.onnx` is left in
 `frontend/public/models/` - it is gitignored for this reason as well as the
 accuracy one, because anything in that folder gets precached.
+
+---
+
+# 4. Stage 1 quality gate, recalibrated
+
+**Measured 2026-10-19 over 400 corpus images**, sampled every 20th manifest row,
+after the 4 MP downscale the scan endpoint applies — downscaling smooths, and so
+lowers the Laplacian variance the gate reads.
+
+## 4.1 The gate rejected 70% of real photographs
+
+The first live scans of corpus leaves came back `blurry` with scores of **13.3**
+and **52.1** against a threshold of 80. At the D1 settings, **279 of 400 images
+(69.8%)** were rejected. A demo would have shown "ภาพเบลอ" almost every time.
+
+The threshold was set during D1 from a single synthetic fixture and had never
+been compared with the corpus.
+
+| blur score (variance of Laplacian) | |
+|---|---|
+| min | 4.6 |
+| p1 | 9.8 |
+| p2 | 15.8 |
+| p5 | 22.3 |
+| median | **75.9** |
+| p75 | 169.2 |
+| max | 590.9 |
+
+80 sat just above the median of the distribution it was meant to be the floor
+of. By source: agml median 212.8, mendeley_mz598 55.2, yunusserhat 45.4 — one
+number has to clear the softest source.
+
+## 4.2 blur_threshold: 80 to 15
+
+| candidate | rejects |
+|---|---|
+| 10 | 1.2% |
+| **15** | **2.0%** |
+| 20 | 4.0% |
+| 50 | 29.0% |
+| 80 | 52.8% |
+
+15 keeps 98% of real photographs and still catches real blur. The 20 sharpest
+images, re-measured after a Gaussian blur:
+
+| blur applied | median | max |
+|---|---|---|
+| 5x5 | 27.4 | 41.4 |
+| **9x9** | **7.9** | **11.6** |
+| 15x15 | 3.0 | 4.2 |
+
+A 9x9 blur tops out at 11.6, below the threshold, and the 2nd percentile of
+untouched images is 15.8. That gap is the discrimination margin. A 5x5 blur
+passes, so **mild camera shake is accepted on purpose**: catching it would mean
+rejecting about a third of good photographs.
+
+## 4.3 exposure_max_mean: 215 to 235
+
+215 rejected 6.0% of the corpus. Nothing in 400 images exceeds a mean of 232.3;
+a tea leaf on white paper in daylight is legitimately bright. 235 rejects none
+of them and still catches a frame that is essentially white.
+
+## 4.4 High clipping now reports without deciding
+
+With blur and exposure fixed, three of three `agml` images still failed, as
+`overexposed`. The cause was the per-channel high-clipping check: **the median
+corpus image has 11% of one channel at or above 250**, and the 90th percentile
+has 72%, because these are leaves photographed on white backgrounds.
+
+All 24 images above a 215 mean also exceeded 10% channel clipping — both checks
+were firing on the same thing, and that thing was the background.
+
+**A blown background says nothing about whether the leaf lost detail.** Judging
+it properly means measuring inside the leaf mask, which needs stage 2, which
+stage 1 deliberately runs before so that it stays cheap and portable to the
+browser. Measuring the wrong thing or measuring nothing were the only options,
+so high clipping is now **measured and reported but not a rejection reason**.
+
+Low clipping stays decisive: a frame crushed to black has genuinely lost the
+shadow detail the lesion analyser reads, and nothing in 400 images trips it.
+
+## 4.5 Live result after the change
+
+15 real corpus images, one per class per source, through the running endpoint:
+
+| source / class | prediction | confidence | verdict | severity | time |
+|---|---|---|---|---|---|
+| mendeley / grey_blight | other_disease | 0.50 | disease | mild | 26 ms |
+| yunusserhat / brown_blight | brown_blight | 0.99 | disease | mild | 66 ms |
+| mendeley / brown_blight | brown_blight | 0.88 | disease | moderate | 35 ms |
+| agml / brown_blight | brown_blight | 0.96 | disease | mild | 9 ms |
+| mendeley / algal_spot | algal_spot | 0.91 | disease | mild | 23 ms |
+| yunusserhat / healthy | healthy | 0.91 | disease | mild | 84 ms |
+| mendeley / healthy | healthy | 0.87 | disease | mild | 24 ms |
+| yunusserhat / other_disease | other_disease | 0.87 | disease | mild | 540 ms |
+| mendeley / other_disease | other_disease | 0.92 | disease | mild | 50 ms |
+| agml / other_disease | other_disease | 0.95 | disease | mild | 9 ms |
+
+**3 of 15 scanned before this change; 10 of 15 after the thresholds and 13 of 15
+after the clipping fix.** The two that remain rejected are genuinely soft
+`yunusserhat` frames below the blur floor, which is the gate working.
+
+**No disease image was called a physical burn.** That is the specificity the
+burn analyser is judged on, and on this sample it is 0 false positives in 10 —
+indicative only, because ten images is not a measurement. The full test-split
+run is still owed.
+
+The grey blight image downgraded to `other_disease` at 0.50 is the confidence
+floor declining to name a disease it is unsure of.
+
+## 4.6 Frontend to backend, live
+
+Through the Vite dev proxy on port 5173, which is the path the browser uses:
+
+```text
+GET  /api/v1/config  -> 200   blur 15.0, exposure 40-235, min_confidence 0.60
+GET  /api/v1/kb      -> 200   6 records
+POST /api/v1/scan    -> 200   brown_blight 0.88, disease, moderate 6.8%, 69 ms
+```
+
+The `/scan` screen loads in Thai, fetches `/api/v1/kb` and `/api/v1/config` on
+mount — both 200, no console errors — and a `FormData` POST issued from inside
+the page returns all ten contract fields with Thai advice.
+
+The full chain: browser origin, dev proxy, FastAPI, decode, downscale, quality
+gate, segmentation, ONNX, lesion analysis, severity, knowledge base.
+
+Reproduce:
+
+```bash
+cd backend && .venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --port 8000
+cd frontend && npm run dev
+curl -s -X POST http://localhost:5173/api/v1/scan \
+  -F "image=@data/interim/mendeley_mz598/brown_blight/mendeley_mz598-000001.jpg"
+```

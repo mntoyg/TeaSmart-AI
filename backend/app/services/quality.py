@@ -45,6 +45,20 @@ def assess_quality(
     # analyser depends on is already gone. The two ends are counted separately
     # because they call for opposite corrections - a frame crushed to black needs
     # more light, not less.
+    #
+    # HIGH clipping is measured and reported but is NOT a rejection reason, as
+    # of 2026-10-19. It was, and it rejected every leaf photographed on white
+    # paper - three of three agml images, live, against the real endpoint. On
+    # such a frame the blown pixels are the background, and a blown background
+    # says nothing about whether the leaf lost detail. Judging it properly means
+    # measuring inside the leaf mask, which needs stage 2, which this stage
+    # deliberately runs before so that it stays cheap and portable to the
+    # browser. So the honest options were to measure the wrong thing or to
+    # measure nothing, and reporting without deciding is the second.
+    #
+    # LOW clipping stays decisive: a frame crushed to black has genuinely lost
+    # the shadow detail the lesion analyser reads, and nothing in 400 corpus
+    # images trips it.
     clipped_low_pct = float(numpy.count_nonzero(image == 0) / image.size)
     clipped_high_pct = float(numpy.count_nonzero(image == 255) / image.size)
     scores = (
@@ -61,7 +75,7 @@ def assess_quality(
     # they actually need is light.
     if exposure_mean < exposure_min_mean or clipped_low_pct > clip_max_pct:
         return QualityResult(False, *scores, "underexposed", _DARK_TH)
-    if exposure_mean > exposure_max_mean or clipped_high_pct > clip_max_pct:
+    if exposure_mean > exposure_max_mean:
         return QualityResult(False, *scores, "overexposed", _BRIGHT_TH)
     if blur_score < blur_threshold:
         return QualityResult(False, *scores, "blurry", _BLURRY_TH)

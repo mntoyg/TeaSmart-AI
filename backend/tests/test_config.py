@@ -10,9 +10,11 @@ def test_settings_defaults_match_the_values_the_spec_pins():
     assert settings.cors_origins == ["http://localhost:5173"]
     assert settings.max_upload_bytes == 8388608
     assert settings.max_image_pixels == 40000000
-    assert settings.blur_threshold == 80.0
+    # Measured 2026-10-19 over 400 corpus images, not guessed: 80 rejected
+    # 52.8% of real photographs as blurry. docs/EVIDENCE.md section 4.
+    assert settings.blur_threshold == 15.0
     assert settings.exposure_min_mean == 40.0
-    assert settings.exposure_max_mean == 215.0
+    assert settings.exposure_max_mean == 235.0
     assert settings.clip_max_pct == 0.10
     assert settings.min_confidence == 0.60
 
