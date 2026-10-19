@@ -2,6 +2,9 @@
 
     python -m teasmart_ml.cli prepare
     python -m teasmart_ml.cli train
+    python -m teasmart_ml.cli evaluate --split test
+    python -m teasmart_ml.cli export
+    python -m teasmart_ml.cli fixtures
 
 Paths default to data/ beside the repository root rather than the process cwd,
 so the command behaves the same wherever it is run from.
@@ -265,7 +268,23 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--calibration-images", type=int, default=200)
     export.add_argument("--parity-images", type=int, default=50)
 
+    fixtures = sub.add_parser(
+        "fixtures", help="write the browser preprocessing parity fixtures"
+    )
+    fixtures.add_argument(
+        "--out",
+        type=Path,
+        default=_REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "preprocess",
+    )
+
     args = parser.parse_args(argv)
+
+    if args.command == "fixtures":
+        from teasmart_ml.parity import FIXTURE_CASES, write_fixtures
+
+        manifest = write_fixtures(args.out)
+        print(f"wrote {len(FIXTURE_CASES)} cases and {manifest.name} to {args.out}")
+        return 0
 
     if args.command == "prepare":
         prepare(args.raw, args.interim, args.out, seed=args.seed)
