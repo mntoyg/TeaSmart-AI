@@ -37,6 +37,8 @@ if (-not (Test-Path $backend) -or -not (Test-Path $ml)) {
 # four-minute suite.
 Invoke-Step 'lint backend' { Push-Location (Join-Path $root 'backend'); & $ml -m ruff check app tests; Pop-Location }
 Invoke-Step 'lint ml' { Push-Location (Join-Path $root 'ml'); & $ml -m ruff check teasmart_ml tests; Pop-Location }
+# scripts/ belongs to no package, so neither pyproject lints it.
+Invoke-Step 'lint scripts' { & $ml -m ruff check (Join-Path $root 'scripts') --line-length 100 }
 Invoke-Step 'test backend' { Push-Location (Join-Path $root 'backend'); & $backend -m pytest -q; Pop-Location }
 Invoke-Step 'test ml' { Push-Location (Join-Path $root 'ml'); & $ml -m pytest -q; Pop-Location }
 

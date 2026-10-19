@@ -1,0 +1,376 @@
+"""Pick the demo set, and record exactly what each image will do on stage.
+
+Run it before a demo:
+
+    backend/.venv/Scripts/python.exe scripts/prepare_demo.py        # Windows
+    backend/.venv/bin/python scripts/prepare_demo.py                # otherwise
+
+It searches the test split with the real pipeline - the real ONNX graph, the
+real thresholds - and fills a fixed list of demo slots with images that behave
+the way each slot needs. Then it copies them into `demo/` and writes
+`docs/DEMO.md` with the measured outcome for every one.
+
+Why it works this way rather than someone picking files by eye: on stage,
+nobody wants to discover that the "severe brown blight" photograph is the one
+the quality gate rejects. Every image here has been through the pipeline and
+its result is written down. If a slot cannot be filled, the script says so
+instead of substituting something that does not fit.
+
+Nothing it copies is committed. The corpus images come from public research
+datasets whose redistribution terms differ, and the repository has no business
+holding photographs it did not create. `demo/` is gitignored; `docs/DEMO.md`
+records which file went in each slot so the set is reproducible.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import shutil
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "backend"))
+
+import numpy as np  # noqa: E402
+from PIL import Image  # noqa: E402
+
+from app.api.v1.scan import QualityRejected, analyse, downscale_for_analysis  # noqa: E402
+from app.core.config import get_settings  # noqa: E402
+from app.services.classify import load_session  # noqa: E402
+from app.services.quality import assess_quality  # noqa: E402
+
+
+@dataclass(frozen=True)
+class Slot:
+    name: str
+    headline: str
+    wants_class: str | None
+    rejected: bool = False
+    low_confidence: bool = False
+    min_confidence: float = 0.0
+    min_severity: str | None = None
+    # Demo robustness, both learned from the first run of this script.
+    #
+    # A diseased leaf reported at "mild, 0.0%" invites the obvious question,
+    # and the honest answer is that the lesion analyser found nothing
+    # measurable - true of 32% of diseased leaves. That is in EVIDENCE.md where
+    # it belongs; a demo slot should show the feature working.
+    min_affected_pct: float = 0.0
+    # The first healthy pick scored 0.46 against a burn threshold of 0.60. Not
+    # wrong, but one tweak away from announcing sun scorch on a healthy leaf in
+    # front of judges.
+    max_burn_likelihood: float = 1.0
+
+
+# The running order. It builds: it works, it is careful, it knows what it does
+# not know.
+SLOTS: tuple[Slot, ...] = (
+    Slot(
+        "01-brown-blight-severe",
+        "A clear diagnosis with real damage - the main claim",
+        "brown_blight",
+        min_confidence=0.80,
+        min_severity="moderate",
+        min_affected_pct=0.05,
+        max_burn_likelihood=0.35,
+    ),
+    Slot(
+        "02-grey-blight",
+        "A second disease, so it is not a one-class trick",
+        "grey_blight",
+        min_confidence=0.70,
+        min_affected_pct=0.01,
+        max_burn_likelihood=0.35,
+    ),
+    Slot(
+        "03-algal-spot",
+        "A third, with different advice from the knowledge base",
+        "algal_spot",
+        min_confidence=0.70,
+        min_affected_pct=0.01,
+        max_burn_likelihood=0.35,
+    ),
+    Slot(
+        "04-healthy",
+        "A healthy leaf, which must not be given a disease name",
+        "healthy",
+        min_confidence=0.70,
+        max_burn_likelihood=0.25,
+    ),
+    Slot(
+        "05-unsure-declines-to-name",
+        "The confidence floor: it answers other_disease instead of guessing",
+        None,
+        low_confidence=True,
+    ),
+    Slot(
+        "06-blurry-asks-for-a-retake",
+        "The quality gate: Thai instruction, not an error page",
+        None,
+        rejected=True,
+    ),
+)
+
+_SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
+
+
+def load_rgb(path: Path, limit: int) -> np.ndarray:
+    with Image.open(path) as image:
+        image.load()
+        rgb = np.asarray(image.convert("RGB"))
+    return downscale_for_analysis(rgb, get_settings()) if rgb.size else rgb
+
+
+def fits(slot: Slot, outcome: dict[str, Any]) -> bool:
+    if slot.rejected:
+        return outcome["rejected"]
+    if outcome["rejected"]:
+        return False
+    if slot.low_confidence:
+        return bool(outcome["low_confidence"])
+    if outcome["low_confidence"]:
+        return False
+    if slot.wants_class and outcome["class_name"] != slot.wants_class:
+        return False
+    if outcome["confidence"] < slot.min_confidence:
+        return False
+    if slot.min_severity and (
+        _SEVERITY_ORDER[outcome["level"]] < _SEVERITY_ORDER[slot.min_severity]
+    ):
+        return False
+    if outcome["affected_pct"] < slot.min_affected_pct:
+        return False
+    if outcome["burn_likelihood"] > slot.max_burn_likelihood:
+        return False
+    # A demo image should look like the thing it is demonstrating, so the
+    # verdict has to agree with the class: a burn verdict on a slot that says
+    # brown blight would contradict the slide.
+    return not (slot.wants_class and outcome["verdict"] == "physical_burn")
+
+
+def measure(path: Path, runner, settings) -> dict[str, Any] | None:
+    try:
+        payload = path.read_bytes()
+        rgb = load_rgb(path, settings.max_analysis_pixels)
+        quality = assess_quality(
+            rgb,
+            blur_threshold=settings.blur_threshold,
+            exposure_min_mean=settings.exposure_min_mean,
+            exposure_max_mean=settings.exposure_max_mean,
+            clip_max_pct=settings.clip_max_pct,
+        )
+        if not quality.passed:
+            return {
+                "rejected": True,
+                "reason": quality.reason,
+                "reason_th": quality.reason_th,
+                "blur_score": quality.blur_score,
+                "low_confidence": False,
+            }
+        result = analyse(
+            payload,
+            scan_id=None,
+            captured_at=None,
+            settings=settings,
+            runner=runner,
+        )
+    except QualityRejected as rejection:
+        return {
+            "rejected": True,
+            "reason": rejection.detail,
+            "reason_th": rejection.detail_th,
+            "blur_score": rejection.quality.blur_score,
+            "low_confidence": False,
+        }
+    except Exception:  # noqa: BLE001 - a corrupt corpus file is not interesting
+        return None
+
+    return {
+        "rejected": False,
+        "class_name": result.prediction.class_name,
+        "confidence": result.prediction.confidence,
+        "low_confidence": result.prediction.low_confidence,
+        "verdict": result.burn_analysis.verdict,
+        "burn_likelihood": result.burn_analysis.burn_likelihood,
+        "level": result.severity.level,
+        "affected_pct": result.severity.affected_pct,
+        "advice": result.advice.canonical,
+        "disease_name_th": result.advice.disease_name_th,
+        "processing_ms": result.processing_ms,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path,
+                        default=REPO / "data/processed/manifest.csv")
+    parser.add_argument("--interim", type=Path, default=REPO / "data/interim")
+    parser.add_argument("--out", type=Path, default=REPO / "demo")
+    parser.add_argument("--doc", type=Path, default=REPO / "docs/DEMO.md")
+    parser.add_argument("--candidates", type=int, default=140,
+                        help="images to try per slot before giving up")
+    args = parser.parse_args()
+
+    settings = get_settings()
+    if not settings.model_path.is_file():
+        print(f"no model at {settings.model_path}. Export it first:")
+        print("  cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli export")
+        return 1
+    if not args.manifest.is_file():
+        print(f"no manifest at {args.manifest}. Build the corpus first:")
+        print("  cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare")
+        return 1
+
+    runner = load_session(settings.model_path)
+    rows = [
+        row
+        for row in csv.DictReader(args.manifest.open(encoding="utf-8"))
+        if row["split"] == "test"
+    ]
+    print(f"searching {len(rows)} test-split images for {len(SLOTS)} slots")
+
+    chosen: dict[str, tuple[dict[str, str], dict[str, Any]]] = {}
+    for slot in SLOTS:
+        # Prefer rows of the class the slot wants, then fall back to everything:
+        # the low-confidence and rejected slots can come from any class.
+        preferred = [r for r in rows if r["canonical"] == slot.wants_class] if slot.wants_class else []
+        order = preferred + [r for r in rows if r not in preferred]
+        for row in order[: args.candidates]:
+            path = args.interim / row["path"].replace("\\", "/")
+            if not path.is_file():
+                continue
+            outcome = measure(path, runner, settings)
+            if outcome and fits(slot, outcome):
+                chosen[slot.name] = (row, outcome)
+                break
+        state = "ok" if slot.name in chosen else "NOT FILLED"
+        print(f"  {slot.name:34} {state}")
+
+    args.out.mkdir(parents=True, exist_ok=True)
+    for existing in args.out.glob("*.jpg"):
+        existing.unlink()
+
+    lines = [
+        "# Demo runbook",
+        "",
+        "**Generated by `scripts/prepare_demo.py`. Do not edit by hand.**",
+        "Re-run it after any change to the model or the thresholds, because",
+        "every number below was measured rather than remembered.",
+        "",
+        "The images live in `demo/` and are **not committed**: they come from",
+        "public research datasets whose redistribution terms differ, and this",
+        "repository has no business holding photographs it did not create. The",
+        "source path of each one is recorded here, so the set can be rebuilt.",
+        "",
+        "## Before you start",
+        "",
+        "```bash",
+        "cd backend && .venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --port 8000",
+        "cd frontend && npm run dev",
+        "```",
+        "",
+        "Open `http://localhost:5173/scan`. Use **เลือกภาพใบชา** and pick from",
+        "`demo/` in the file dialog. Press **เตรียมใช้งานออฟไลน์** once before",
+        "the demo so the model and the knowledge base are cached.",
+        "",
+        "## Running order",
+        "",
+    ]
+
+    for index, slot in enumerate(SLOTS, start=1):
+        entry = chosen.get(slot.name)
+        lines += [f"### {index}. {slot.headline}", ""]
+        if entry is None:
+            lines += [
+                "**No image in the test split fits this slot.** The script says so",
+                "rather than substituting one that does not. Re-run it after the",
+                "next model or threshold change.",
+                "",
+            ]
+            continue
+
+        row, outcome = entry
+        source = args.interim / row["path"].replace("\\", "/")
+        destination = args.out / f"{slot.name}.jpg"
+        shutil.copy2(source, destination)
+
+        lines += [f"File: `demo/{destination.name}`", ""]
+        if outcome["rejected"]:
+            lines += [
+                f"- the gate **rejects** it: `{outcome['reason']}`, blur score "
+                f"**{outcome['blur_score']:.1f}** against a threshold of "
+                f"{settings.blur_threshold}",
+                f"- the screen shows **{outcome['reason_th']}** and offers a retake",
+                "- say: the gate exists because a diagnosis from an unreadable",
+                "  photograph is worse than no diagnosis",
+                "",
+            ]
+        else:
+            lines += [
+                f"- prediction **{outcome['class_name']}** at "
+                f"**{outcome['confidence']:.2f}**"
+                + ("  _(below the floor, so it declines to name a disease)_"
+                   if outcome["low_confidence"] else ""),
+                f"- verdict **{outcome['verdict']}**, burn likelihood "
+                f"{outcome['burn_likelihood']:.2f}",
+                f"- severity **{outcome['level']}**, "
+                f"{100 * outcome['affected_pct']:.1f}% of the leaf",
+                f"- advice from record `{outcome['advice']}` — "
+                f"{outcome['disease_name_th']}",
+                f"- about {outcome['processing_ms']} ms on this machine",
+                "",
+            ]
+        lines += [
+            f"<sub>source: `{row['path']}` ({row['canonical']}, "
+            f"{row['source']})</sub>",
+            "",
+        ]
+
+    lines += [
+        "## The numbers to quote",
+        "",
+        "| | |",
+        "|---|---|",
+        "| corpus | 8,316 images, five classes, 70/15/15 |",
+        "| held-out test accuracy | **0.9871**, macro-F1 **0.9873** |",
+        "| diseased leaf called healthy | **0 of 584** |",
+        "| healthy leaf given a disease name | **0 of 215** |",
+        "| burn analyser specificity | **97.18%** on 1,030 disease images |",
+        "| offline model | 16.8 MB fp32 ONNX, runs in the browser |",
+        "",
+        "## What to say about the limits, before anyone asks",
+        "",
+        "- **0.987 is an upper bound, not a field estimate.** The split is",
+        "  random within each class and is not grouped by photography session,",
+        "  so several shots of one leaf can land on both sides.",
+        "- **No photograph in this corpus comes from Singha Park.** Nothing has",
+        "  been tested on the farm the product is for.",
+        "- **There is no sensitivity figure for burn detection and we will not",
+        "  quote one.** No labelled burn photograph exists in any of the nine",
+        "  sources surveyed. Specificity is measured; sensitivity is not",
+        "  measurable, and the synthetic fixtures cannot settle it because they",
+        "  were built from the same feature definitions they test.",
+        "- **The classifier can be confidently wrong.** One test image is wrong",
+        "  at 0.983, above any usable confidence floor.",
+        "- An on-device result is labelled `classifier_only` and genuinely",
+        "  differs from a server result, because the browser does not segment.",
+        "",
+        "Full evidence, with the commands that produced it: `docs/EVIDENCE.md`.",
+        "",
+    ]
+
+    args.doc.write_text("\n".join(lines), encoding="utf-8")
+    filled = len(chosen)
+    print(f"\nwrote {args.doc.relative_to(REPO)} and {filled} images to "
+          f"{args.out.relative_to(REPO)}")
+    if filled < len(SLOTS):
+        print(f"WARNING: {len(SLOTS) - filled} slot(s) could not be filled")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
