@@ -14,6 +14,10 @@ here. Whoever finishes a slice updates this file in the same push.
   Re-run the script after any model or threshold change. **The daily end-to-end check passes**: five real
   corpus leaves scan through the Vite proxy with correct predictions, 0
   rejected. Command in `docs/EVIDENCE.md` section 4.6.
+- **Local demo assets checked 2026-10-20:** all six JPEG files named in
+  `docs/DEMO.md` exist under `demo/` and decode successfully. The folder is
+  gitignored because the images come from public research datasets; this check
+  applies to this machine and does not make them available in a fresh clone.
 - **Ownership:** by directory, in `docs/DESIGN.md` section 14. Claude Code has
   `backend/` and `ml/`; Codex has `frontend/`.
 - **Daily usage ceilings:** Every AI: at most 14% of its own weekly capacity per day
