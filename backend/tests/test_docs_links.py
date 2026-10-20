@@ -21,7 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # [text](target) - the target is what gets checked.
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)")
 
-EXTERNAL = ("http://", "https://", "mailto:", "tel:")
+# <img src="target"> - GitHub renders raw HTML in Markdown, and the README uses
+# it to size the QR code. A broken src here shows a missing-image icon, which
+# the link syntax above would never catch.
+IMG_SRC = re.compile(r"<img\b[^>]*?\bsrc=[\"']([^\"']+)[\"']", re.IGNORECASE)
+
+EXTERNAL = ("http://", "https://", "mailto:", "tel:", "data:")
 
 
 def tracked_markdown() -> list[Path]:
@@ -36,8 +41,9 @@ def tracked_markdown() -> list[Path]:
 
 
 def relative_links(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
     out = []
-    for target in LINK.findall(path.read_text(encoding="utf-8")):
+    for target in LINK.findall(text) + IMG_SRC.findall(text):
         # Drop a fragment: README.md#section addresses a heading in README.md.
         bare = target.split("#", 1)[0].strip()
         if not bare or bare.startswith(EXTERNAL):

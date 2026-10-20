@@ -13,3 +13,6 @@ numpy==2.2.1
 opencv-python-headless==4.11.0.86
 pytest==8.3.4
 httpx==0.28.1
+# Pure-Python QR encoder for scripts/make_qr.py, which generates the README
+# code someone scans to open the app. No dependencies of its own.
+segno==1.6.6

@@ -1,84 +1,150 @@
 # TeaSmart AI
 
-A smart-farming assistant for large-scale Oolong tea estates. Photograph a tea
-leaf and the system reports the disease and its severity, says whether the
-damage is a biological disease or a physical burn, and returns actionable Thai
-treatment advice from a curated knowledge base. It runs the model on-device, so
-it keeps working where the mountain network does not.
+ผู้ช่วยเกษตรแม่นยำสำหรับไร่ชาอู่หลงขนาดใหญ่ ถ่ายรูปใบชาหนึ่งใบ ระบบจะบอกชื่อโรค
+ระดับความรุนแรง **ตัดสินว่าเป็นโรคหรือเป็นแผลไหม้ทางกายภาพ** และให้คำแนะนำการรักษา
+เป็นภาษาไทยจากฐานความรู้ที่คัดมา โมเดลรันอยู่บนเครื่องผู้ใช้ จึงทำงานต่อได้ในที่ที่
+เครือข่ายบนภูเขาใช้ไม่ได้
 
-Phase 1 MVP, under active development for a 2026-10-22 hackathon demo.
+Phase 1 MVP กำลังพัฒนาเพื่อสาธิตในแฮกกาธอน **2026-10-22**
 
-## Quick start
+---
+
+## สแกนเพื่อเปิดแอป
+
+<img src="docs/img/app-qr-local.png" alt="QR code เปิดแอป" width="200">
+
+> **QR นี้ชี้ไปที่เครื่องพัฒนา** (`https://192.168.0.32:5173/scan`)
+> ใช้ได้เฉพาะมือถือที่อยู่ wifi วงเดียวกับเครื่องนั้น และเฉพาะตอนเซิร์ฟเวอร์เปิดอยู่
+> คนอื่นสแกนแล้วจะได้หน้า error
+>
+> ยังไม่มี URL สาธารณะเพราะยังไม่ได้ deploy หลัง deploy แล้วสร้าง QR ใหม่ด้วยคำสั่งเดียว
+> และ README ไม่ต้องแก้ เพราะชี้ไปที่ path คงที่:
+>
+> ```bash
+> python scripts/make_qr.py https://<โฮสต์ที่ deploy>/scan
+> ```
+>
+> script จะ**ปฏิเสธ** URL ที่เป็น localhost หรือวง LAN โดยอัตโนมัติ เพราะ QR แบบนั้น
+> ทำงานบนมือถือคนทำแต่พังสำหรับคนอื่น ซึ่งแย่กว่าไม่มี QR
+
+วิธีเปิดแอปบนมือถือจริง รวมขั้นตอน iPhone และ Android อยู่ใน
+[docs/PHONE-TH.md](docs/PHONE-TH.md) — หน้านั้นเขียนให้อ่านบนมือถือและกดลิงก์ได้เลย
+
+---
+
+## เริ่มใช้งาน
 
 ```bash
-./scripts/setup.sh --cpu     # Linux, macOS; drop --cpu if you have an NVIDIA card
+./scripts/setup.sh --cpu     # Linux, macOS; ตัด --cpu ออกถ้ามีการ์ด NVIDIA
 ./scripts/test.sh
 ```
 
 ```powershell
-./scripts/setup.ps1 -Cpu     # Windows; drop -Cpu if you have an NVIDIA card
+./scripts/setup.ps1 -Cpu     # Windows; ตัด -Cpu ออกถ้ามีการ์ด NVIDIA
 ./scripts/test.ps1
 ```
 
-Python 3.12 and Node 22. Nothing needs a `.env` to run; copy `.env.example` to
-`backend/.env` only to override a default. No secrets are required.
+ต้องมี Python 3.12 และ Node 22 ไม่มีอะไรต้องใช้ `.env` เพื่อรัน คัดลอก `.env.example`
+ไปเป็น `backend/.env` เฉพาะเมื่อต้องการเปลี่ยนค่าตั้งต้น ไม่ต้องใช้ความลับใด ๆ
 
-Run the frontend against it:
-
-```bash
-cd frontend && npm run dev     # http://localhost:5173/scan
-```
-
-Vite forwards `/api` to `http://127.0.0.1:8000`, so both halves talk to each
-other with no CORS setup in development.
-
-Run the API:
+รัน API:
 
 ```bash
 cd backend && .venv/bin/python -m uvicorn app.main:create_app --factory --reload
 curl http://127.0.0.1:8000/health
 ```
 
-On Windows the interpreter is `.venv/Scripts/python.exe` instead.
+บน Windows ตัวแปลภาษาคือ `.venv/Scripts/python.exe` แทน
 
-## Layout
+รัน frontend:
 
-```
-backend/        FastAPI service: image intake, pipeline stages, expert system
-  app/api/v1/     HTTP surface, one module per endpoint group
-  app/core/       config, and the single hardened door images come through
-  app/services/   one module per pipeline stage, each a pure function
-  app/kb/         the Thai disease knowledge base (data, never code)
-  tests/
-ml/             dataset pipeline, training, evaluation, ONNX export
-  teasmart_ml/    importable package; `python -m teasmart_ml.cli --help`
-  tests/
-frontend/       the PWA that runs the model on-device
-docs/           five files, no subfolders (see below)
-scripts/        setup and test, for both shells
-data/           datasets and intermediates, never committed
-private/        local-only material, never committed
+```bash
+cd frontend && npm run dev     # http://localhost:5173/scan
 ```
 
-Each Python package owns its own virtualenv and its own `pyproject.toml`. They
-are never activated: every command names the interpreter explicitly, so there is
-no "which venv am I in" failure mode.
+Vite ส่งต่อ `/api` ไปที่ `http://127.0.0.1:8000` ทั้งสองฝั่งจึงคุยกันได้โดยไม่ต้องตั้ง
+CORS ในเครื่องพัฒนา
 
-## Where to read
+---
 
-| file | what it is |
+## สถาปัตยกรรม
+
+ภาพหนึ่งใบเดินผ่านหกด่าน แต่ละด่านเป็นฟังก์ชันบริสุทธิ์คนละโมดูล **ไม่มีด่านไหน
+เอื้อมไปแก้ของอีกด่าน**
+
+```
+ภาพ -> [1] ด่านคุณภาพ -> [2] แยกใบออกจากพื้น -> [3] จำแนกโรค
+     -> [4] วิเคราะห์แผล (โรค vs ไหม้) -> [5] ความรุนแรง -> [6] ระบบผู้เชี่ยวชาญ
+```
+
+เหตุผลเบื้องหลังการออกแบบนี้อยู่ใน [docs/DESIGN.md](docs/DESIGN.md)
+สามเรื่องที่สำคัญที่สุด:
+
+- **โมเดลเรียนห้าคลาส** `grey_blight`, `brown_blight`, `algal_spot`, `healthy`,
+  `other_disease` — ส่วน `physical_burn` **ไม่ใช่คลาสที่โมเดลเรียน** เพราะไม่มีชุดข้อมูล
+  รูปใบไหม้ที่มีป้ายกำกับอยู่ที่ไหนเลย ด่าน 4 จึงเป็น CV แบบกฎเกณฑ์ ตัวชี้วัดหลักของมัน
+  คือ specificity บนรูปที่ยืนยันว่าเป็นโรค ไม่ใช่ความแม่นในการจับใบไหม้
+- **`other_disease` มีไว้โดยเจตนา** ให้โมเดลพูดได้ว่า "ผิดปกติแต่ไม่ตรงโรคหลัก
+  ให้นักวิชาการเกษตรดู" แทนที่จะทายชื่อโรคผิดอย่างมั่นใจ
+- **เส้นทางหลักคือ ONNX บนเครื่องผู้ใช้** เซิร์ฟเวอร์เป็นส่วนเสริม ผลที่ได้บนเครื่อง
+  จะถูกกำกับว่า `classifier_only` เพราะเบราว์เซอร์ไม่แยกใบออกจากพื้น จึงไม่มีการ
+  วิเคราะห์แผลและไม่มีความรุนแรง — ต่างจากผลจากเซิร์ฟเวอร์จริง ๆ ไม่ใช่ซ่อนความต่าง
+
+ขอบเขตระหว่าง frontend กับ backend คือสัญญา API ใน `docs/DESIGN.md` หัวข้อ 8
+ค่าคงที่ที่ทั้งสองฝั่งใช้ร่วมกันเสิร์ฟจาก `GET /api/v1/config` — **อย่า hard-code**
+
+---
+
+## โครงสร้างโฟลเดอร์
+
+```
+backend/        FastAPI: รับภาพ, ด่านของ pipeline, ระบบผู้เชี่ยวชาญ
+  app/api/v1/     ผิว HTTP หนึ่งโมดูลต่อหนึ่งกลุ่ม endpoint
+  app/core/       config และประตูบานเดียวที่ภาพทุกใบต้องผ่าน
+  app/services/   หนึ่งโมดูลต่อหนึ่งด่าน แต่ละตัวเป็นฟังก์ชันบริสุทธิ์
+  app/kb/         ฐานความรู้โรคภาษาไทย (เป็นข้อมูล ไม่ใช่โค้ด)
+  tests/
+ml/             ชุดข้อมูล, เทรน, ประเมิน, ส่งออก ONNX
+  teasmart_ml/    แพ็กเกจ importable; `python -m teasmart_ml.cli --help`
+  tests/
+frontend/       PWA ที่รันโมเดลบนเครื่องผู้ใช้
+docs/           เอกสาร ไม่มีโฟลเดอร์ย่อย (ดูตารางข้างล่าง)
+scripts/        setup, test, และ script สร้าง QR กับเสิร์ฟใบรับรอง
+data/           ชุดข้อมูลและไฟล์กลาง ไม่ commit
+private/        ของเฉพาะเครื่อง ไม่ commit
+```
+
+แต่ละแพ็กเกจ Python มี virtualenv และ `pyproject.toml` ของตัวเอง และ**ไม่เคย activate**
+ทุกคำสั่งระบุตัวแปลภาษาตรง ๆ จึงไม่มีอาการ "ตอนนี้อยู่ venv ไหน"
+
+---
+
+## อ่านที่ไหน
+
+| ไฟล์ | คืออะไร |
 |---|---|
-| [docs/STATE.md](docs/STATE.md) | where the work stands right now. **Start here.** |
-| [docs/PHONE-TH.md](docs/PHONE-TH.md) | ภาษาไทย — opening the app on a real phone, with links to tap. Written to be read on the handset |
-| [docs/DESIGN.md](docs/DESIGN.md) | design, the API contract, and the decisions behind both — the binding authority when anything disagrees |
-| [docs/EVIDENCE.md](docs/EVIDENCE.md) | the measured numbers, and the commands that produced them |
-| [docs/DEMO.md](docs/DEMO.md) | the demo runbook: running order, the measured outcome of every image, and the limits to state out loud |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | how to work here: house rules, branches, commits |
-| [AGENTS.md](AGENTS.md) | the rules AI agents work under |
+| [docs/STATE.md](docs/STATE.md) | งานอยู่ตรงไหนแล้ว **เริ่มที่นี่** |
+| [docs/PHONE-TH.md](docs/PHONE-TH.md) | ภาษาไทย — เปิดแอปบนมือถือจริง มีลิงก์กดได้ เขียนให้อ่านบนมือถือ |
+| [docs/DESIGN.md](docs/DESIGN.md) | การออกแบบ สัญญา API และเหตุผลเบื้องหลัง — **เป็นผู้มีอำนาจผูกพัน** เมื่ออะไรขัดกัน |
+| [docs/EVIDENCE.md](docs/EVIDENCE.md) | ตัวเลขที่วัดได้ พร้อมคำสั่งที่ผลิตมัน |
+| [docs/DEMO.md](docs/DEMO.md) | คู่มือสาธิต: ลำดับการเล่น ผลที่วัดได้ของทุกภาพ และข้อจำกัดที่ต้องพูดออกมา |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | ทำงานที่นี่อย่างไร: กฎบ้าน branch commit |
+| [AGENTS.md](AGENTS.md) | กฎที่ AI agent ทุกตัวต้องทำตาม |
 
-## Current numbers
+---
 
-Held-out test split, 1,245 images: **accuracy 0.9871, macro-F1 0.9873**. That is
-an upper bound on field accuracy rather than an estimate, for reasons set out in
-`docs/EVIDENCE.md` section 2.6. 166 Python tests and 47 frontend tests, run by
-CI on every pull request.
+## ตัวเลขปัจจุบัน
+
+ชุดทดสอบที่กันไว้ 1,245 ภาพ: **accuracy 0.9871, macro-F1 0.9873**
+ตัวเลขนี้เป็น**ขอบบน**ของความแม่นในสนามจริง ไม่ใช่ค่าประมาณ ด้วยเหตุผลใน
+`docs/EVIDENCE.md` หัวข้อ 2.6 — การแบ่งชุดข้อมูลสุ่มภายในแต่ละคลาส ไม่ได้จัดกลุ่ม
+ตามครั้งที่ถ่าย ภาพใบเดียวกันหลายช็อตจึงอาจไปอยู่ทั้งสองฝั่ง
+
+**ไม่มีค่า sensitivity ของการตรวจใบไหม้ และจะไม่อ้างตัวเลขนั้น** specificity วัดได้
+97.18% ส่วน sensitivity วัดไม่ได้เลยถ้าไม่มีรูปใบไหม้จริง — รายละเอียดใน
+`docs/EVIDENCE.md` หัวข้อ 5.5
+
+**ไม่มีภาพใดในคลังมาจากสิงห์ปาร์ค**
+
+การทดสอบ: 273 Python tests (153 backend, 120 ml) และ 63 frontend tests
+CI รันทุก pull request
