@@ -190,6 +190,17 @@ scrcpy --record=demo.mp4                 # mirror the screen and record it
 Genymobile.scrcpy` installs both. Measured here: scrcpy 4.1, adb 1.0.41
 (platform-tools 37.0.0).
 
+**Open a new terminal after installing.** winget puts the package directory on
+the user `PATH` and creates a link only for `scrcpy`, and a process keeps the
+environment it started with, so the terminal the install was run from reports
+`'adb' is not recognized` - which looks exactly like a failed install. A newly
+started shell finds it. To fix the terminal you already have, without opening
+another:
+
+```bat
+set "PATH=%PATH%;%LOCALAPPDATA%\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
+```
+
 The reverse forward is dropped when the cable is unplugged or the adb server
 restarts, so re-run `adb reverse` after either and confirm with `adb reverse
 --list`. The backend needs no forward of its own: the handset talks to Vite and

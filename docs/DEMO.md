@@ -30,7 +30,7 @@ File: `demo/01-brown-blight-severe.jpg`
 - verdict **disease**, burn likelihood 0.05
 - severity **severe**, 28.2% of the leaf
 - advice from record `brown_blight` — โรคใบไหม้น้ำตาล
-- about 115 ms on this machine
+- about 103 ms on this machine
 
 <sub>source: `yunusserhat\brown_blight\yunusserhat-000846.jpg` (brown_blight, yunusserhat)</sub>
 
@@ -42,7 +42,7 @@ File: `demo/02-grey-blight.jpg`
 - verdict **disease**, burn likelihood 0.15
 - severity **moderate**, 8.4% of the leaf
 - advice from record `grey_blight` — โรคใบไหม้เทา
-- about 52 ms on this machine
+- about 55 ms on this machine
 
 <sub>source: `mendeley_mz598\grey_blight\mendeley_mz598-003807.jpg` (grey_blight, mendeley_mz598)</sub>
 
@@ -54,7 +54,7 @@ File: `demo/03-algal-spot.jpg`
 - verdict **disease**, burn likelihood 0.34
 - severity **moderate**, 10.4% of the leaf
 - advice from record `algal_spot` — โรคจุดสาหร่าย / สนิมสาหร่าย
-- about 48 ms on this machine
+- about 45 ms on this machine
 
 <sub>source: `mendeley_mz598\algal_spot\mendeley_mz598-000973.jpg` (algal_spot, mendeley_mz598)</sub>
 
@@ -66,7 +66,7 @@ File: `demo/04-healthy.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.1% of the leaf
 - advice from record `healthy` — ใบปกติ / สุขภาพดี
-- about 40 ms on this machine
+- about 35 ms on this machine
 
 <sub>source: `mendeley_mz598\healthy\mendeley_mz598-005057.jpg` (healthy, mendeley_mz598)</sub>
 
@@ -78,7 +78,7 @@ File: `demo/05-unsure-declines-to-name.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.0% of the leaf
 - advice from record `other_disease` — ความผิดปกติอื่น ๆ (ไม่ตรงโรคหลัก)
-- about 12 ms on this machine
+- about 8 ms on this machine
 
 <sub>source: `agml\algal_spot\agml-004030.jpg` (algal_spot, agml)</sub>
 
@@ -167,6 +167,17 @@ scrcpy --record=demo.mp4                 # mirror the screen and record it
 `scrcpy` ships its own `adb.exe`; on Windows, `winget install
 Genymobile.scrcpy` installs both. Measured here: scrcpy 4.1, adb 1.0.41
 (platform-tools 37.0.0).
+
+**Open a new terminal after installing.** winget puts the package directory on
+the user `PATH` and creates a link only for `scrcpy`, and a process keeps the
+environment it started with, so the terminal the install was run from reports
+`'adb' is not recognized` - which looks exactly like a failed install. A newly
+started shell finds it. To fix the terminal you already have, without opening
+another:
+
+```bat
+set "PATH=%PATH%;%LOCALAPPDATA%\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
+```
 
 The reverse forward is dropped when the cable is unplugged or the adb server
 restarts, so re-run `adb reverse` after either and confirm with `adb reverse
