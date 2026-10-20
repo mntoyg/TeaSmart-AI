@@ -30,7 +30,7 @@ File: `demo/01-brown-blight-severe.jpg`
 - verdict **disease**, burn likelihood 0.05
 - severity **severe**, 28.2% of the leaf
 - advice from record `brown_blight` — โรคใบไหม้น้ำตาล
-- about 129 ms on this machine
+- about 92 ms on this machine
 
 <sub>source: `yunusserhat\brown_blight\yunusserhat-000846.jpg` (brown_blight, yunusserhat)</sub>
 
@@ -42,7 +42,7 @@ File: `demo/02-grey-blight.jpg`
 - verdict **disease**, burn likelihood 0.15
 - severity **moderate**, 8.4% of the leaf
 - advice from record `grey_blight` — โรคใบไหม้เทา
-- about 59 ms on this machine
+- about 40 ms on this machine
 
 <sub>source: `mendeley_mz598\grey_blight\mendeley_mz598-003807.jpg` (grey_blight, mendeley_mz598)</sub>
 
@@ -54,7 +54,7 @@ File: `demo/03-algal-spot.jpg`
 - verdict **disease**, burn likelihood 0.34
 - severity **moderate**, 10.4% of the leaf
 - advice from record `algal_spot` — โรคจุดสาหร่าย / สนิมสาหร่าย
-- about 54 ms on this machine
+- about 36 ms on this machine
 
 <sub>source: `mendeley_mz598\algal_spot\mendeley_mz598-000973.jpg` (algal_spot, mendeley_mz598)</sub>
 
@@ -66,7 +66,7 @@ File: `demo/04-healthy.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.1% of the leaf
 - advice from record `healthy` — ใบปกติ / สุขภาพดี
-- about 35 ms on this machine
+- about 26 ms on this machine
 
 <sub>source: `mendeley_mz598\healthy\mendeley_mz598-005057.jpg` (healthy, mendeley_mz598)</sub>
 
@@ -181,14 +181,18 @@ In this order, because each step depends on the one before:
    photograph twice must not produce two history entries — the server returns
    the stored result with `replayed: true`.
 
-### 4. Known gap before step 6 means anything
+### 4. Browser and Python parity is measured
 
-The browser's resize does not match Python's yet, so an on-device result can
-differ from a server result for reasons that have nothing to do with the model.
-The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
-parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
-passes, treat an offline result as a demonstration of the plumbing rather than
-of the model.
+Measured 2026-10-20 on a fixed set of 50 test-split photographs. Browser and
+Python predictions agreed on all 50 images; the largest per-class probability
+difference was 0.00283 against the 0.05 limit (mean 0.00021). The measurement
+covers JPEG decoding, browser canvas, resizing, normalisation and the fp32 ONNX
+graph. See `docs/EVIDENCE.md` section 6 for the method and reproduction steps.
+
+This validates the offline classifier path. It does not add segmentation,
+lesion analysis, burn judgement or severity to the browser: offline results
+must remain labelled `classifier_only`. Complete the phone-only offline and
+reconnect checks above before treating the installed PWA demo as accepted.
 ## The numbers to quote
 
 | | |

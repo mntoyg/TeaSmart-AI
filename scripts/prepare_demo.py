@@ -203,14 +203,18 @@ In this order, because each step depends on the one before:
    photograph twice must not produce two history entries — the server returns
    the stored result with `replayed: true`.
 
-### 4. Known gap before step 6 means anything
+### 4. Browser and Python parity is measured
 
-The browser's resize does not match Python's yet, so an on-device result can
-differ from a server result for reasons that have nothing to do with the model.
-The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
-parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
-passes, treat an offline result as a demonstration of the plumbing rather than
-of the model.
+Measured 2026-10-20 on a fixed set of 50 test-split photographs. Browser and
+Python predictions agreed on all 50 images; the largest per-class probability
+difference was 0.00283 against the 0.05 limit (mean 0.00021). The measurement
+covers JPEG decoding, browser canvas, resizing, normalisation and the fp32 ONNX
+graph. See `docs/EVIDENCE.md` section 6 for the method and reproduction steps.
+
+This validates the offline classifier path. It does not add segmentation,
+lesion analysis, burn judgement or severity to the browser: offline results
+must remain labelled `classifier_only`. Complete the phone-only offline and
+reconnect checks above before treating the installed PWA demo as accepted.
 """
 
 _SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
