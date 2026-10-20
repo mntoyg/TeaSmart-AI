@@ -1,22 +1,22 @@
-# Contributing to TeaSmart AI
+# การร่วมพัฒนา TeaSmart AI
 
-Phase 1 MVP, hackathon demo on **2026-10-22**. One vertical slice lands per day.
-Read `docs/STATE.md` to see where things stand, then `docs/DESIGN.md` before
-touching code.
+Phase 1 MVP สาธิตในแฮกกาธอน **2026-10-22** ลงงานวันละหนึ่งสไลซ์แนวตั้ง
+อ่าน `docs/STATE.md` เพื่อดูว่างานอยู่ตรงไหน แล้วอ่าน `docs/DESIGN.md` ก่อนแตะโค้ด
 
-Frontend contributors: read [frontend/README.md](frontend/README.md) for the
-source map, and [docs/DESIGN.md](docs/DESIGN.md) section 8 for the API contract
-that is the boundary between the frontend and the backend. Work in root
-`frontend/`. Every AI contributor follows the daily ceiling in `AGENTS.md`.
+ผู้ร่วมพัฒนาฝั่ง frontend: อ่าน [frontend/README.md](frontend/README.md) เพื่อดู
+แผนที่ซอร์ส และ [docs/DESIGN.md](docs/DESIGN.md) หัวข้อ 8 ซึ่งเป็นสัญญา API
+และเป็นขอบเขตระหว่าง frontend กับ backend ทำงานใน `frontend/` ที่ root
+AI ทุกตัวต้องทำตามเพดานการใช้งานต่อวันใน `AGENTS.md`
 
-| document | what it is |
+| เอกสาร | คืออะไร |
 |---|---|
-| `docs/STATE.md` | where the work stands right now — update it when you finish a slice |
-| `docs/DESIGN.md` | design, the API contract and the decisions behind them — the binding authority when anything disagrees |
-| `docs/EVIDENCE.md` | the measured numbers, and the commands that produced them |
-| `AGENTS.md` | the rules AI agents work under |
+| `docs/STATE.md` | งานอยู่ตรงไหนแล้ว — **อัปเดตเมื่อคุณปิดสไลซ์** |
+| `docs/DESIGN.md` | การออกแบบ สัญญา API และเหตุผลเบื้องหลัง — **เป็นผู้มีอำนาจผูกพัน** เมื่ออะไรขัดกัน |
+| `docs/EVIDENCE.md` | ตัวเลขที่วัดได้ พร้อมคำสั่งที่ผลิตมัน |
+| `docs/PHONE-TH.md` | เปิดแอปบนมือถือจริง เขียนให้อ่านบนมือถือ |
+| `AGENTS.md` | กฎที่ AI agent ทุกตัวต้องทำตาม |
 
-## Get set up
+## ติดตั้ง
 
 ```bash
 git clone https://github.com/mntoyg/TeaSmart-AI.git && cd TeaSmart-AI
@@ -24,31 +24,31 @@ git clone https://github.com/mntoyg/TeaSmart-AI.git && cd TeaSmart-AI
 ./scripts/test.sh            # Windows: ./scripts/test.ps1
 ```
 
-Drop `--cpu` if you have an NVIDIA card and intend to train. Everything in the
-test suites runs on the CPU, so the CPU wheel is enough to contribute.
+ตัด `--cpu` ออกถ้ามีการ์ด NVIDIA และตั้งใจจะเทรน ทุกอย่างในชุดทดสอบรันบน CPU
+ดังนั้น wheel ของ CPU เพียงพอสำหรับการร่วมพัฒนา
 
-`test.sh` should end with `All green.` It runs exactly what CI runs, in the same
-order, so a green run locally is a green run on the pull request. At the time of
-writing that is 46 backend tests, 120 ML tests and 47 frontend tests.
+`test.sh` ต้องจบด้วย `All green.` มันรันสิ่งเดียวกับที่ CI รัน ในลำดับเดียวกัน
+ดังนั้นรันผ่านในเครื่องคือผ่านบน pull request ขณะที่เขียนนี้คือ
+**153 backend tests, 120 ML tests และ 63 frontend tests**
 
-Python 3.12 and Node 22 are required. Nothing needs a `.env` to run; copy
-`.env.example` to `backend/.env` only to override a default.
+ต้องมี Python 3.12 และ Node 22 ไม่มีอะไรต้องใช้ `.env` เพื่อรัน คัดลอก
+`.env.example` ไปเป็น `backend/.env` เฉพาะเมื่อต้องการเปลี่ยนค่าตั้งต้น
 
-## Run the service
+## รันบริการ
 
 ```bash
 cd backend && .venv/bin/python -m uvicorn app.main:create_app --factory --reload
 ```
 
-On Windows the interpreter is `.venv/Scripts/python.exe`. The virtualenvs are
-never activated - naming the interpreter is one line longer and removes a whole
-class of "wrong environment" mistakes.
+บน Windows ตัวแปลภาษาคือ `.venv/Scripts/python.exe` **virtualenv ไม่เคยถูก activate**
+การระบุตัวแปลภาษาตรง ๆ ยาวกว่าหนึ่งบรรทัดแต่กำจัดความผิดพลาดประเภท
+"อยู่ environment ผิด" ไปทั้งกลุ่ม
 
 ```bash
 curl http://127.0.0.1:8000/health && curl http://127.0.0.1:8000/api/v1/config
 ```
 
-## The ML package
+## แพ็กเกจ ML
 
 ```bash
 cd ml
@@ -60,59 +60,55 @@ cd ml
 .venv/bin/python -m teasmart_ml.cli fixtures    # browser parity fixtures
 ```
 
-## House rules
+## กฎบ้าน
 
-**Tests first.** Write the failing test, watch it fail, then write the code. A
-test that passed the moment you wrote it proves nothing; if you add a test that
-cannot fail, change a constant to make it fail, confirm it does, and change it
-back.
+**เขียน test ก่อน** เขียน test ที่ยังพัง ดูมันพัง แล้วค่อยเขียนโค้ด test ที่ผ่าน
+ตั้งแต่วินาทีที่เขียนไม่ได้พิสูจน์อะไรเลย ถ้าคุณเพิ่ม test ที่พังไม่ได้
+ให้ไปแก้ค่าคงที่ที่มันเฝ้าให้มันพัง ยืนยันว่ามันพังจริง แล้วแก้กลับ
 
-**The suite treats warnings as errors.** A green run is also a clean run. If a
-third-party warning appears, add a targeted ignore in the `filterwarnings` list
-in that package's `pyproject.toml` — message, category and module — never a
-blanket one.
+**ชุดทดสอบถือว่า warning คือ error** รันผ่านต้องหมายถึงรันสะอาดด้วย ถ้ามี warning
+จาก third-party ให้เพิ่ม ignore แบบเจาะจงใน `filterwarnings` ของ `pyproject.toml`
+ในแพ็กเกจนั้น — ระบุ message, category และ module — **ห้ามใส่แบบครอบจักรวาล**
 
-**Lint is part of the suite, not a separate chore.** `ruff check` runs before
-the tests in `scripts/test.*` and in CI. It is currently clean; keep it that
-way rather than letting a backlog form.
+**lint เป็นส่วนหนึ่งของชุดทดสอบ ไม่ใช่งานแยก** `ruff check` รันก่อน test ใน
+`scripts/test.*` และใน CI ตอนนี้สะอาด รักษาให้สะอาดแทนที่จะปล่อยให้มีงานค้างสะสม
 
-**Thresholds live in config, not at call sites.** Everything tunable is a field
-on `Settings` in `backend/app/core/config.py`, and `tests/test_config.py` pins
-the values the spec fixes. Read them from `get_settings()` in tests rather than
-hard-coding the numbers again.
+**threshold อยู่ใน config ไม่ใช่ที่จุดเรียกใช้** ทุกอย่างที่ปรับได้เป็น field บน
+`Settings` ใน `backend/app/core/config.py` และ `tests/test_config.py` ตรึงค่าที่ spec
+กำหนดไว้ ใน test ให้อ่านจาก `get_settings()` แทนการเขียนตัวเลขซ้ำ
 
-**The knowledge base is data.** `backend/app/kb/diseases.json` holds the Thai
-advice a farmer acts on. Records 0-3 are supplied text and are not to be
-reworded. Records are keyed by the `canonical` snake_case class the classifier
-emits, not by the English display name.
+**ฐานความรู้เป็นข้อมูล** `backend/app/kb/diseases.json` เก็บคำแนะนำภาษาไทยที่เกษตรกร
+จะลงมือทำตาม **record 0-3 เป็นข้อความที่ได้รับมา ห้ามเรียบเรียงใหม่** record ใช้คลาส
+`canonical` แบบ snake_case ที่ตัวจำแนกส่งออกเป็นกุญแจ ไม่ใช่ชื่อแสดงภาษาอังกฤษ
 
-**Thai is for people, English is for code.** User-facing strings and knowledge
-base content in Thai; code, comments, docstrings, commit messages and these docs
-in English.
+**ภาษาไทยสำหรับคน อังกฤษสำหรับเครื่อง** ข้อความที่ผู้ใช้เห็น เนื้อหาฐานความรู้
+และ**เอกสาร** เป็นภาษาไทย ส่วนโค้ด คอมเมนต์ docstring และ commit message
+เป็นภาษาอังกฤษ (เอกสารเปลี่ยนเป็นไทยเมื่อ 2026-10-20 ดู `AGENTS.md` ข้อ 1
+ว่าครอบคลุมอะไรและไม่ครอบคลุมอะไร)
 
-**Every pipeline stage is a pure function.** One module per stage under
-`backend/app/services/`, no stage reaching into another's internals. If a stage
-needs a value, it takes it as an argument.
+**ทุกด่านของ pipeline เป็นฟังก์ชันบริสุทธิ์** หนึ่งโมดูลต่อหนึ่งด่านใต้
+`backend/app/services/` **ไม่มีด่านไหนเอื้อมเข้าไปในไส้ของอีกด่าน** ถ้าด่านหนึ่ง
+ต้องใช้ค่า ให้รับค่านั้นเป็นอาร์กิวเมนต์
 
-**Uploads are hostile until proven otherwise.** `backend/app/core/images.py` is
-the only door images from outside come through, and every later stage trusts its
-output. Changes there need a test for the input class you are worried about.
+**ของที่อัปโหลดเข้ามาเป็นศัตรูจนพิสูจน์ได้ว่าไม่ใช่** `backend/app/core/images.py`
+เป็นประตูบานเดียวที่ภาพจากภายนอกผ่าน และทุกด่านหลังจากนั้นเชื่อผลของมัน
+การแก้ที่นั่นต้องมี test สำหรับประเภท input ที่คุณกังวล
 
-## Branches and commits
+## Branch และ commit
 
-Branch per slice, off `main`: `feat/d2-dataset-ingest`, `fix/...`, `docs/...`.
-Never commit straight to `main`. Two agents work here in parallel and the split
-is by directory — `docs/DESIGN.md` section 14 says who owns what. One branch per
-slice; never two people on one branch.
+หนึ่ง branch ต่อหนึ่งสไลซ์ แตกจาก `main`: `feat/d2-dataset-ingest`, `fix/...`,
+`docs/...` **ห้าม commit ลง `main` ตรง ๆ** มี AI สองตัวทำงานที่นี่พร้อมกันและแบ่งงาน
+ตามไดเรกทอรี — `docs/DESIGN.md` หัวข้อ 14 บอกว่าใครดูแลอะไร
+**หนึ่ง branch ต่อหนึ่งสไลซ์ ห้ามสองคนอยู่ branch เดียวกัน**
 
-Conventional-commit subjects (`feat(kb):`, `fix:`, `docs:`), imperative mood,
-then a body explaining **why** — the diff already says what. Include the test
-result when it is the point of the change.
+หัวข้อ commit แบบ conventional (`feat(kb):`, `fix:`, `docs:`) ใช้รูปคำสั่ง
+แล้วเขียนเนื้อหาอธิบาย **ว่าทำไม** — diff บอกอยู่แล้วว่าทำอะไร ใส่ผลการทดสอบด้วย
+เมื่อผลนั้นคือประเด็นของการเปลี่ยนแปลง
 
-Open a PR against `main` and have someone read it. The PR body says what landed,
-which decisions are worth knowing about, and the verification output.
+เปิด PR เข้า `main` และให้มีคนอ่าน เนื้อหา PR บอกว่าอะไรลงไป การตัดสินใจไหนที่ควรรู้
+และผลการตรวจสอบ
 
-## Before you say it works
+## ก่อนจะบอกว่ามันทำงานได้
 
-Run the suite and paste the real output. "Should work" is not evidence. If
-something is incomplete or you skipped a step, say so in the PR.
+รันชุดทดสอบและวาง output จริงลงไป **"น่าจะทำงานได้" ไม่ใช่หลักฐาน**
+ถ้าอะไรยังไม่เสร็จหรือคุณข้ามขั้นตอนไหน ให้บอกไว้ใน PR
