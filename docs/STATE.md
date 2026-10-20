@@ -8,9 +8,9 @@
 
 - **อัปเดตล่าสุด:** 2026-10-20
 - **กำหนดสาธิต:** 2026-10-22 — **อีกสองวัน**
-- **open PRs:** #14 (demo readiness docs), #15 (handoff prompt), and #16 (demo guide,
-  TLS, mobile Thai page, QR, cleanup); PRs #5–#13 are merged. The current P0-2 branch,
-  `fix/pwa-installed-offline-scan`, was created from PR #16's `fix/demo-parity-section` tip.
+- **open PRs:** #14 (demo readiness docs), #15 (handoff prompt), #16 (demo guide, TLS,
+  mobile Thai page, QR, cleanup), and #17 (P0-2 offline scan measurement, based on PR #16);
+  PRs #5–#13 are merged. The current branch is `fix/pwa-installed-offline-scan`.
 - **เจ้าของตามไดเรกทอรี:** `docs/DESIGN.md` หัวข้อ 14 — Claude Code ดูแล `backend/`
   และ `ml/` ส่วน Codex ดูแล `frontend/`
   **2026-10-20 Claude Code ข้ามเข้า `frontend/`** เพิ่ม `vite.https.ts`,
