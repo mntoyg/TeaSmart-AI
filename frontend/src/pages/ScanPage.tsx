@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { scanImage } from '../lib/api';
+import { isServerUnreachable, scanImage } from '../lib/api';
 import { transportLimits, type ClientConfig } from '../lib/scan-contract';
 import type { StoredResult } from '../lib/local-result';
 import { inferOffline } from '../lib/offline';
@@ -73,11 +73,23 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
     if (!capture || busy) return;
     setBusy(true); setError(''); controller.current = new AbortController();
     try {
-      const result = local
-        ? await inferOffline(capture.file, capture.id, capture.at, config)
-        : await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+      // `navigator.onLine` only says an interface exists. An access point with
+      // no route out satisfies it, which on a mountain estate is the normal
+      // case, so an unreachable server falls through to the device rather than
+      // raising at the user. A server that answered and refused does not: that
+      // is a judgement about the photograph and must reach the screen.
+      let onDevice = local;
+      let result: StoredResult;
+      if (local) result = await inferOffline(capture.file, capture.id, capture.at, config);
+      else try {
+        result = await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+      } catch (failure) {
+        if (!isServerUnreachable(failure)) throw failure;
+        result = await inferOffline(capture.file, capture.id, capture.at, config);
+        onDevice = true;
+      }
       if (result.scan_id !== capture.id) throw new Error('ผลวิเคราะห์ไม่ตรงกับภาพ กรุณาลองใหม่');
-      if (local) await store.enqueue(capture.file, { ...result, analysis_mode: 'classifier_only' });
+      if (onDevice) await store.enqueue(capture.file, { ...result, analysis_mode: 'classifier_only' });
       if (mounted.current) await onResult(result);
     } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : 'วิเคราะห์ไม่ได้ กรุณาลองใหม่'); }
     finally { if (mounted.current) setBusy(false); }

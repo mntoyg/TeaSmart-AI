@@ -47,10 +47,38 @@ export function parseKnowledge(value: unknown): KnowledgeRecord[] {
   }
   return value as KnowledgeRecord[];
 }
+/**
+ * The request never got an answer: no route, DNS failure, refused connection,
+ * a dev server that is not running, or the 30-second timeout below.
+ *
+ * Distinct from an ordinary Error, which is how a server that *did* answer and
+ * refused arrives. A caller may fall back to the on-device model for this one
+ * and must not for the other: re-running the classifier locally on a photograph
+ * the quality gate rejected would replace a deliberate "take it again" with a
+ * result the server declined to give.
+ */
+export class ServerUnreachableError extends Error {
+  constructor(cause?: unknown) {
+    super('เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่', { cause });
+    this.name = 'ServerUnreachableError';
+  }
+}
+
+/** Whether `failure` means the server was never reached. */
+export function isServerUnreachable(failure: unknown): boolean {
+  return failure instanceof ServerUnreachableError;
+}
+
 async function request(url: string, init?: RequestInit): Promise<unknown> {
   let response: Response;
   try { response = await fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(30_000) }); }
-  catch { throw new Error('เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่'); }
+  catch (cause) {
+    // A user who pressed cancel wants nothing to happen, not a second attempt
+    // by another route, so an abort is passed through as itself. A timeout is
+    // not an abort: no answer came back, which is what unreachable means.
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+    throw new ServerUnreachableError(cause);
+  }
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = object(body) && typeof body.detail_th === 'string' && body.detail_th.trim();

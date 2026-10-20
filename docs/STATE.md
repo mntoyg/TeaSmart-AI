@@ -24,12 +24,11 @@
 
 ## สามอย่างที่เหลือก่อนวันสาธิต เรียงตามความสำคัญ
 
-1. **แก้ fallback เมื่อต่อเซิร์ฟเวอร์ไม่ได้ — ยังไม่ทำ**
-   `frontend/src/pages/ScanPage.tsx:72` เลือกทางด้วย `navigator.onLine` เท่านั้น
-   ถ้าเน็ตติดแต่เซิร์ฟเวอร์ต่อไม่ได้ `scanImage` จะโยน error ขึ้นหน้าจอ
-   **ไม่ย้อนไปรันบนเครื่อง** ซึ่งขัดกับข้อจำกัด "เน็ตภูเขาไม่เสถียร" ที่โครงการนี้
-   ตั้งไว้เอง และ `navigator.onLine` เป็น true แค่มี network interface ไม่ได้แปลว่า
-   ถึงเซิร์ฟเวอร์ นี่เป็นข้อบกพร่องจริง และเป็นเงื่อนไขที่ทำให้ข้อ 2 ใช้ได้
+1. ~~แก้ fallback เมื่อต่อเซิร์ฟเวอร์ไม่ได้~~ **เสร็จแล้ว 2026-10-20**
+   `api.ts` แยก `ServerUnreachableError` ออกจาก error ธรรมดา และ `ScanPage`
+   ย้อนไปรันบนเครื่องเฉพาะกรณีนั้น แล้วเข้าคิวให้ sync ทีหลัง
+   **ไม่ย้อน**เมื่อเซิร์ฟเวอร์ตอบมาว่าปฏิเสธภาพ (422 คือคำตัดสินเรื่องภาพ ต้องถึงจอ)
+   และ**ไม่ย้อน**เมื่อผู้ใช้กดยกเลิก ส่วน timeout นับเป็นต่อไม่ถึง เพราะไม่มีคำตอบกลับมา
 2. **deploy frontend แบบ static — ยังไม่ทำ**
    ตัดสินใจแล้ว 2026-10-20: deploy เฉพาะ frontend ไม่ deploy backend
    กรรมการจะสแกน QR เปิดบนมือถือตัวเอง ได้ cert จริง → secure context ฟรี
@@ -99,13 +98,14 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 | TLS (PR #16) | `frontend/vite.https.ts` เสิร์ฟคู่ cert ของ mkcert เมื่อตั้ง `TEASMART_DEV_CERT_DIR` ทำให้ LAN address เป็น secure context บน **iPhone ไม่ใช่แค่ Android** `scripts/serve_ca.py` ส่ง root สาธารณะ หน้าไทย `docs/PHONE-TH.md` | 121 backend, 63 frontend tests |
 | ทำความสะอาด (PR #16) | ลบ worktree `.superpowers/worktrees/d6` และ `d7` (ทั้งสอง branch เป็น ancestor ของ `origin/main` แล้ว ไม่มี commit หาย และ branch ref ยังอยู่) ลบ `.mypy_cache`, `.ruff_cache` แก้ลิงก์เอกสารเสีย 3 จุด มี `test_docs_links.py` เฝ้าทุกลิงก์และ `<img src>` ถาวร | 134 backend tests |
 | QR + README ไทย (PR #16) | `scripts/make_qr.py` พร้อมการ์ดกัน URL วง LAN, README เป็นไทยและเพิ่มหัวข้อสถาปัตยกรรม | 153 backend tests |
+| fallback (PR #16) | `ScanPage` ย้อนไปรันโมเดลบนเครื่องเมื่อต่อเซิร์ฟเวอร์ไม่ถึง แต่ไม่ย้อนเมื่อเซิร์ฟเวอร์ปฏิเสธภาพหรือผู้ใช้กดยกเลิก **เงื่อนไขที่ทำให้ deploy แบบ static ใช้งานได้** | 73 frontend tests |
 
 **คลังภาพบนดิสก์:** นำเข้า 11,853 ภาพจากสามแหล่งที่ไม่ต้องใช้ credential
 ตัดซ้ำเหลือ **8,316** ภาพใน 5 คลาส แบ่ง 70/15/15 และตรวจทุกคู่ในเชิงพิกเซลแล้วพบ
 คู่ซ้ำข้ามชุด **0** คู่ สร้างใหม่ด้วย
 `cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare`
 
-**การทดสอบตอนนี้:** 153 backend, 120 ml, 63 frontend, ruff สะอาด, `All green.`
+**การทดสอบตอนนี้:** 153 backend, 120 ml, 73 frontend, ruff สะอาด, `All green.`
 
 ---
 
@@ -228,7 +228,7 @@ client บังคับให้ต้องมี
   `GET /api/v1/config` **อย่า hard-code**
 - จุดเริ่มอ่าน: [frontend/README.md](../frontend/README.md)
 - ยังมี warning `inlineDynamicImports` ของ VitePWA ค้างอยู่ตอน build ยังไม่แก้
-- **ค้างอยู่สองเรื่องที่เป็นของ `frontend/`** คือ fallback ในข้อ 1 ด้านบน และสองข้อ P2:
+- **ค้างอยู่สองข้อ P2 ที่เป็นของ `frontend/`:**
   `src/lib/api.ts` hard-code รายชื่อคลาสซ้ำกับที่ `GET /api/v1/config` เสิร์ฟ
   (วันนี้ค่าตรงกัน การมีสำเนาที่สองคือตัวปัญหา) และ `parseKnowledge` บังคับให้มี
   record ในฐานความรู้ **เท่ากับ 6 รายการพอดี** โรคที่เจ็ดจะทำให้ client พัง
