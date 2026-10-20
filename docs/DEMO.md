@@ -30,7 +30,7 @@ File: `demo/01-brown-blight-severe.jpg`
 - verdict **disease**, burn likelihood 0.05
 - severity **severe**, 28.2% of the leaf
 - advice from record `brown_blight` — โรคใบไหม้น้ำตาล
-- about 87 ms on this machine
+- about 115 ms on this machine
 
 <sub>source: `yunusserhat\brown_blight\yunusserhat-000846.jpg` (brown_blight, yunusserhat)</sub>
 
@@ -42,7 +42,7 @@ File: `demo/02-grey-blight.jpg`
 - verdict **disease**, burn likelihood 0.15
 - severity **moderate**, 8.4% of the leaf
 - advice from record `grey_blight` — โรคใบไหม้เทา
-- about 44 ms on this machine
+- about 52 ms on this machine
 
 <sub>source: `mendeley_mz598\grey_blight\mendeley_mz598-003807.jpg` (grey_blight, mendeley_mz598)</sub>
 
@@ -54,7 +54,7 @@ File: `demo/03-algal-spot.jpg`
 - verdict **disease**, burn likelihood 0.34
 - severity **moderate**, 10.4% of the leaf
 - advice from record `algal_spot` — โรคจุดสาหร่าย / สนิมสาหร่าย
-- about 41 ms on this machine
+- about 48 ms on this machine
 
 <sub>source: `mendeley_mz598\algal_spot\mendeley_mz598-000973.jpg` (algal_spot, mendeley_mz598)</sub>
 
@@ -66,7 +66,7 @@ File: `demo/04-healthy.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.1% of the leaf
 - advice from record `healthy` — ใบปกติ / สุขภาพดี
-- about 28 ms on this machine
+- about 40 ms on this machine
 
 <sub>source: `mendeley_mz598\healthy\mendeley_mz598-005057.jpg` (healthy, mendeley_mz598)</sub>
 
@@ -78,7 +78,7 @@ File: `demo/05-unsure-declines-to-name.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.0% of the leaf
 - advice from record `other_disease` — ความผิดปกติอื่น ๆ (ไม่ตรงโรคหลัก)
-- about 8 ms on this machine
+- about 12 ms on this machine
 
 <sub>source: `agml\algal_spot\agml-004030.jpg` (algal_spot, agml)</sub>
 
@@ -145,18 +145,57 @@ So a phone test over `http://<lan-ip>` can only confirm the layout, the file
 picker and an online scan. **It cannot confirm the offline story, which is the
 part the demo is judged on.**
 
-Two ways to get a secure context, both of which need a decision:
+Three ways to get a secure context. Prefer the first.
 
-**Chrome flag, local and free.** On the phone open
+**USB, on Android — and this is also how the demo gets recorded.** `adb
+reverse` publishes a port from this machine onto the handset's own `localhost`,
+and `localhost` is a secure context *by specification*, in Chrome on Android as
+anywhere else. So the handset opens `http://localhost:5173` and gets the
+camera, the service worker, offline inference and install, with no browser
+flag, no third-party tunnel, and no firewall rule — the LAN is not involved at
+all, and `--host` is not needed on Vite.
+
+Enable Developer options and USB debugging on the handset, plug it in, accept
+the authorisation prompt, then:
+
+```bash
+adb devices                              # must list the handset as `device`
+adb reverse tcp:5173 tcp:5173            # the app
+scrcpy --record=demo.mp4                 # mirror the screen and record it
+```
+
+`scrcpy` ships its own `adb.exe`; on Windows, `winget install
+Genymobile.scrcpy` installs both. Measured here: scrcpy 4.1, adb 1.0.41
+(platform-tools 37.0.0).
+
+The reverse forward is dropped when the cable is unplugged or the adb server
+restarts, so re-run `adb reverse` after either and confirm with `adb reverse
+--list`. The backend needs no forward of its own: the handset talks to Vite and
+Vite proxies `/api` on this machine.
+
+Record with `--record=demo.mp4` rather than screen-capturing the scrcpy window:
+it writes the handset's own video stream, so the file does not carry the
+compositor's dropped frames. `--no-audio` if the handset's audio forwarding
+gets in the way.
+
+**Chrome flag, if USB is not available.** On the phone open
 `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add
 `http://<lan-ip>:5173`, set the flag to Enabled and relaunch Chrome. The origin
 is then treated as secure: camera, service worker, offline and install all
-work. Nothing leaves the network. Undo it after the demo.
+work. Nothing leaves the network. Undo it after the demo. The flag names one
+exact origin, so it has to be set again if the LAN address changes.
 
 **A tunnel, if the demo is not on the same network.** `cloudflared` or `ngrok`
 gives a real HTTPS URL that any phone can open. It also sends every photograph
 and every result through a third party, so it is a decision for the owner of
-the data, not a default.
+the data, not a default. It additionally needs `TEASMART_CORS_ORIGINS` set,
+because the browser's origin is then no longer `localhost:5173`.
+
+**On iPhone, none of the first two apply.** There is no `adb`, and Chrome on
+iOS is WebKit underneath with no flag for insecure origins, so a secure context
+there means `mkcert` with the root certificate trusted on the handset, or a
+tunnel. Mirroring an iPhone to Windows needs an AirPlay receiver or a capture
+card. Record the demo on Android; keep the iPhone as a WebKit cross-check.
 
 ### 3. What to check once the context is secure
 

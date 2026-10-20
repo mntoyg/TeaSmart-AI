@@ -89,3 +89,66 @@ def test_runbook_cites_the_measured_parity_delta(
         "docs/EVIDENCE.md, so a reader cannot tell how far inside the bound the "
         "on-device path is."
     )
+
+
+# --- the ports the runbook tells someone to type -------------------------------
+#
+# A port in the runbook that disagrees with the port the code actually uses
+# fails on stage, where there is no time to debug it. Both tests below compare
+# the runbook against the real source of the number rather than against a
+# literal repeated here.
+
+VITE_CONFIG_PATH = REPO_ROOT / "frontend" / "vite.config.ts"
+
+
+@pytest.fixture(scope="module")
+def vite_config_text() -> str:
+    return VITE_CONFIG_PATH.read_text(encoding="utf-8")
+
+
+def test_runbook_backend_port_matches_the_vite_proxy(
+    demo_text: str, vite_config_text: str
+) -> None:
+    """The uvicorn command must serve the port the dev proxy forwards to."""
+    proxy = re.search(
+        r"['\"]/api['\"]\s*:\s*['\"]https?://[^:'\"]+:(\d+)['\"]", vite_config_text
+    )
+    assert proxy is not None, (
+        "frontend/vite.config.ts no longer declares an /api proxy target this "
+        "test can read; the runbook's backend port cannot be checked against it."
+    )
+    documented = re.findall(r"-m uvicorn [^\n]*--port (\d+)", demo_text)
+    assert documented, "docs/DEMO.md gives no uvicorn --port for the backend."
+    mismatched = sorted({port for port in documented if port != proxy.group(1)})
+    assert not mismatched, (
+        f"docs/DEMO.md starts the backend on port(s) {mismatched} but "
+        f"frontend/vite.config.ts proxies /api to port {proxy.group(1)}. "
+        "Every /api call from the phone would 502."
+    )
+
+
+def test_runbook_adb_reverse_forwards_the_port_it_then_opens(demo_text: str) -> None:
+    """`adb reverse tcp:A tcp:B` is useless unless A is the port the reader opens.
+
+    A is the port on the handset and B the port on this machine. The runbook
+    then tells the reader to open a URL on the handset, so A has to be the port
+    in that URL.
+    """
+    pairs = re.findall(r"adb(?:\.exe)? reverse tcp:(\d+) tcp:(\d+)", demo_text)
+    assert pairs, (
+        "docs/DEMO.md documents no `adb reverse` forward, so the handset has no "
+        "way to reach this machine over USB and no secure context without a "
+        "browser flag or a third-party tunnel."
+    )
+    for handset_port, machine_port in pairs:
+        assert handset_port == machine_port, (
+            f"docs/DEMO.md forwards handset port {handset_port} to machine port "
+            f"{machine_port}; the runbook's URLs assume one number, so a reader "
+            "following it opens the wrong port."
+        )
+        assert f"http://localhost:{handset_port}" in demo_text, (
+            f"docs/DEMO.md forwards handset port {handset_port} but never tells "
+            f"the reader to open http://localhost:{handset_port} on the handset, "
+            "which is the whole point of the forward: localhost is a secure "
+            "context, the LAN address is not."
+        )

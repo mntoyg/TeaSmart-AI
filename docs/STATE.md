@@ -7,7 +7,8 @@ here. Whoever finishes a slice updates this file in the same push.
   demo runbook now agrees with the parity evidence)
 - **Demo deadline:** 2026-10-22 — three days
 - **Open branches:** PR #14 (demo readiness docs, Codex), PR #15 (the
-  self-rewriting handoff prompt) and PR #16 (the runbook parity section).
+  self-rewriting handoff prompt) and PR #16 (the runbook: the parity
+  section, and the USB path that gets the handset a secure context).
   All three are independent. PR #5 through #13 are merged.
 - **Next slice:** the frontend's resize fix against the parity fixtures
   (Codex), then the 50-image parity check that D7 is not done without.
@@ -34,7 +35,7 @@ here. Whoever finishes a slice updates this file in the same push.
 | D5 (PR #10) | `POST /api/v1/sync/batch` and `scan_id` idempotency on both endpoints | 102 backend tests, verified live |
 | D9 (PR #11) | Demo runbook generated from the real pipeline, six slots | `docs/DEMO.md` |
 | D7 gate (PR #13) | Browser resize matched to PIL; the 50-image parity check **passes** | 58 frontend tests, `docs/EVIDENCE.md` section 6 |
-| docs (PR #16) | `docs/DEMO.md` section 4 still called the parity gate open after PR #13 closed it, telling the reader to present a working offline result as plumbing. Fixed in the generator and guarded by a test that reads the verdict out of `docs/EVIDENCE.md` | 105 backend tests |
+| docs (PR #16) | `docs/DEMO.md` section 4 still called the parity gate open after PR #13 closed it, telling the reader to present a working offline result as plumbing. Fixed in the generator and guarded by a test that reads the verdict out of `docs/EVIDENCE.md`. Same PR: `adb reverse` documented as the first way to a secure context on the handset, which also mirrors and records the screen for the demo video | 107 backend tests |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
