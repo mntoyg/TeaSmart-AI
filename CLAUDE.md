@@ -8,7 +8,9 @@ This file only adds what is specific to Claude Code.
 
 ## The three rules most easily forgotten
 
-1. Reply in **Thai**. Code and commits in English.
+1. Reply in **Thai**, and write docs in **Thai** (changed 2026-10-20, see
+   AGENTS.md rule 1 for what that does and does not cover). Code and
+   commits stay in English.
 2. **Commit and push after every completed step**, not at the end of the session.
 3. Run tests through the package venv: `./.venv/Scripts/python.exe -m pytest -q`
    from `backend/` or from `ml/`. A bare `python` has none of the dependencies.

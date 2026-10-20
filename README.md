@@ -69,6 +69,7 @@ no "which venv am I in" failure mode.
 | file | what it is |
 |---|---|
 | [docs/STATE.md](docs/STATE.md) | where the work stands right now. **Start here.** |
+| [docs/PHONE-TH.md](docs/PHONE-TH.md) | ภาษาไทย — opening the app on a real phone, with links to tap. Written to be read on the handset |
 | [docs/DESIGN.md](docs/DESIGN.md) | design, the API contract, and the decisions behind both — the binding authority when anything disagrees |
 | [docs/EVIDENCE.md](docs/EVIDENCE.md) | the measured numbers, and the commands that produced them |
 | [docs/DEMO.md](docs/DEMO.md) | the demo runbook: running order, the measured outcome of every image, and the limits to state out loud |

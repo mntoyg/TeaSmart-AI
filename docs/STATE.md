@@ -7,8 +7,8 @@ here. Whoever finishes a slice updates this file in the same push.
   demo runbook now agrees with the parity evidence)
 - **Demo deadline:** 2026-10-22 — three days
 - **Open branches:** PR #14 (demo readiness docs, Codex), PR #15 (the
-  self-rewriting handoff prompt) and PR #16 (the runbook: the parity
-  section, and the USB path that gets the handset a secure context).
+  self-rewriting handoff prompt) and PR #16 (the runbook, plus TLS and a
+  Thai phone page so either handset gets a secure context).
   All three are independent. PR #5 through #13 are merged.
 - **Next slice:** the frontend's resize fix against the parity fixtures
   (Codex), then the 50-image parity check that D7 is not done without.
@@ -19,6 +19,14 @@ here. Whoever finishes a slice updates this file in the same push.
   rejected. Command in `docs/EVIDENCE.md` section 4.6.
 - **Ownership:** by directory, in `docs/DESIGN.md` section 14. Claude Code has
   `backend/` and `ml/`; Codex has `frontend/`.
+  **2026-10-20, Claude Code crossed into `frontend/`** and added
+  `vite.https.ts`, `src/test/vite-https.test.ts` and three lines of
+  `vite.config.ts`. Reason: TLS is the only way an iPhone gets a secure
+  context, and the request came from the user. It is additive and
+  opt-in - with `TEASMART_DEV_CERT_DIR` unset the dev server, the build
+  and CI behave exactly as before, and `server.proxy` was not touched.
+  Nothing of Codex's was in flight (PR #14 is docs-only). Codex owns
+  these files from here.
 - **Daily usage ceilings:** Every AI: at most 14% of its own weekly capacity per day
 
 ## Done
@@ -36,6 +44,7 @@ here. Whoever finishes a slice updates this file in the same push.
 | D9 (PR #11) | Demo runbook generated from the real pipeline, six slots | `docs/DEMO.md` |
 | D7 gate (PR #13) | Browser resize matched to PIL; the 50-image parity check **passes** | 58 frontend tests, `docs/EVIDENCE.md` section 6 |
 | docs (PR #16) | `docs/DEMO.md` section 4 still called the parity gate open after PR #13 closed it, telling the reader to present a working offline result as plumbing. Fixed in the generator and guarded by a test that reads the verdict out of `docs/EVIDENCE.md`. Same PR: `adb reverse` documented as the first way to a secure context on the handset, which also mirrors and records the screen for the demo video | 107 backend tests |
+| TLS (PR #16) | `frontend/vite.https.ts`: the dev server serves an mkcert pair when `TEASMART_DEV_CERT_DIR` is set, so a LAN address is a secure context on **iPhone as well as Android** - the Chrome flag does not exist on iOS. `scripts/serve_ca.py` hands the handset the public root and structurally cannot serve the CA key. `docs/PHONE-TH.md` is the Thai page to read on the handset, with links to tap | 121 backend, 63 frontend tests |
 
 **Corpus on disk:** 11,853 images ingested from three credential-free sources,
 deduplicated to **8,316** across five classes, split 70/15/15, with **0**
