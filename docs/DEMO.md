@@ -30,7 +30,7 @@ File: `demo/01-brown-blight-severe.jpg`
 - verdict **disease**, burn likelihood 0.05
 - severity **severe**, 28.2% of the leaf
 - advice from record `brown_blight` — โรคใบไหม้น้ำตาล
-- about 129 ms on this machine
+- about 87 ms on this machine
 
 <sub>source: `yunusserhat\brown_blight\yunusserhat-000846.jpg` (brown_blight, yunusserhat)</sub>
 
@@ -42,7 +42,7 @@ File: `demo/02-grey-blight.jpg`
 - verdict **disease**, burn likelihood 0.15
 - severity **moderate**, 8.4% of the leaf
 - advice from record `grey_blight` — โรคใบไหม้เทา
-- about 59 ms on this machine
+- about 44 ms on this machine
 
 <sub>source: `mendeley_mz598\grey_blight\mendeley_mz598-003807.jpg` (grey_blight, mendeley_mz598)</sub>
 
@@ -54,7 +54,7 @@ File: `demo/03-algal-spot.jpg`
 - verdict **disease**, burn likelihood 0.34
 - severity **moderate**, 10.4% of the leaf
 - advice from record `algal_spot` — โรคจุดสาหร่าย / สนิมสาหร่าย
-- about 54 ms on this machine
+- about 41 ms on this machine
 
 <sub>source: `mendeley_mz598\algal_spot\mendeley_mz598-000973.jpg` (algal_spot, mendeley_mz598)</sub>
 
@@ -66,7 +66,7 @@ File: `demo/04-healthy.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.1% of the leaf
 - advice from record `healthy` — ใบปกติ / สุขภาพดี
-- about 35 ms on this machine
+- about 28 ms on this machine
 
 <sub>source: `mendeley_mz598\healthy\mendeley_mz598-005057.jpg` (healthy, mendeley_mz598)</sub>
 
@@ -78,7 +78,7 @@ File: `demo/05-unsure-declines-to-name.jpg`
 - verdict **disease**, burn likelihood 0.00
 - severity **mild**, 0.0% of the leaf
 - advice from record `other_disease` — ความผิดปกติอื่น ๆ (ไม่ตรงโรคหลัก)
-- about 12 ms on this machine
+- about 8 ms on this machine
 
 <sub>source: `agml\algal_spot\agml-004030.jpg` (algal_spot, agml)</sub>
 
@@ -181,14 +181,29 @@ In this order, because each step depends on the one before:
    photograph twice must not produce two history entries — the server returns
    the stored result with `replayed: true`.
 
-### 4. Known gap before step 6 means anything
+### 4. Step 6 measures the model, not just the plumbing
 
-The browser's resize does not match Python's yet, so an on-device result can
-differ from a server result for reasons that have nothing to do with the model.
-The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
-parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
-passes, treat an offline result as a demonstration of the plumbing rather than
-of the model.
+The browser's resize now implements PIL's algorithm, so an on-device result is
+not drifting from a server result for preprocessing reasons. The 50-image
+parity check that section 8.4 of `docs/DESIGN.md` makes the condition for D7
+passed on 2026-10-20:
+
+```text
+images              50
+top-1 agreement     50/50
+max prob delta      0.00283      (bound 0.05)
+passes              true
+```
+
+**Eighteen times inside the bound**, over the whole chain: JPEG decoding, the
+canvas round-trip, the resize, the ImageNet normalisation and the fp32 graph.
+An offline result is therefore the same model reaching the same answer, and
+step 6 is worth presenting as such.
+
+What still differs offline is the *pipeline*, not the model: the browser does
+not segment, so there is no lesion analysis and no severity, and the card says
+`classifier_only`. That is a product difference, not a defect. Evidence and
+the command that produced the table: `docs/EVIDENCE.md` section 6.
 ## The numbers to quote
 
 | | |

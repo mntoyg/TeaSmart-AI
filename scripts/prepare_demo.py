@@ -203,14 +203,29 @@ In this order, because each step depends on the one before:
    photograph twice must not produce two history entries — the server returns
    the stored result with `replayed: true`.
 
-### 4. Known gap before step 6 means anything
+### 4. Step 6 measures the model, not just the plumbing
 
-The browser's resize does not match Python's yet, so an on-device result can
-differ from a server result for reasons that have nothing to do with the model.
-The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
-parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
-passes, treat an offline result as a demonstration of the plumbing rather than
-of the model.
+The browser's resize now implements PIL's algorithm, so an on-device result is
+not drifting from a server result for preprocessing reasons. The 50-image
+parity check that section 8.4 of `docs/DESIGN.md` makes the condition for D7
+passed on 2026-10-20:
+
+```text
+images              50
+top-1 agreement     50/50
+max prob delta      0.00283      (bound 0.05)
+passes              true
+```
+
+**Eighteen times inside the bound**, over the whole chain: JPEG decoding, the
+canvas round-trip, the resize, the ImageNet normalisation and the fp32 graph.
+An offline result is therefore the same model reaching the same answer, and
+step 6 is worth presenting as such.
+
+What still differs offline is the *pipeline*, not the model: the browser does
+not segment, so there is no lesion analysis and no severity, and the card says
+`classifier_only`. That is a product difference, not a defect. Evidence and
+the command that produced the table: `docs/EVIDENCE.md` section 6.
 """
 
 _SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
