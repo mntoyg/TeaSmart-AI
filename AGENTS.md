@@ -151,6 +151,17 @@ trip. On Linux or macOS swap `Scripts/python.exe` for `bin/python`.
 apostrophe. Repeatedly. Write code with the Write tool, or put a patch script in
 a scratch directory and run it. Do not spend three attempts rediscovering this.
 
+**An agent's shell may write somewhere the user's shell cannot read.** Measured
+2026-10-20: files written *inside* the repository appear on the real disk, but
+a file written *outside* it - `mkcert`'s CA under `%LOCALAPPDATA%` - was visible
+only to the agent. `is_dir()` answered True from the agent's shell and False
+from the user's PowerShell for the identical path, and `mkcert` then reported
+`Created a new local CA` when the user ran it, proving it had never existed for
+them. Anything the user's own processes must read - a CA, a trust store, a
+credential, a tool's state directory - has to be created **in a terminal on
+their machine**, not by the agent, and then verified from there. A green check
+run by the agent is not evidence that the user's machine has the file.
+
 **Prefer one compound command over three round trips.** Each tool call re-reads
 your whole context. Bookkeeping rides along with real work.
 
