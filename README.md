@@ -54,7 +54,7 @@ ml/             dataset pipeline, training, evaluation, ONNX export
   teasmart_ml/    importable package; `python -m teasmart_ml.cli --help`
   tests/
 frontend/       the PWA that runs the model on-device
-docs/           three files, no subfolders (see below)
+docs/           five files, no subfolders (see below)
 scripts/        setup and test, for both shells
 data/           datasets and intermediates, never committed
 private/        local-only material, never committed

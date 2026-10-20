@@ -201,9 +201,11 @@ there is one the client requires.
 - Team entrypoint: `frontend/README.md`; project map: `docs/PROJECT_STRUCTURE.md`.
 - D7 is incomplete until the actual model, 50-image parity check, live API/sync
   integration and demo-phone checks pass. No fabricated diagnosis is shipped.
-- Historical `.superpowers/worktrees/d6` and `d7` checkouts remain intact.
-  Team members work in normal `frontend/` after checking out the team branch;
-  do not copy source files between worktrees.
+- **2026-10-20: the `.superpowers/worktrees/d6` and `d7` checkouts were
+  removed**, together with `.mypy_cache` and `.ruff_cache`. Both branches were
+  already ancestors of `origin/main`, so no commit was lost, and the branch
+  refs `feat/d6-scan-ui` and `feat/d7-offline` still exist. There is now one
+  frontend checkout: root `frontend/`.
 - Usage check at return: 11% weekly consumed; daily usage is unavailable. Use a
   conservative allowance of at most 3 additional percentage points this run.
 - Fresh verification from root `frontend/` on 2026-10-19: 47 tests passed,
