@@ -74,6 +74,7 @@ no "which venv am I in" failure mode.
 | [docs/DEMO.md](docs/DEMO.md) | the demo runbook: running order, the measured outcome of every image, and the limits to state out loud |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | how to work here: house rules, branches, commits |
 | [AGENTS.md](AGENTS.md) | the rules AI agents work under |
+| [docs/NEXT-CHAT.md](docs/NEXT-CHAT.md) | the handoff prompt for continuing in a fresh chat |
 
 ## Current numbers
 
