@@ -29,12 +29,17 @@
    ย้อนไปรันบนเครื่องเฉพาะกรณีนั้น แล้วเข้าคิวให้ sync ทีหลัง
    **ไม่ย้อน**เมื่อเซิร์ฟเวอร์ตอบมาว่าปฏิเสธภาพ (422 คือคำตัดสินเรื่องภาพ ต้องถึงจอ)
    และ**ไม่ย้อน**เมื่อผู้ใช้กดยกเลิก ส่วน timeout นับเป็นต่อไม่ถึง เพราะไม่มีคำตอบกลับมา
-2. **deploy frontend แบบ static — ยังไม่ทำ**
-   ตัดสินใจแล้ว 2026-10-20: deploy เฉพาะ frontend ไม่ deploy backend
-   กรรมการจะสแกน QR เปิดบนมือถือตัวเอง ได้ cert จริง → secure context ฟรี
-   กล้อง/offline/install ครบ **ไม่ต้องติดตั้งอะไรเลย** และรูปไม่ออกจากเครื่องกรรมการ
-   เพราะไม่มี backend จะส่งไป ผลที่ได้เป็น `classifier_only`
-   ส่วนคำตัดสิน burn-vs-disease กับ severity สาธิตจากโน้ตบุ๊กที่รัน pipeline เต็ม
+2. **deploy frontend แบบ static — เตรียมครบแล้ว รอเลือก host**
+   ขั้นตอนทั้งหมดเป็นภาษาไทยใน [docs/DEPLOY-TH.md](DEPLOY-TH.md)
+   ทำแล้ว: `scripts/snapshot_api.py` แช่ `GET /api/v1/config` และ
+   `GET /api/v1/kb` เป็นไฟล์ static (วัดแล้วว่าทั้งคู่ 404 บน bundle ที่ไม่มี
+   backend และ**ทั้งคู่ถึงตาย** — ไม่มี config โมเดลบนเครื่องไม่ยอมรันเลย
+   ไม่มี kb ก็ไม่มีคำแนะนำภาษาไทย) `_redirects` สำหรับ SPA fallback
+   และ `scripts/make_qr.py` สำหรับ QR ตัวจริง
+   **ยังไม่ทำ: เลือก host และอัปโหลด** แนะนำ Cloudflare Pages แบบ upload
+   ตรง เพราะ repo เป็น private และ GitHub Pages ไม่อ่าน `_redirects`
+   **QR ต้องชี้ไป root ไม่ใช่ `/scan`** เพราะ `App.tsx` ส่ง route `*` ไป
+   `/scan` อยู่แล้ว root จึงใช้ได้แม้ host ไม่อ่าน `_redirects`
 3. **รันบนมือถือจริง — กำลังทำ ยังไม่มีผลรายงาน**
    2026-10-20 ผู้ใช้ติดตั้ง root CA บน iPhone แล้วและกำลังเปิดแอป
    ยืนยันจากเครื่องผู้ใช้เองแล้วว่า `GET /scan` = 200, `GET /api/v1/config` = 200,
@@ -99,13 +104,14 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 | ทำความสะอาด (PR #16) | ลบ worktree `.superpowers/worktrees/d6` และ `d7` (ทั้งสอง branch เป็น ancestor ของ `origin/main` แล้ว ไม่มี commit หาย และ branch ref ยังอยู่) ลบ `.mypy_cache`, `.ruff_cache` แก้ลิงก์เอกสารเสีย 3 จุด มี `test_docs_links.py` เฝ้าทุกลิงก์และ `<img src>` ถาวร | 134 backend tests |
 | QR + README ไทย (PR #16) | `scripts/make_qr.py` พร้อมการ์ดกัน URL วง LAN, README เป็นไทยและเพิ่มหัวข้อสถาปัตยกรรม | 153 backend tests |
 | fallback (PR #16) | `ScanPage` ย้อนไปรันโมเดลบนเครื่องเมื่อต่อเซิร์ฟเวอร์ไม่ถึง แต่ไม่ย้อนเมื่อเซิร์ฟเวอร์ปฏิเสธภาพหรือผู้ใช้กดยกเลิก **เงื่อนไขที่ทำให้ deploy แบบ static ใช้งานได้** | 73 frontend tests |
+| static deploy (PR #16) | `scripts/snapshot_api.py` แช่ config กับ kb เป็นไฟล์ static ที่ path เดิม (วัดแล้ว: จาก 404/404 เป็น 200/200 บนเซิร์ฟเวอร์ static ที่ไม่มี backend), `_redirects` สำหรับ SPA fallback, ขั้นตอน deploy เป็นไทยใน `docs/DEPLOY-TH.md` | 163 backend tests |
 
 **คลังภาพบนดิสก์:** นำเข้า 11,853 ภาพจากสามแหล่งที่ไม่ต้องใช้ credential
 ตัดซ้ำเหลือ **8,316** ภาพใน 5 คลาส แบ่ง 70/15/15 และตรวจทุกคู่ในเชิงพิกเซลแล้วพบ
 คู่ซ้ำข้ามชุด **0** คู่ สร้างใหม่ด้วย
 `cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare`
 
-**การทดสอบตอนนี้:** 153 backend, 120 ml, 73 frontend, ruff สะอาด, `All green.`
+**การทดสอบตอนนี้:** 163 backend, 120 ml, 73 frontend, ruff สะอาด, `All green.`
 
 ---
 
@@ -166,6 +172,19 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 client บังคับให้ต้องมี
 
 ---
+
+## ที่ยังไม่ได้วัด และต้องวัดก่อนขึ้นเวที
+
+**สแกนหลังติดตั้ง PWA แล้วปิดเน็ต จะได้ผลหรือไม่ — ยังไม่รู้** ไฟล์ snapshot
+ไม่มีนามสกุล จึงไม่เข้า `globPatterns` ของ PWA และ build ยังรายงาน
+**precache 13 entries** เท่าเดิม service worker จึงไม่ได้ precache `config`
+กับ `kb` ผลขึ้นกับว่าปุ่ม "เตรียมใช้งานออฟไลน์" เก็บ config ไว้เองหรือไม่
+**ต้องกดวัดจริงบนมือถือ** ไม่ใช่เดา ถ้าไม่ผ่าน ทางแก้คือเพิ่มสองไฟล์เข้า precache
+หรือให้ปุ่มนั้นเก็บลง IndexedDB
+
+**`_redirects` ยังไม่ได้ยืนยัน** `python -m http.server` ไม่อ่านไฟล์นี้ จึงทดสอบ
+ในเครื่องไม่ได้ — `/kb` ตอบ 404 ที่นี่เพราะเหตุนี้ Cloudflare Pages และ Netlify
+อ่านเอง แต่ยืนยันได้หลัง deploy จริงเท่านั้น ทางเข้าหลักไม่พึ่งมัน เพราะ root ใช้ได้อยู่แล้ว
 
 ## เรื่องที่รอผู้ใช้ตัดสินใจ
 
