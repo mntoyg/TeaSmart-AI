@@ -165,9 +165,9 @@ export const configShape = {
     "output_is_logits": true
   },
   "quality": {
-    "blur_threshold": 80,
+    "blur_threshold": 15,
     "exposure_min_mean": 40,
-    "exposure_max_mean": 215,
+    "exposure_max_mean": 235,
     "clip_max_pct": 0.1
   }
 };

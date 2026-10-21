@@ -125,10 +125,8 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 คู่ซ้ำข้ามชุด **0** คู่ สร้างใหม่ด้วย
 `cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare`
 
-**การทดสอบตอนนี้:** **196 backend, 120 ml, 78 frontend**, ruff สะอาด, `All green.`
-วัดเมื่อ 2026-10-21 ด้วย `./scripts/test.ps1` · ตัวเลขเดิมในไฟล์นี้ (169) และใน
-handoff (195) **ผิดทั้งคู่** ไม่มีใครรันของจริงตอนเขียน จึงอย่าคัดลอกตัวเลขชุดนี้
-ต่อไปโดยไม่รัน
+**การทดสอบก่อนใบสั่งงานรอบนี้:** 196 backend, 120 ML และ 78 frontend
+ผลล่าสุดหลังเพิ่ม regression tests อยู่ในบันทึก "ใบสั่งงาน Codex ข้อ 1–13" ด้านล่าง
 
 ---
 
@@ -646,15 +644,18 @@ build ผ่าน, `test_config.py` ก็ยังผ่านเพราะ�
 บน static deploy `POST /api/v1/sync/batch` ไม่มีปลายทาง จึงเข้าทางนี้ทุกครั้ง
 **ข้อความถูกตามหลักการ แต่ผิดตามบริบท** เพราะสถานะนี้ไม่มีวันหาย
 
-### มอบหมายแล้ว — Codex แก้ทั้ง 7 ข้อ
+### ใบสั่งงานรอบแรก — Codex ทำครบทั้ง 7 ข้อบน branch `fix/audit-seven`
 
 ผู้ใช้สั่งเมื่อ 2026-10-21 ให้ Codex แก้ครบทั้งเจ็ด **และรับความเสี่ยงของการ
 แก้โค้ดคืนก่อนเดโมด้วยตัวเอง** Claude Code ค้านไว้แล้วว่าข้อ 1-6 จะไม่ระเบิด
 ระหว่างเดโมและเสนอให้แก้เฉพาะข้อ 7 ผู้ใช้ยืนยันคำสั่งเดิม **เรื่องนี้จบแล้ว
 ไม่ต้องยกมาค้านอีก**
 
-ใบสั่งงานเต็มพร้อม file:line และ test ที่ต้องแดงก่อน อยู่ที่
-[docs/HANDOFF-CODEX.md](HANDOFF-CODEX.md) หัวข้อ "ใบสั่งงาน 2026-10-21"
+อัปเดต 2026-10-21: ทำครบทั้งเจ็ดข้อแบบ test-first บน branch `fix/audit-seven`:
+ผูก `Settings` กับตัวเลข transport ใน spec, ทำข้อความขนาดภาพให้มาจาก limit,
+ยอมรับ KB ที่มี record เพิ่มโดยยังบังคับ record หลักครบและไม่ซ้ำ, ตรวจ class ID
+ตาม `class_order` จาก config, เก็บผล `full` โดยไม่ทิ้งทั้ง batch เมื่อมีผลอื่น,
+แก้คำอธิบายกล้องในต้นทาง DEMO และบอกข้อจำกัด sync บน static demo ตามจริง
 
 **อนุญาตให้ Codex ข้ามไดเรกทอรี** ข้อ 1 อยู่ใน `backend/tests/` และข้อ 6 อยู่ใน
 `scripts/` ซึ่งเป็นสไลซ์ของ Claude Code ตาม `DESIGN.md` หัวข้อ 14 ผู้ใช้สั่งให้
@@ -662,32 +663,36 @@ Codex ทำทั้งเจ็ด จึงอนุญาต **Claude Code �
 และ `scripts/prepare_demo.py` จนกว่า PR ของ Codex จะ merge** เพื่อไม่ให้สอง
 agent ชนกันบนไฟล์เดียวกัน
 
-### รอบสอง — อ่านไฟล์ที่เหลือแล้ว ได้ข้อ 8 ถึง 13
+ใบสั่งงานเต็มพร้อม file:line และ test ที่ต้องแดงก่อน อยู่ที่
+[docs/HANDOFF-CODEX.md](HANDOFF-CODEX.md) หัวข้อ "ใบสั่งงาน 2026-10-21"
+
+### รอบสอง — ทำข้อ 8 ถึง 13 ครบแล้วบน branch `fix/audit-seven`
 
 ผู้ใช้สั่งให้อ่านส่วนที่ค้าง อ่านแล้วทั้ง `resize.ts`, `storage.ts`,
 `inference.ts`, `quality.ts`, `backend/app/services/quality.py`,
 `idempotency.py` และ `main.py` รายละเอียดเต็มอยู่ใน
 [HANDOFF-CODEX.md](HANDOFF-CODEX.md) หัวข้อ "เพิ่มเติม 2026-10-21 รอบสอง"
 
-**ข้อ 8 สำคัญกว่าข้อ 1-6 ทุกข้อ และกรรมการเจอได้จริง**
-`quality.ts` ปฏิเสธภาพเมื่อ `clippedHigh > clip_max_pct` ส่วน `quality.py`
-**จงใจไม่ปฏิเสธด้วยเหตุนี้ตั้งแต่ 2026-10-19** เพราะตอนที่มันเคยปฏิเสธได้
-มันปฏิเสธใบชาที่ถ่ายบนกระดาษขาวทุกใบ สามจากสามภาพ agml ทดสอบสดกับ endpoint จริง
-**เบราว์เซอร์ยังเป็นเวอร์ชันก่อนการแก้นั้น** และบน static deploy ด่านของเบราว์เซอร์
-คือด่านเดียวที่ทำงาน กรรมการที่ถ่ายใบบนพื้นสีอ่อนหรือกลางแดดจะ**สแกนไม่ได้เลย**
+อัปเดต 2026-10-21: ปรับ quality gate ฝั่ง browser ให้รายงาน bright clipping
+แต่ไม่ปฏิเสธภาพเพราะ clipping อย่างเดียว; แก้ threshold quality ในตัวอย่าง spec
+ให้ตรงกับ Settings; ทดสอบ migration IndexedDB จาก v2 ไป v3; จำกัด transient
+failure ใน queue ไว้สามครั้งพร้อมข้อความไทย; เก็บค่าที่ `parseStored` คืนมาทั้ง
+`save`, `enqueue` และ `applyBatch`; ตรวจ production bundle แล้วพบว่า test-only
+resize helpers ถูก tree-shake ออก จึงไม่ต้องย้ายไฟล์
 
-**ข้อ 9 คือข้อ 1 ที่เกิดขึ้นจริงไปแล้ว** `DESIGN.md` หัวข้อ 8.5 ยังประกาศ
-`blur_threshold: 80.0` และ `exposure_max_mean: 215.0` ขณะที่ `Settings` และ
-config ที่เสิร์ฟจริงเป็น **15.0** และ **235.0** `config.py:50` เขียนเองว่า 80
-เป็นค่าที่เดาจาก fixture สังเคราะห์ตัวเดียวใน D1 และคอมเมนต์ใน `test_config.py`
-บันทึกว่า 80 ปฏิเสธภาพถ่ายจริง 52.8% **spec ซึ่งเป็นผู้มีอำนาจผูกพัน
-ยังเผยแพร่ตัวเลขที่พิสูจน์แล้วว่าผิด** งานนี้รวมกับ test ของข้อ 1 ได้
+**ข้อ 8 — แก้แล้วใน `fix/audit-seven`**
+ก่อนแก้ `quality.ts` ปฏิเสธภาพเมื่อ `clippedHigh > clip_max_pct` แต่ `quality.py`
+**จงใจไม่ปฏิเสธด้วยเหตุนี้ตั้งแต่ 2026-10-19** เพราะเงื่อนไขนั้นเคยปฏิเสธ
+ใบชาที่ถ่ายบนกระดาษขาวทั้งสามภาพที่ทดสอบสดกับ endpoint จริง ตอนนี้ browser
+ยังรายงาน `clipped_high_pct` แต่ยอมรับภาพที่ exposure ผ่านเกณฑ์และไม่มืดเกินไป
 
-ที่เหลือ: ข้อ 10 `storage.ts` ไม่ใส่การ์ด `contains()` ให้ `config` กับ `queue`
-ซึ่งจะทำฐานข้อมูลของผู้ใช้เดิมพังทุกคนตอน bump schema เวอร์ชันหน้า ·
-ข้อ 11 ความล้มเหลวที่ไม่ใช่ 4xx ค้างคิวตลอดกาลไม่มีเพดาน ·
-ข้อ 12 สามเส้นทางเก็บ `scans` ไม่เหมือนกัน · ข้อ 13 helper ที่ใช้เฉพาะตอนทดสอบ
-อาจถูกส่งขึ้นเว็บ
+**ข้อ 9 — แก้แล้วใน `fix/audit-seven`** ตัวอย่าง config ใน `DESIGN.md` หัวข้อ 8.5
+และ generated `scan-contract.ts` ใช้ `blur_threshold: 15.0` กับ
+`exposure_max_mean: 235.0` ให้ตรงกับ `Settings`; regression test อ่านค่าจาก spec
+
+**ข้อ 10–13 — แก้หรือตรวจยืนยันแล้วใน `fix/audit-seven`** migration ตรวจ store
+ทั้งสี่ก่อนสร้าง, transient failure มีเพดานสามครั้ง, ทุกทางเขียนใช้ค่าที่
+`parseStored` คืนมา และ production build ตัด test-only resize helpers ออกจริง
 
 **สะอาดและอย่าแตะ:** `resize.ts` (triangle filter เข้ากับ PIL มี fixture
 ระดับไบต์ หนุนด้วย parity 50 ภาพ delta 0.00283) · `inference.ts`
@@ -783,10 +788,9 @@ Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"
   `GET /api/v1/config` **อย่า hard-code**
 - จุดเริ่มอ่าน: [frontend/README.md](../frontend/README.md)
 - ยังมี warning `inlineDynamicImports` ของ VitePWA ค้างอยู่ตอน build ยังไม่แก้
-- **ค้างอยู่สองข้อ P2 ที่เป็นของ `frontend/`:**
-  `src/lib/api.ts` hard-code รายชื่อคลาสซ้ำกับที่ `GET /api/v1/config` เสิร์ฟ
-  (วันนี้ค่าตรงกัน การมีสำเนาที่สองคือตัวปัญหา) และ `parseKnowledge` บังคับให้มี
-  record ในฐานความรู้ **เท่ากับ 6 รายการพอดี** โรคที่เจ็ดจะทำให้ client พัง
+- ~~สองข้อ P2 เรื่อง class order และจำนวน record ของ KB~~ **แก้ครบแล้วใน
+  `fix/audit-seven`**: scan response ใช้ `class_order` จาก config ที่โหลดมาแล้ว
+  และ KB รับ record เพิ่มได้เมื่อรายการหลักครบกับ canonical ไม่ซ้ำ
 
 ---
 
@@ -799,6 +803,33 @@ Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"
 `docs/EVIDENCE.md` คงคำสั่งและ output ทุกบล็อกตามต้นฉบับและแปลเฉพาะร้อยแก้ว
 
 บันทึกโควตา Codex ของวันที่ 2026-10-21 ตามเวลา `Asia/Bangkok`: baseline ก่อนเริ่มงาน
-รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **3%** และหน้าต่าง 5 ชั่วโมง
-**13%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 3 จุดเปอร์เซ็นต์เป็นขอบเขตบน
+รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **5%** และหน้าต่าง 5 ชั่วโมง
+**11%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 5 จุดเปอร์เซ็นต์เป็นขอบเขตบน
 แบบระมัดระวังของวันนี้ ซึ่งต่ำกว่าเพดานรายวัน 14 จุดเปอร์เซ็นต์
+
+## 2026-10-21 — ใบสั่งงาน Codex ข้อ 1–13 ทำครบ รอ PR
+
+ครบทั้ง 13 ข้อใน `docs/HANDOFF-CODEX.md` บน branch `fix/audit-seven` ซึ่งมี
+`origin/main` อยู่ในประวัติ งานข้อ 1/6 ที่แตะ `backend/tests/` และ `scripts/`
+ทำตามการอนุญาตข้ามสไลซ์ในใบสั่งงาน ไม่มีการแก้ `frontend/public/` และไม่ได้
+เปลี่ยนสัญญา API ข้อ 6 สร้าง `docs/DEMO.md` ใหม่จาก `scripts/prepare_demo.py`
+เท่านั้น
+
+เขียน regression tests ก่อนแก้ และเห็นผลแดงสำหรับ spec mismatch, upload limit,
+KB record เพิ่ม, class order, partial batch, camera wording, static sync error,
+bright clipping, quality thresholds, IndexedDB upgrade, retry ceiling และรูปแบบ
+ข้อมูลที่จัดเก็บ รอบตรวจเต็ม `./scripts/test.ps1` ผ่าน lint backend/ML/scripts,
+backend 198 tests, ML 120 tests, frontend 89 tests และ production build
+สำเร็จ จบด้วย `All green.`; build ยังแสดงคำเตือน VitePWA เรื่อง
+`inlineDynamicImports` ตามที่บันทึกไว้ก่อนหน้านี้
+
+การตรวจ tree-shaking ใช้ production build แล้วค้น `dist/assets`: ไม่พบ
+`pixelByte`, `sourceImage`, `HashConstants` หรือ `SourceSpec` จึงไม่ย้าย helpers
+จาก `resize.ts`
+
+โควตาวันนี้: baseline weekly **1%**, ค่าล่าสุด weekly **5%** และหน้าต่าง 5 ชั่วโมง
+**11%** ไม่มีตัวนับรายวัน จึงนับยอด weekly ปัจจุบันทั้งหมด **5 จุดเปอร์เซ็นต์**
+เป็นขอบเขตบนของการใช้วันนี้ ต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์
+
+หลัง PR merge ยังต้อง deploy ใหม่ตาม `docs/DEPLOY-TH.md` และติดตั้ง PWA ใหม่บน
+โทรศัพท์ที่ใช้สาธิต เพื่อรับ service worker รุ่นล่าสุด

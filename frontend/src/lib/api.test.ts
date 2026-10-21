@@ -1,12 +1,33 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { scanFixture } from '../test/fixtures';
-import { scanImage, parseScan, readKnowledgeBase, parseConfig } from './api';
+import { scanImage, parseScan, parseKnowledge, readKnowledgeBase, parseConfig, request } from './api';
 import { configShape } from './scan-contract';
 
 afterEach(() => vi.unstubAllGlobals());
+const requiredKnowledge = ['grey_blight', 'brown_blight', 'algal_spot', 'healthy', 'other_disease', 'physical_burn'];
+function knowledgeRecord(canonical: string, class_id: number) {
+  return { class_id, canonical, class_name: canonical, disease_name_th: canonical, pathogen: 'pathogen',
+    symptoms: 'symptoms', immediate_action: 'action', cultural_control: 'control',
+    chemical_treatment: 'treatment', preventive_measures: 'prevention' };
+}
+
 describe('scan contract boundary', () => {
   it('accepts the documented sample without requiring unspecified top_k entries', () => {
     expect(parseScan(scanFixture()).scan_id).toBe(scanFixture().scan_id);
+  });
+  it('does not compare a server class ID with the frontend’s local class order', () => {
+    const input = scanFixture({ prediction: {
+      ...scanFixture().prediction, class_id: 0, class_name: 'other_disease',
+    } });
+    expect(parseScan(input).prediction.class_name).toBe('other_disease');
+  });
+  it('uses the class order served by config when it is available', () => {
+    const order = [...configShape.class_order].reverse();
+    const input = scanFixture({ prediction: {
+      ...scanFixture().prediction, class_id: 0, class_name: order[0],
+    } });
+    expect(parseScan(input, order).prediction.class_name).toBe(order[0]);
+    expect(() => parseScan(input, configShape.class_order)).toThrow('ผลวิเคราะห์ไม่ถูกต้อง');
   });
   it.each([
     { ...scanFixture(), severity: { level: 'moderate', affected_pct: '12%' } },
@@ -38,9 +59,23 @@ describe('scan contract boundary', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<h1>server stack</h1>', { status: 500 })));
     await expect(scanImage(new File(['leaf'], 'leaf.jpg'), 'image')).rejects.toThrow('กรุณาลองใหม่');
   });
+  it('explains that batch analysis is unavailable in the static demo', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
+    await expect(request('/api/v1/sync/batch')).rejects.toThrow(
+      'ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ',
+    );
+  });
   it('validates KB records before rendering them', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ canonical: 'grey_blight' }]))));
     await expect(readKnowledgeBase()).rejects.toThrow('ข้อมูลความรู้');
+  });
+  it('accepts additional unique KB records while requiring all supported records', () => {
+    const supported = requiredKnowledge.map(knowledgeRecord);
+    expect(parseKnowledge([...supported, knowledgeRecord('new_disease', 6)] )).toHaveLength(7);
+    expect(() => parseKnowledge(supported.filter((entry) => entry.canonical !== 'physical_burn')))
+      .toThrow('ข้อมูลความรู้');
+    expect(() => parseKnowledge([...supported, knowledgeRecord('grey_blight', 6)]))
+      .toThrow('ข้อมูลความรู้');
   });
 });
 describe('cached config boundary', () => {

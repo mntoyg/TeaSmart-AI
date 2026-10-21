@@ -21,7 +21,7 @@ export function assessQuality(rgb: Uint8Array, width: number, height: number, se
   const exposureMean = exposure / count, clippedLow = low / rgb.length, clippedHigh = high / rgb.length;
   const detail = exposureMean < settings.exposure_min_mean || clippedLow > settings.clip_max_pct
     ? 'ภาพมืดเกินไป กรุณาถ่ายในที่ที่มีแสงเพียงพอ'
-    : exposureMean > settings.exposure_max_mean || clippedHigh > settings.clip_max_pct
+    : exposureMean > settings.exposure_max_mean
       ? 'ภาพสว่างเกินไป กรุณาหลีกเลี่ยงแสงแดดจัดส่องตรง'
       : blur < settings.blur_threshold ? 'ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น' : undefined;
   return { passed: !detail, blur_score: blur, exposure_mean: exposureMean,

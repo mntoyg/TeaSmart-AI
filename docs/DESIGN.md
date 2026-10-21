@@ -389,9 +389,9 @@ endpoint นี้มีขึ้นเพราะจำเป็นต้อ�
     "output_is_logits": true
   },
   "quality": {
-    "blur_threshold": 80.0,
+    "blur_threshold": 15.0,
     "exposure_min_mean": 40.0,
-    "exposure_max_mean": 215.0,
+    "exposure_max_mean": 235.0,
     "clip_max_pct": 0.1
   }
 }

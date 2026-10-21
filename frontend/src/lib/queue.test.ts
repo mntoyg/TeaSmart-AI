@@ -21,7 +21,7 @@ it('durably queues image and result atomically, deduplicating by capture UUID', 
 });
 it('chunks by item count and total payload bytes, including multipart headroom', () => {
   const pending = Array.from({ length: 21 }, (_, index) => ({
-    scan_id: String(index), result: localFixture(id), image: new Blob(['x']), state: 'pending' as const,
+    scan_id: String(index), result: localFixture(id), image: new Blob(['x']), state: 'pending' as const, attempts: 0,
   }));
   expect(chunkQueue(pending).map((batch) => batch.length)).toEqual([transportLimits.max_batch_items, 1]);
   const large = pending.slice(0, 5).map((item) => ({ ...item, image: new Blob([new Uint8Array(transportLimits.max_upload_bytes)]) }));
@@ -44,6 +44,47 @@ it('matches returned IDs, replaces local history, and keeps per-item failures fo
   expect((await repository.get(id))?.analysis_mode).toBe('full');
   expect((await repository.queueStatus(rejected))?.detail_th).toContain('ภาพเบลอ');
   expect(await repository.list()).toHaveLength(2);
+  await repository.close();
+});
+it('applies complete results and keeps classifier-only results queued', async () => {
+  const repository = createStore(`queue-${crypto.randomUUID()}`);
+  const second = '00000000-0000-4000-8000-000000000003';
+  const partial = '00000000-0000-4000-8000-000000000004';
+  await repository.enqueue(new Blob(['first']), localFixture(id));
+  await repository.enqueue(new Blob(['second']), localFixture(second));
+  await repository.enqueue(new Blob(['partial']), localFixture(partial));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [
+    scanFixture({ scan_id: id }), scanFixture({ scan_id: second }),
+    scanFixture({ scan_id: partial, analysis_mode: 'classifier_only' }),
+  ], failed: [] }))));
+
+  await syncQueue(repository);
+
+  expect((await repository.get(id))?.analysis_mode).toBe('full');
+  expect((await repository.get(second))?.analysis_mode).toBe('full');
+  expect((await repository.get(partial))?.analysis_mode).toBe('classifier_only');
+  expect((await repository.pending()).map((entry) => entry.scan_id)).toEqual([partial]);
+  await repository.close();
+});
+it('caps repeated transient server failures and records a Thai terminal message', async () => {
+  const repository = createStore(`queue-${crypto.randomUUID()}`);
+  const maxAttempts = 3;
+  await repository.enqueue(new Blob(['image']), localFixture(id));
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await repository.applyBatch([], [{ scan_id: id, status: 503, detail_th: 'เซิร์ฟเวอร์ขัดข้องชั่วคราว' }]);
+    const status = await repository.queueStatus(id);
+    expect(status?.attempts).toBe(attempt);
+    if (attempt < maxAttempts) {
+      expect(status?.state).toBe('pending');
+      expect(await repository.pending()).toHaveLength(1);
+    } else {
+      expect(status?.state).toBe('failed');
+      expect(status?.status).toBe(503);
+      expect(status?.detail_th).toContain('ลองส่งซ้ำไม่สำเร็จ');
+      expect(await repository.pending()).toHaveLength(0);
+    }
+  }
   await repository.close();
 });
 it.each(['network', 'missing', 'duplicate', 'foreign'])('keeps queued scans intact on %s outcomes', async (kind) => {
