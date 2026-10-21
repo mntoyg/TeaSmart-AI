@@ -43,6 +43,36 @@ it('shows 422 feedback without leaving the scan page, ready to retake', async ()
   expect(await screen.findByRole('alert')).toHaveTextContent('ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น');
   await waitFor(() => expect(screen.getByRole('button', { name: 'ถ่ายใหม่' })).toBeEnabled());
 });
+it('offers the photo picker before the camera, and says why', () => {
+  // The corpus is open-source datasets and every image in it is a close-up of a
+  // single leaf (docs/EVIDENCE.md). A phone held up to a leaf indoors, at an
+  // angle, with a cluttered background, is outside that distribution - so the
+  // path most likely to produce a confidently wrong answer is the one the old
+  // layout put first. Picking an existing photograph stays nearer the input the
+  // 0.987 figure was measured on, so it leads.
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+    getUserMedia: vi.fn(),
+  } });
+  render(<ScanPage onResult={vi.fn()} />);
+
+  const picker = screen.getByLabelText('เลือกภาพใบชา').closest('label');
+  const camera = screen.getByRole('button', { name: 'เปิดกล้อง' });
+  expect(picker).not.toBeNull();
+
+  // DOCUMENT_POSITION_FOLLOWING: the camera comes after the picker.
+  expect(picker!.compareDocumentPosition(camera) & Node.DOCUMENT_POSITION_FOLLOWING)
+    .toBeTruthy();
+  expect(camera.className).toContain('secondary');
+  expect(picker!.className).not.toContain('secondary');
+});
+
+it('states the input the model was measured on', () => {
+  render(<ScanPage onResult={vi.fn()} />);
+  // Not a style note: a judge photographing a whole bush gets an answer the
+  // held-out numbers do not cover, and nothing on screen would say so.
+  expect(screen.getByText(/โคลสอัพ/)).toBeInTheDocument();
+});
+
 it('runs the model on the device when the server cannot be reached', async () => {
   // navigator.onLine is true here, which is the whole point: the phone has an
   // interface, the server is simply not behind it.
