@@ -243,32 +243,31 @@ gitignored ออกจากผลลัพธ์ ตรงข้ามกั�
 **bundle ที่สะอาดแล้ว:** 31 MB, precache 12 entries, ไม่มีโฟลเดอร์ `parity`
 มีแต่โมเดลที่สัญญาระบุ พร้อมอัปโหลด
 
-## Remaining verification before the demo
+## สิ่งที่ยังต้องตรวจยืนยันก่อนสาธิต
 
-**P0-2 — Service-worker offline scan measured successfully with the static server stopped.**
-On 2026-10-20, the static preview was prepared for offline use until the UI reported
-"offline ready." After stopping its preview server, `/scan` reloaded through the service
-worker. With `frontend/public/parity/49.jpg`, both the on-device button and the normal
-scan button completed. The normal scan path fell back to local ONNX, returned
-`classifier_only` at 95.4% confidence, and queued the result; two local scans left two
-items waiting to sync.
+**P0-2 — วัดแล้วว่า scan ผ่าน service worker ได้เมื่อหยุด static server**
+เมื่อ 2026-10-20 เตรียม static preview สำหรับออฟไลน์จน UI แจ้งว่า "offline ready"
+หลังหยุด preview server แล้ว `/scan` โหลดซ้ำผ่าน service worker เมื่อใช้ภาพ
+`frontend/public/parity/49.jpg` ทั้งปุ่มบนอุปกรณ์และปุ่ม scan ปกติทำงานสำเร็จ
+เส้นทาง scan ปกติ fallback ไปรัน ONNX ในเครื่อง ได้ผล `classifier_only` ที่ความเชื่อมั่น
+95.4% และเข้าคิวผลลัพธ์; scan ในเครื่องสองครั้งเหลือสองรายการรอ sync
 
-Scope: this was a service-worker-controlled browser preview, not a PWA installed to a
-home screen. `navigator.onLine` still reported connected; the static server was stopped
-so API requests could not reach it. Repeat on an installed iPhone/Android PWA with the
-device network disabled before closing P0-2 for the demo.
+ขอบเขตการทดสอบ: เป็น browser preview ที่ service worker ควบคุม ไม่ใช่ PWA ที่ติดตั้ง
+ลงหน้า Home screen ค่า `navigator.onLine` ยังรายงานว่าเชื่อมต่ออยู่ แต่หยุด static
+server เพื่อไม่ให้ API request ติดต่อได้ ก่อนปิด P0-2 สำหรับเดโม ให้ทดสอบซ้ำกับ PWA
+ที่ติดตั้งบน iPhone/Android และปิดเครือข่ายของอุปกรณ์จริง
 
-UX follow-up: after offline reload, the panel resets to "offline not prepared" even
-though the cached model and config still support scans. Make the initial status reflect
-the available cache before the demo.
+งาน UX ที่เหลือ: หลัง reload แบบออฟไลน์ แผงสถานะกลับไปเป็น "offline not prepared"
+ทั้งที่โมเดลและ config ใน cache ยังรองรับการ scan ปรับสถานะเริ่มต้นให้สะท้อน cache
+ที่ใช้ได้ก่อนสาธิต
 
-Codex usage check, 2026-10-20 15:49 Asia/Bangkok: the usage tool reports 1% used in the
-weekly window; a daily counter is unavailable. The session baseline was 0% weekly, so
-count 1 percentage point of weekly capacity conservatively for today's work, within the
-14% daily ceiling. Native Windows validation passed with `./scripts/test.ps1`: backend
-165, ML 120, frontend 73; all lint and frontend build steps passed, ending in `All green.`
-`bash.exe ./scripts/test.sh` ran the suites but its scripts-lint path was translated
-incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
+บันทึกโควตา Codex วันที่ 2026-10-20 เวลา 15:49 `Asia/Bangkok`: เครื่องมือรายงาน
+weekly window ใช้ไป 1%; ไม่มีตัวนับรายวัน baseline ของ session คือ weekly 0% จึงนับ
+1 จุดเปอร์เซ็นต์ของ weekly capacity เป็นขอบเขตแบบระมัดระวังของงานวันนั้น ซึ่งไม่เกิน
+เพดานรายวัน 14% การตรวจบน Windows ผ่านด้วย `./scripts/test.ps1`: backend 165, ML 120,
+frontend 73; lint และ frontend build ผ่านทั้งหมด และจบด้วย `All green.` คำสั่ง
+`bash.exe ./scripts/test.sh` รันชุดทดสอบได้ แต่ path ของ scripts-lint ถูกแปลผิดผ่าน WSL
+ให้ใช้ PowerShell runner ของ repository บน Windows เครื่องนี้
 
 **`_redirects` ยังไม่ได้ยืนยัน** `python -m http.server` ไม่อ่านไฟล์นี้ จึงทดสอบ
 ในเครื่องไม่ได้ — `/kb` ตอบ 404 ที่นี่เพราะเหตุนี้ Cloudflare Pages และ Netlify
@@ -591,3 +590,18 @@ Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"
   `src/lib/api.ts` hard-code รายชื่อคลาสซ้ำกับที่ `GET /api/v1/config` เสิร์ฟ
   (วันนี้ค่าตรงกัน การมีสำเนาที่สองคือตัวปัญหา) และ `parseKnowledge` บังคับให้มี
   record ในฐานความรู้ **เท่ากับ 6 รายการพอดี** โรคที่เจ็ดจะทำให้ client พัง
+
+---
+
+## งานแปล Markdown เป็นภาษาไทย — 2026-10-21
+
+ผู้ใช้ขอให้แปลไฟล์ Markdown ทั้ง repository พบไฟล์ที่ติดตามใน Git 15 ไฟล์
+แปลและตรวจภาษาไทยแล้ว 14 ไฟล์ ส่วน `private/README.md` ไม่อ่านหรือแก้เพราะกฎ
+โครงการปิดกั้น `private/` จากเครื่องมือ ไฟล์ `docs/DEMO.md` สร้างอัตโนมัติ
+จึงเปลี่ยนป้ายชื่อที่ `scripts/prepare_demo.py` แล้วสร้างใหม่ สำหรับ
+`docs/EVIDENCE.md` คงคำสั่งและ output ทุกบล็อกตามต้นฉบับและแปลเฉพาะร้อยแก้ว
+
+บันทึกโควตา Codex ของวันที่ 2026-10-21 ตามเวลา `Asia/Bangkok`: baseline ก่อนเริ่มงาน
+รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **3%** และหน้าต่าง 5 ชั่วโมง
+**13%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 3 จุดเปอร์เซ็นต์เป็นขอบเขตบน
+แบบระมัดระวังของวันนี้ ซึ่งต่ำกว่าเพดานรายวัน 14 จุดเปอร์เซ็นต์

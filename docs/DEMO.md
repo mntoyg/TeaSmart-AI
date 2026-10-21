@@ -23,67 +23,67 @@ cd frontend && npm run dev
 
 ### 1. วินิจฉัยชัดบนใบที่เสียหายจริง — ข้อกล่าวอ้างหลัก
 
-File: `demo/01-brown-blight-severe.jpg`
+ไฟล์: `demo/01-brown-blight-severe.jpg`
 
 - ทำนาย **brown_blight** ที่ความเชื่อมั่น **0.96**
 - คำตัดสิน **disease** ความน่าจะเป็นใบไหม้ 0.05
 - ความรุนแรง **severe** 28.2% ของพื้นที่ใบ
 - คำแนะนำจาก record `brown_blight` — โรคใบไหม้น้ำตาล
-- ประมาณ 76 ms บนเครื่องนี้
+- ประมาณ 79 ms บนเครื่องนี้
 
 <sub>ที่มา: `yunusserhat\brown_blight\yunusserhat-000846.jpg` (brown_blight, yunusserhat)</sub>
 
 ### 2. โรคที่สอง เพื่อให้เห็นว่าไม่ใช่กลลวงคลาสเดียว
 
-File: `demo/02-grey-blight.jpg`
+ไฟล์: `demo/02-grey-blight.jpg`
 
 - ทำนาย **grey_blight** ที่ความเชื่อมั่น **0.96**
 - คำตัดสิน **disease** ความน่าจะเป็นใบไหม้ 0.15
 - ความรุนแรง **moderate** 8.4% ของพื้นที่ใบ
 - คำแนะนำจาก record `grey_blight` — โรคใบไหม้เทา
-- ประมาณ 40 ms บนเครื่องนี้
+- ประมาณ 37 ms บนเครื่องนี้
 
 <sub>ที่มา: `mendeley_mz598\grey_blight\mendeley_mz598-003807.jpg` (grey_blight, mendeley_mz598)</sub>
 
 ### 3. โรคที่สาม พร้อมคำแนะนำคนละชุดจากฐานความรู้
 
-File: `demo/03-algal-spot.jpg`
+ไฟล์: `demo/03-algal-spot.jpg`
 
 - ทำนาย **algal_spot** ที่ความเชื่อมั่น **0.76**
 - คำตัดสิน **disease** ความน่าจะเป็นใบไหม้ 0.34
 - ความรุนแรง **moderate** 10.4% ของพื้นที่ใบ
 - คำแนะนำจาก record `algal_spot` — โรคจุดสาหร่าย / สนิมสาหร่าย
-- ประมาณ 44 ms บนเครื่องนี้
+- ประมาณ 39 ms บนเครื่องนี้
 
 <sub>ที่มา: `mendeley_mz598\algal_spot\mendeley_mz598-000973.jpg` (algal_spot, mendeley_mz598)</sub>
 
 ### 4. ใบปกติ ซึ่งห้ามถูกตั้งชื่อโรคให้
 
-File: `demo/04-healthy.jpg`
+ไฟล์: `demo/04-healthy.jpg`
 
 - ทำนาย **healthy** ที่ความเชื่อมั่น **0.95**
 - คำตัดสิน **disease** ความน่าจะเป็นใบไหม้ 0.00
 - ความรุนแรง **mild** 0.1% ของพื้นที่ใบ
 - คำแนะนำจาก record `healthy` — ใบปกติ / สุขภาพดี
-- ประมาณ 28 ms บนเครื่องนี้
+- ประมาณ 27 ms บนเครื่องนี้
 
 <sub>ที่มา: `mendeley_mz598\healthy\mendeley_mz598-005057.jpg` (healthy, mendeley_mz598)</sub>
 
 ### 5. เพดานความเชื่อมั่น: ตอบ other_disease แทนการเดา
 
-File: `demo/05-unsure-declines-to-name.jpg`
+ไฟล์: `demo/05-unsure-declines-to-name.jpg`
 
 - ทำนาย **other_disease** ที่ความเชื่อมั่น **0.29**  _(ต่ำกว่าเพดาน จึงปฏิเสธที่จะตั้งชื่อโรค)_
 - คำตัดสิน **disease** ความน่าจะเป็นใบไหม้ 0.00
 - ความรุนแรง **mild** 0.0% ของพื้นที่ใบ
 - คำแนะนำจาก record `other_disease` — ความผิดปกติอื่น ๆ (ไม่ตรงโรคหลัก)
-- ประมาณ 9 ms บนเครื่องนี้
+- ประมาณ 7 ms บนเครื่องนี้
 
 <sub>ที่มา: `agml\algal_spot\agml-004030.jpg` (algal_spot, agml)</sub>
 
 ### 6. ด่านคุณภาพ: บอกเป็นภาษาไทยให้ถ่ายใหม่ ไม่ใช่หน้า error
 
-File: `demo/06-blurry-asks-for-a-retake.jpg`
+ไฟล์: `demo/06-blurry-asks-for-a-retake.jpg`
 
 - ด่านคุณภาพ **ปฏิเสธ** ภาพนี้: `blurry` ค่าความเบลอ **11.7** เทียบ threshold 15.0
 - หน้าจอขึ้นว่า **ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น** และให้ถ่ายใหม่

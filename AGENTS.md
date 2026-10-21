@@ -1,217 +1,132 @@
-# TeaSmart AI — directives for AI agents
+# TeaSmart AI — ข้อกำหนดสำหรับ AI agent
 
-**Single source of truth.** Codex and most other agents read this file by name.
-`CLAUDE.md` points here and adds only what is specific to Claude Code. If
-anything disagrees with this file, this file wins.
+**แหล่งข้อมูลหลักเพียงแห่งเดียว** Codex และ agent ส่วนใหญ่อ่านไฟล์นี้ตามชื่อ `CLAUDE.md` ชี้มาที่นี่และเพิ่มเฉพาะข้อกำหนดของ Claude Code หากมีข้อความขัดกัน ให้ยึดไฟล์นี้
 
-**Read `docs/STATE.md` first.** It tells you where the project is right now.
-Do not reconstruct that from git log or by reading the whole tree.
+**อ่าน `docs/STATE.md` ก่อน** ไฟล์นั้นบอกสถานะปัจจุบันของโครงการ อย่าสร้างภาพสถานะขึ้นใหม่จาก git log หรือการไล่อ่านทั้ง repository
 
 ---
 
-## 1. Non-negotiable rules
+## 1. กฎที่ต้องทำตาม
 
-1. **Reply to the user in Thai, and write documentation in Thai.** Code,
-   comments, docstrings and commit messages stay in English. Changed
-   2026-10-20 at the user's request: the docs are read on a phone, in Thai, on
-   demo day. Three things make this less mechanical than it looks.
-   `docs/DEMO.md` is generated, so its Thai belongs in
-   `scripts/prepare_demo.py` and not in the file. In `docs/EVIDENCE.md` every
-   command and every output block stays verbatim - only the prose around them
-   is translated, or the evidence stops being reproducible. And a heading
-   another document links to by name has to be changed on both sides.
-   `docs/PHONE-TH.md` is Thai; `docs/STATE.md`, `docs/DEMO.md`,
-   `docs/EVIDENCE.md` and `docs/DESIGN.md` are **not yet translated**.
-2. **Commit and push after every completed activity.** Not at the end of the
-   session — after each self-contained step. The repository is the record; an
-   uncommitted machine is a single point of failure nine days from a deadline.
-   `git push` to `origin`, private repo `mntoyg/TeaSmart-AI`.
-3. **Never commit secrets or private imagery.** `.env`, API tokens,
-   `kaggle.json`, and anything under `private/` are gitignored and denied to
-   tools. If you need a credential, ask; do not invent or echo one.
-4. **Tests first, and watch them fail.** A test that passed the moment you
-   wrote it proves nothing. If you add a test that cannot fail, mutate the thing
-   it guards, confirm it goes red, and change it back.
-5. **Never claim something works without pasting the command output.** "Should
-   work" is not evidence. If a step was skipped or is incomplete, say so.
-6. **Do not run destructive commands without asking.** `rm -rf`, `git reset
-   --hard`, force-push, dropping a directory. The dataset pipeline has a marker
-   guard for exactly this reason.
-7. **OWASP mindset on every input from outside.** Uploads, downloaded archives,
-   and API responses are hostile until proven otherwise.
-8. **Every AI agent has a hard daily ceiling of 14% of its own weekly capacity.**
-   This applies equally to Claude Code, Codex, and any other AI used here. It is
-   a ceiling, not a target, and means 14 percentage points of the full weekly
-   capacity, not 14% of the remaining balance. Count all sessions using the same
-   provider/account during the local calendar day (`Asia/Bangkok`); restarting
-   a chat or using another worktree does not reset the allowance. Record the
-   available usage reading and daily baseline in `docs/STATE.md`. If daily usage
-   is unavailable, say so and use a conservative bound rather than inventing it.
-   Re-estimate before starting each item. If a ceiling is close,
-   stop at a committed boundary, update `docs/STATE.md`, push, and say what is
-   left — never leave work uncommitted on a machine.
+1. **ตอบผู้ใช้เป็นภาษาไทย และเขียนเอกสารเป็นภาษาไทย** โค้ด คอมเมนต์ docstring และ commit message ใช้ภาษาอังกฤษ เปลี่ยนตามคำขอของผู้ใช้เมื่อ 2026-10-20 เพราะทีมอ่านเอกสารบนโทรศัพท์เป็นภาษาไทยในวันสาธิต มีข้อยกเว้นที่ต้องรักษาไว้: `docs/DEMO.md` เป็นไฟล์ที่สร้างอัตโนมัติ ข้อความไทยจึงต้องแก้ที่ `scripts/prepare_demo.py` ไม่ใช่แก้ไฟล์ที่สร้างแล้ว ใน `docs/EVIDENCE.md` ต้องคงคำสั่งและบล็อกผลลัพธ์ทุกบล็อกตามต้นฉบับ แปลเฉพาะข้อความอธิบายรอบ ๆ เพื่อให้ตรวจซ้ำได้ และถ้าเปลี่ยนหัวข้อที่เอกสารอื่นลิงก์ถึง ต้องแก้ชื่อหัวข้อตรงปลายทางด้วย
+2. **Commit และ push หลังจบแต่ละกิจกรรม** ไม่ใช่รอจนจบ session ให้ repository เป็นบันทึกหลัก งานที่ยังไม่ commit จะผูกอยู่กับเครื่องเดียว `git push` ไปที่ `origin` ซึ่งเป็น private repo `mntoyg/TeaSmart-AI`
+3. **ห้าม commit ความลับหรือภาพส่วนตัว** `.env`, API token, `kaggle.json` และทุกอย่างใต้ `private/` ถูก gitignore และห้ามส่งให้เครื่องมือ หากต้องใช้ credential ให้ถาม ห้ามเดาหรือเปิดเผย
+4. **เขียน test ก่อนและดูให้มันล้มเหลวก่อน** test ที่ผ่านทันทีหลังเขียนไม่ได้พิสูจน์อะไร หากเพิ่ม test ที่ไม่มีทางล้ม ให้เปลี่ยนสิ่งที่มันตรวจชั่วคราว ยืนยันว่า test แดง แล้วคืนค่าเดิม
+5. **ห้ามบอกว่าสิ่งใดใช้ได้โดยไม่แสดง output ของคำสั่ง** คำว่า “น่าจะใช้ได้” ไม่ใช่หลักฐาน หากข้ามขั้นตอนหรือยังทำไม่เสร็จ ให้บอกตรง ๆ
+6. **ห้ามรันคำสั่งทำลายข้อมูลโดยไม่ถาม** เช่น `rm -rf`, `git reset --hard`, force-push หรือการลบไดเรกทอรี ระบบ pipeline ชุดข้อมูลมี marker guard ไว้ด้วยเหตุนี้
+7. **ใช้แนวคิด OWASP กับ input จากภายนอกทุกชนิด** ไฟล์อัปโหลด archive ที่ดาวน์โหลด และ API response ล้วนเป็นข้อมูลที่ไม่น่าเชื่อถือจนกว่าจะตรวจสอบแล้ว
+8. **AI agent ทุกตัวมีเพดานแข็งที่ 14% ของ weekly capacity ของตัวเองต่อวัน** ใช้กฎเดียวกันกับ Claude Code, Codex และ AI อื่น ๆ นี่คือ 14 จุดเปอร์เซ็นต์ของ capacity เต็มทั้งสัปดาห์ ไม่ใช่ 14% ของยอดที่เหลือ ให้นับทุก session ของ provider/account เดียวกันในวันตามปฏิทินท้องถิ่น (`Asia/Bangkok`) การเริ่ม chat ใหม่หรือเปลี่ยน worktree ไม่ได้เริ่มโควตาใหม่ บันทึกค่าการใช้งานที่อ่านได้และ baseline ประจำวันใน `docs/STATE.md` หากไม่มีตัวเลขรายวัน ให้ระบุว่าไม่มีและใช้ขอบเขตแบบระมัดระวัง ห้ามแต่งตัวเลขขึ้นมา ประเมินใหม่ก่อนเริ่มแต่ละงาน หากใกล้ชนเพดาน ให้หยุดที่จุดที่ commit แล้ว อัปเดต `docs/STATE.md` และ push พร้อมระบุว่ายังเหลืออะไร ห้ามทิ้งงานค้างไว้โดยไม่ commit บนเครื่อง
 
-## 1a. Two agents, one repository
+## 1a. Agent สองตัวใน repository เดียวกัน
 
-Claude Code and Codex both work here, in parallel, on separate slices. The split
-is by directory so that neither waits on the other:
+Claude Code และ Codex ทำงานคู่ขนานกันคนละสไลซ์ โดยแบ่งตามไดเรกทอรีเพื่อไม่ต้องรอกัน:
 
-| agent | owns | meets the other at |
+| agent | รับผิดชอบ | ประสานกันที่ |
 |---|---|---|
-| Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the API contract in spec section 8 |
-| Codex | `frontend/` — PWA, camera, Thai result cards | the same contract |
+| Claude Code | `ml/`, `backend/` — โมเดล ขั้น pipeline และ API | สัญญา API ในหัวข้อ 8 ของ spec |
+| Codex | `frontend/` — PWA กล้อง และการ์ดผลภาษาไทย | สัญญาเดียวกัน |
 
-Rules that keep this from going wrong:
+กติกาป้องกันการทำงานชนกัน:
 
-- **One branch per slice; never two agents on one branch.**
-- Check `docs/STATE.md` for what is already in flight before you start. If your
-  slice is taken, take the next independent one.
-- Whoever finishes a slice updates `docs/STATE.md` in the same push. That file
-  is how the other agent learns what happened without reading a diff.
-- **The API contract is a shared interface: do not change it unilaterally.** If
-  it has to change, write the change into the spec, say so in `docs/STATE.md`,
-  and flag it to the user in the same message.
+- **หนึ่ง branch ต่อหนึ่งสไลซ์ ห้ามให้ agent สองตัวใช้ branch เดียวกัน**
+- ตรวจ `docs/STATE.md` ว่ามีงานใดกำลังทำอยู่ก่อนเริ่ม หากสไลซ์ของคุณมีเจ้าของแล้ว ให้เลือกงานถัดไปที่แยกทำได้
+- ผู้ที่ปิดสไลซ์ต้องอัปเดต `docs/STATE.md` ใน push เดียวกัน เพื่อให้ agent อีกฝั่งรู้ความคืบหน้าโดยไม่ต้องอ่าน diff
+- **สัญญา API เป็น interface ร่วม ห้ามเปลี่ยนฝ่ายเดียว** หากจำเป็นต้องเปลี่ยน ให้แก้ spec ระบุใน `docs/STATE.md` และแจ้งผู้ใช้ในข้อความเดียวกัน
 
-## 2. What this project is
+## 2. โครงการนี้คืออะไร
 
-A smart-farming assistant for large-scale Oolong tea estates (reference site:
-Singha Park, Chiang Rai). Photograph a tea leaf, get the disease and its
-severity, an explicit judgement of **disease versus physical burn**, and Thai
-treatment advice from a curated knowledge base. **Hackathon demo 2026-10-22.**
+ผู้ช่วยเกษตรอัจฉริยะสำหรับไร่ชาอู่หลงขนาดใหญ่ (พื้นที่อ้างอิง: สิงห์ปาร์ค เชียงราย) ถ่ายรูปใบชาแล้วระบบจะบอกโรคและระดับความรุนแรง ตัดสินอย่างชัดเจนว่าเป็น **โรคหรือแผลไหม้ทางกายภาพ** และให้คำแนะนำภาษาไทยจากฐานความรู้ที่คัดมา **สาธิตในแฮกกาธอน 2026-10-22**
 
-The judging moment: someone picks up a phone, photographs a leaf, and gets a
-correct Thai answer in seconds **with the network off**.
+ช่วงตัดสินคือ: มีคนหยิบโทรศัพท์ขึ้นมาถ่ายใบไม้ แล้วได้คำตอบภาษาไทยที่ถูกต้องภายในไม่กี่วินาที **แม้ปิดเครือข่าย**
 
-### Constraints that shape every decision
+### ข้อจำกัดที่กำหนดทุกการตัดสินใจ
 
-| constraint | consequence |
+| ข้อจำกัด | ผลที่ตามมา |
 |---|---|
-| RTX 3050 Laptop, 4 GB VRAM | MobileNetV3-Large at 224px. No ViT, no large backbone. |
-| Unstable mountain network | On-device ONNX is the primary path; the server is an enhancement. |
-| Nine days, capped daily AI usage | One vertical slice per day, each independently testable and pushed. |
-| **No labelled burn images exist anywhere** | Burn detection is rule-based CV, never a trained class. Its headline metric is specificity on confirmed-disease images, not burn accuracy. |
+| RTX 3050 Laptop, VRAM 4 GB | ใช้ MobileNetV3-Large ที่ 224px ห้ามใช้ ViT หรือ backbone ขนาดใหญ่ |
+| เครือข่ายบนภูเขาไม่เสถียร | ONNX บนอุปกรณ์เป็นเส้นทางหลัก เซิร์ฟเวอร์เป็นส่วนเสริม |
+| เหลือเวลาเก้าวันและมีเพดานการใช้ AI ต่อวัน | ทำงานแนวตั้งวันละหนึ่งสไลซ์ โดยแต่ละสไลซ์ทดสอบและ push แยกได้ |
+| **ไม่มีภาพใบไหม้ที่ติดป้ายกำกับอยู่ที่ใดเลย** | การตรวจใบไหม้ใช้ CV แบบกฎเกณฑ์ ห้ามฝึกเป็นคลาส ตัวชี้วัดหลักคือ specificity บนภาพที่ยืนยันว่าเป็นโรค ไม่ใช่ความแม่นยำในการตรวจใบไหม้ |
 
-### The pipeline
+### ขั้นตอน pipeline
 
 ```
 image -> [1] quality gate -> [2] leaf segment -> [3] classifier
       -> [4] lesion analyser (burn vs disease) -> [5] severity -> [6] expert system
 ```
 
-Stages 1 and 6 ship. Stages 2-5 are D4-D5. Each stage is a pure function in its
-own module under `backend/app/services/`, with no stage reaching into another.
+ขั้นที่ 1 และ 6 ส่งมอบแล้ว ขั้นที่ 2-5 อยู่ใน D4-D5 แต่ละขั้นเป็น pure function ในโมดูลของตนใต้ `backend/app/services/` และห้ามขั้นหนึ่งเข้าถึงภายในของอีกขั้น
 
-### Five trained classes
+### คลาสที่ฝึกทั้งห้าคลาส
 
-`grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease`.
-`physical_burn` is a verdict stage 4 reaches, not a class the model learns.
+`grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease`
+`physical_burn` เป็นคำตัดสินที่ขั้น 4 สรุป ไม่ใช่คลาสที่โมเดลเรียนรู้
 
-`other_disease` exists so the model can say "an abnormality outside the three
-primary diseases, have an agronomist look" instead of confidently naming the
-wrong one. Do not remove it.
+มี `other_disease` เพื่อให้โมเดลบอกได้ว่า “พบความผิดปกติที่ไม่ใช่โรคหลักสามชนิด ควรให้นักวิชาการเกษตรตรวจ” แทนการตั้งชื่อโรคผิดอย่างมั่นใจ **ห้ามลบคลาสนี้**
 
-## 3. Where things are
+## 3. ตำแหน่งของงาน
 
-| path | holds |
+| path | เนื้อหา |
 |---|---|
-| `docs/STATE.md` | **read first** — current state, next step |
-| `docs/DESIGN.md` | design, the API contract, and the decisions behind both: **the binding authority** |
-| `docs/EVIDENCE.md` | measured evidence: corpus, model, frontend — with the commands |
-| `frontend/` | the React/PWA source; a normal checkout, not a hidden worktree |
-| `scripts/` | `setup` and `test`, for both shells. `test` runs what CI runs |
-| `backend/app/core/` | config and the hardened image door |
-| `backend/app/services/` | one module per pipeline stage |
-| `backend/app/kb/diseases.json` | the Thai advice a farmer acts on |
-| `ml/teasmart_ml/` | dataset ingest, dedup, manifest, training |
-| `data/` | datasets and intermediates — gitignored, never committed |
-| `private/` | real farm photos if we ever get them — gitignored and tool-denied |
+| `docs/STATE.md` | **อ่านก่อน** — สถานะปัจจุบันและงานถัดไป |
+| `docs/DESIGN.md` | การออกแบบ สัญญา API และเหตุผลเบื้องหลัง ทั้งหมดเป็น **แหล่งอ้างอิงที่มีผลผูกพัน** |
+| `docs/EVIDENCE.md` | หลักฐานที่วัดได้ของชุดข้อมูล โมเดล และ frontend พร้อมคำสั่งที่ใช้ |
+| `frontend/` | ซอร์ส React/PWA ใน checkout ปกติ ไม่ใช่ worktree ซ่อน |
+| `scripts/` | คำสั่ง `setup` และ `test` สำหรับสอง shell |
+| `backend/app/core/` | config และประตูรับภาพที่ผ่านการตรวจเข้ม |
+| `backend/app/services/` | หนึ่งโมดูลต่อหนึ่งขั้นของ pipeline |
+| `backend/app/kb/diseases.json` | คำแนะนำภาษาไทยที่เกษตรกรใช้ตัดสินใจ |
+| `ml/teasmart_ml/` | นำเข้าชุดข้อมูล ลบข้อมูลซ้ำ สร้าง manifest และ train |
+| `data/` | ชุดข้อมูลและไฟล์ระหว่างทาง — gitignore และห้าม commit |
+| `private/` | รูปจากไร่จริงหากมีในอนาคต — gitignore และห้ามส่งให้เครื่องมือ |
 
-## 4. Working here without burning tokens
+## 4. ทำงานโดยไม่เผาโควตา
 
-This section exists because the usage budget is a hard constraint, not a
-preference. Every item below cost real tokens to learn.
+กฎส่วนนี้มีไว้เพราะโควตาการใช้งานเป็นข้อจำกัดจริง ไม่ใช่ความชอบ สิ่งต่อไปนี้ล้วนเคยทำให้เสียโควตาจริง
 
-**Orient cheaply.** `docs/STATE.md`, then the current plan's task you are on.
-Not the whole spec, not `git log`, not a tree walk.
+**เริ่มงานอย่างประหยัด** อ่าน `docs/STATE.md` แล้วอ่านเฉพาะงานในแผนที่กำลังทำ ไม่ต้องอ่าน spec ทั้งหมด `git log` หรือไล่ดูทั้งต้นไม้ไฟล์
 
-**Two virtualenvs, and the system Python has neither.** Always:
+**มี virtualenv สองชุด และ Python ของระบบไม่มี dependency** ใช้คำสั่งเหล่านี้เสมอ:
 
 ```bash
 cd backend && ./.venv/Scripts/python.exe -m pytest -q
 cd ml && ./.venv/Scripts/python.exe -m pytest -q
 ```
 
-A bare `python -m pytest` fails with a confusing import error and costs a round
-trip. On Linux or macOS swap `Scripts/python.exe` for `bin/python`.
+`python -m pytest` เปล่าจะล้มด้วย import error ที่ชวนสับสนและทำให้เสียเวลา บน Linux หรือ macOS เปลี่ยน `Scripts/python.exe` เป็น `bin/python`
 
-**Never `grep -rn` from the repository root.** It walks both `.venv` trees and
-`data/` and will blow the command timeout. Scope it: `grep -rn pattern ml/teasmart_ml backend/app`.
+**ห้ามใช้ `grep -rn` จาก root ของ repository** มันจะไล่ทั้ง virtualenv สองชุดและ `data/` จนคำสั่งหมดเวลา ให้จำกัดขอบเขต เช่น `grep -rn pattern ml/teasmart_ml backend/app`
 
-**Bash heredocs break in this environment** when the body contains an
-apostrophe. Repeatedly. Write code with the Write tool, or put a patch script in
-a scratch directory and run it. Do not spend three attempts rediscovering this.
+**Bash heredoc ในสภาพแวดล้อมนี้พังเมื่อเนื้อหามี apostrophe** เขียนไฟล์ด้วยเครื่องมือเขียน หรือสร้าง patch script ใน scratch directory แล้วรัน อย่าเสียเวลาลองซ้ำสามครั้ง
 
-**An agent's shell may write somewhere the user's shell cannot read.** Measured
-2026-10-20: files written *inside* the repository appear on the real disk, but
-a file written *outside* it - `mkcert`'s CA under `%LOCALAPPDATA%` - was visible
-only to the agent. `is_dir()` answered True from the agent's shell and False
-from the user's PowerShell for the identical path, and `mkcert` then reported
-`Created a new local CA` when the user ran it, proving it had never existed for
-them. Anything the user's own processes must read - a CA, a trust store, a
-credential, a tool's state directory - has to be created **in a terminal on
-their machine**, not by the agent, and then verified from there. A green check
-run by the agent is not evidence that the user's machine has the file.
+**Shell ของ agent อาจเขียนไฟล์ในที่ที่ shell ของผู้ใช้อ่านไม่ได้** วัดเมื่อ 2026-10-20: ไฟล์ที่เขียน *ใน* repository ปรากฏบนดิสก์จริง แต่ไฟล์นอก repository เช่น CA ของ `mkcert` ใต้ `%LOCALAPPDATA%` เห็นได้เฉพาะจาก agent `is_dir()` ตอบ True ฝั่ง agent แต่ False จาก PowerShell ของผู้ใช้บน path เดียวกัน และ `mkcert` แจ้ง `Created a new local CA` เมื่อผู้ใช้รัน แปลว่าไฟล์เดิมไม่เคยอยู่บนเครื่องเขา สิ่งที่ process ของผู้ใช้ต้องอ่าน เช่น CA, trust store, credential หรือโฟลเดอร์สถานะของเครื่องมือ ต้องสร้างใน terminal บนเครื่องผู้ใช้แล้วตรวจจากเครื่องนั้น ผลตรวจผ่านจาก agent ไม่ใช่หลักฐานว่ามีไฟล์บนเครื่องผู้ใช้
 
-**Prefer one compound command over three round trips.** Each tool call re-reads
-your whole context. Bookkeeping rides along with real work.
+**เลือก compound command เดียวเมื่อทำได้** แทนการเรียกสามรอบ เพราะ tool call แต่ละครั้งต้องอ่าน context ซ้ำ
 
-**Redirect long output to a file and read its tail.** A 70 KB test log in your
-context is paid for on every subsequent turn.
+**ส่ง output ยาวลงไฟล์แล้วอ่านส่วนท้าย** จะได้ไม่ต้องส่ง log ขนาด 70 KB เข้า context ต่อทุกครั้ง
 
-**Background the long things.** Dataset preparation and training take minutes;
-run them in the background and keep working.
+**ให้รันงานยาวเบื้องหลัง** เช่น เตรียมชุดข้อมูลและ train ซึ่งอาจใช้เวลาหลายนาที
 
-## 5. House rules for the code
+## 5. กติกาของโค้ด
 
-**Thresholds live in config, not at call sites.** Everything tunable is a field
-on `Settings` in `backend/app/core/config.py`, and `tests/test_config.py` pins
-the values the spec fixes. Read them from `get_settings()` in tests rather than
-hard-coding the numbers again.
+**ค่า threshold อยู่ใน config ไม่ใช่จุดเรียกใช้** ค่าที่ปรับได้ทั้งหมดเป็น field ใน `Settings` ที่ `backend/app/core/config.py` และ `tests/test_config.py` ตรึงค่าตาม spec ใน test ให้เรียก `get_settings()` แทนการเขียนตัวเลขเดิมซ้ำ
 
-**The knowledge base is data.** `backend/app/kb/diseases.json` holds advice a
-farmer acts on. Records 0-3 are supplied text and are not to be reworded.
-Records are keyed by the `canonical` snake_case class the classifier emits.
+**ฐานความรู้คือข้อมูล** `backend/app/kb/diseases.json` มีคำแนะนำที่เกษตรกรนำไปใช้ record 0-3 เป็นข้อความที่ให้มาและห้ามเรียบเรียงใหม่ ระเบียนใช้ค่า `canonical` แบบ snake_case ที่ classifier ส่งออกเป็นกุญแจ
 
-**Warnings are errors.** Both suites run with `filterwarnings = error`, so a
-green run is a clean run. A third-party warning gets a targeted ignore in that
-package's `pyproject.toml`, under `[tool.pytest.ini_options]` — message,
-category and module — never a blanket one.
+**Warning ถือเป็น error** test ทั้งสองชุดตั้ง `filterwarnings = error` ดังนั้นผลผ่านต้องไม่มี warning หากไลบรารีภายนอกสร้าง warning ให้เพิ่ม ignore แบบเจาะจงใน `pyproject.toml` ของแพ็กเกจนั้นใต้ `[tool.pytest.ini_options]` โดยระบุ message, category และ module ห้าม ignore แบบครอบจักรวาล
 
-**Uploads are the only door.** `backend/app/core/images.py` guarantees a
-C-contiguous uint8 RGB array, upright, metadata stripped. Every later stage
-trusts that. Changes there need a test for the input class you are worried about.
+**ประตูรับภาพเป็นทางเข้าทางเดียว** `backend/app/core/images.py` รับประกันว่าได้ NumPy array แบบ RGB, `uint8`, C-contiguous, หมุนภาพถูกทาง และลบ metadata แล้ว ทุกขั้นถัดไปเชื่อผลนี้ หากแก้ไฟล์ดังกล่าวต้องมี test สำหรับชนิด input ที่เป็นห่วง
 
-**Measure, do not assume — then audit the measurement.** The hardest bug of D2
-was a verification that only examined the cases the implementation had already
-chosen, and so reported success while 3.24% of the evaluation set was leaking.
-State an invariant in terms of the property, never in terms of your own
-algorithm. `docs/DESIGN.md` section 13 has the detail.
+**วัดผล อย่าเดา แล้วตรวจสอบวิธีวัดด้วย** bug ที่หนักที่สุดของ D2 เกิดจากการตรวจเฉพาะกรณีที่ implementation เลือกไว้เอง จึงรายงานว่าผ่านทั้งที่ข้อมูลประเมิน 3.24% รั่วไหล ระบุ invariant จากคุณสมบัติที่ต้องการ ไม่ใช่จากอัลกอริทึมของตัวเอง ดูรายละเอียดใน `docs/DESIGN.md` หัวข้อ 13
 
 ## 6. Git
 
-Branch per slice off `main`: `feat/d3-training`, `fix/...`, `docs/...`. Never
-commit straight to `main`.
+แยก branch ต่อสไลซ์จาก `main` เช่น `feat/d3-training`, `fix/...`, `docs/...` ห้าม commit ลง `main` โดยตรง
 
-Conventional-commit subjects (`feat(ml):`, `fix:`, `docs:`), imperative mood,
-then a body explaining **why** — the diff already says what. Include the test
-result when it is the point of the change.
+ใช้หัวข้อ commit แบบ Conventional Commits (`feat(ml):`, `fix:`, `docs:`) ในรูปคำสั่ง และเขียน body อธิบาย **เหตุผล** เพราะ diff บอกอยู่แล้วว่าเปลี่ยนอะไร ใส่ผลทดสอบเมื่อผลนั้นเป็นประเด็นสำคัญของการเปลี่ยนแปลง
 
-Commits are authored with the GitHub noreply address; do not change the git
-identity. Open a PR against `main` and let a human merge it.
+commit ด้วย GitHub noreply address ที่ตั้งไว้ ห้ามเปลี่ยน git identity เปิด PR เข้า `main` แล้วให้มนุษย์เป็นผู้ merge
 
-## 7. When context is missing
+## 7. เมื่อข้อมูลไม่พอ
 
-Stop and ask one or two sharp questions. Do not guess: a wrong assumption here
-becomes agronomy advice someone sprays on a field. If you raise a concern and
-the user reaffirms the request, that is their decision — say so once and
-proceed with the full request.
+หยุดแล้วถามคำถามสั้น ๆ หนึ่งหรือสองข้อ อย่าเดา เพราะการเดาผิดอาจกลายเป็นคำแนะนำทางเกษตรที่มีคนเอาไปฉีดพ่นในไร่ หากคุณชี้แจงความเสี่ยงแล้วผู้ใช้ยืนยันคำขอ นั่นเป็นการตัดสินใจของผู้ใช้ ให้บอกความเสี่ยงหนึ่งครั้งแล้วทำตามคำขอให้ครบ

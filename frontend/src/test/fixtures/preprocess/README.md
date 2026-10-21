@@ -1,50 +1,39 @@
-# Preprocessing parity fixtures
+# Fixture ตรวจความตรงกันของ preprocessing
 
-**Generated. Do not edit by hand.** Rebuild with:
+**สร้างอัตโนมัติ ห้ามแก้ด้วยมือ** สร้างใหม่ด้วยคำสั่ง:
 
 ```
 cd ml && ./.venv/Scripts/python.exe -m teasmart_ml.cli fixtures
 ```
 
-## Why these exist
+## สร้างไว้ทำไม
 
-Spec section 8.4 says "resize to 224x224, bilinear". That was underspecified,
-and the two sides of the contract implemented different things. Measured over
-twelve corpus images, they differ by up to **101 of 255** in a channel, worst on
-a full-resolution phone photograph - which is the input the demo uses.
+หัวข้อ 8.4 ของ spec ระบุว่า “ปรับขนาดเป็น 224x224 ด้วย bilinear” แต่คำอธิบายยังไม่ละเอียดพอ ทำให้สองฝั่งของสัญญา implement คนละแบบ เมื่อวัดจากภาพในคลัง 12 ภาพ พบว่าค่าพิกเซลต่างกันได้ถึง **101 จาก 255** ในหนึ่ง channel โดยต่างมากที่สุดในภาพถ่ายโทรศัพท์ความละเอียดเต็ม ซึ่งเป็น input ที่ใช้สาธิต
 
-**Python cannot move.** The classifier was trained on PIL output, so PIL is the
-definition. These fixtures publish it.
+**ห้ามเปลี่ยนฝั่ง Python** classifier ฝึกจาก output ของ PIL ดังนั้น PIL คือข้อกำหนด fixture เหล่านี้เผยแพร่ผลลัพธ์นั้นให้ทั้งสองฝั่งเทียบกัน
 
-## What to do with them
+## วิธีใช้ fixture
 
-For each case in `manifest.json`:
+สำหรับแต่ละกรณีใน `manifest.json`:
 
-1. build the source image from `source` (see the generators below),
-2. resize it to 224x224 with the algorithm below,
-3. compare against `expected`: raw RGB bytes, row-major, channel last, so
-   `expected[(y * 224 + x) * 3 + c]`. 224*224*3 = 150,528 bytes, no decoder
-   needed on either side.
+1. สร้างภาพต้นทางจาก `source` (ดูตัวสร้างด้านล่าง)
+2. ปรับขนาดเป็น 224x224 ด้วยอัลกอริทึมด้านล่าง
+3. เทียบกับ `expected`: byte ของ RGB ดิบ เรียงตามแถวและให้ channel อยู่ท้ายสุด ดังนั้นตำแหน่งคือ `expected[(y * 224 + x) * 3 + c]` มีทั้งหมด 224*224*3 = 150,528 bytes ทั้งสองฝั่งจึงไม่ต้องใช้ decoder
 
-Pass when **every channel is within `tolerance.max`** and the **mean absolute
-difference is within `tolerance.mean`**. Pillow uses fixed-point integer
-coefficients, so a float implementation will not be bit-identical; one level of
-rounding is fine. The current four-neighbour implementation misses by thirty or
-more, so there is no risk of a wrong implementation sneaking through.
+ถือว่าผ่านเมื่อ **ทุก channel ต่างไม่เกิน `tolerance.max`** และ **ค่าเฉลี่ยความต่างสัมบูรณ์ไม่เกิน `tolerance.mean`** Pillow ใช้สัมประสิทธิ์จำนวนเต็มแบบ fixed-point จึงไม่ตรงกับ implementation ที่ใช้ float ทุกบิต อนุญาตให้ต่างจากการปัดเศษได้หนึ่งระดับ implementation แบบเพื่อนบ้านสี่จุดปัจจุบันต่างกันอย่างน้อย 30 จึงไม่มีโอกาสที่ implementation ผิดจะผ่านโดยบังเอิญ
 
-## The algorithm: PIL bilinear, which is a scaled triangle filter
+## อัลกอริทึม: PIL bilinear ซึ่งเป็น triangle filter ที่ปรับขนาดได้
 
-The part everyone gets wrong is that **the filter widens when you downscale**.
-Separable, so do it in two passes - horizontal, then vertical.
+จุดที่มักพลาดคือ **filter จะขยาย support เมื่อย่อภาพ** อัลกอริทึมแยกตามแกนได้ จึงทำสองรอบ คือแนวนอนแล้วตามด้วยแนวตั้ง
 
-For one axis, with `inSize` source pixels and `outSize` output pixels:
+สำหรับหนึ่งแกน เมื่อ `inSize` คือจำนวนพิกเซลต้นทางและ `outSize` คือจำนวนพิกเซลปลายทาง:
 
 ```
 scale   = inSize / outSize
 support = scale > 1 ? scale : 1.0        // THIS is the step that is missed
 ```
 
-For each output index `i`:
+สำหรับ output index `i` แต่ละค่า:
 
 ```
 centre = (i + 0.5) * scale
@@ -61,21 +50,15 @@ normalise weights so they sum to 1
 output[i] = sum(weights[k] * input[start + k])
 ```
 
-Clamp to `[0, 255]` and round half away from zero only at the very end, after
-both passes. Keep the intermediate pass in float.
+จำกัดค่าให้อยู่ใน `[0, 255]` และปัดครึ่งออกจากศูนย์เมื่อจบทั้งสองรอบเท่านั้น เก็บผลระหว่างรอบเป็น float
 
-When `scale <= 1` (upscaling, or the 256x256 case) `support` is 1.0 and this
-reduces to ordinary bilinear, which is why the small case already agrees.
+เมื่อ `scale <= 1` (ขยายภาพ หรือกรณี 256x256) ค่า `support` เท่ากับ 1.0 จึงลดรูปเป็น bilinear ปกติ ซึ่งเป็นเหตุผลว่าทำไมกรณีขนาดเล็กจึงตรงกันอยู่แล้ว
 
-## The source generators
+## ตัวสร้างภาพต้นทาง
 
-A seed rather than a committed JPEG, so the fixture set stays small. Pixels come
-from a **coordinate hash**, not a sequential generator: pixel `(y, x, c)` is a
-pure function of its own coordinates, so there is no stream order for the two
-languages to disagree about.
+ใช้ seed แทนการ commit JPEG เพื่อให้ชุด fixture มีขนาดเล็ก พิกเซลสร้างจาก **hash ของพิกัด** ไม่ใช่ตัวสร้างเลขแบบไล่ลำดับ ดังนั้นพิกเซล `(y, x, c)` เป็นฟังก์ชันจากพิกัดของตัวเอง ไม่มีลำดับของ stream ที่สองภาษาจะตีความไม่ตรงกัน
 
-Every multiply truncates to 32 bits. In JavaScript that is `Math.imul` followed
-by `>>> 0`; shifts must be the unsigned `>>>`.
+การคูณทุกครั้งตัดเหลือ 32 บิต ใน JavaScript ใช้ `Math.imul` แล้วตามด้วย `>>> 0`; การเลื่อนบิตต้องใช้ `>>>` แบบ unsigned
 
 ```js
 function pixelByte(seed, y, x, c) {
@@ -87,16 +70,12 @@ function pixelByte(seed, y, x, c) {
 }
 ```
 
-Constants are in `manifest.json` under `generator`.
+ค่าคงที่อยู่ใน `manifest.json` ใต้ `generator`
 
-- **`noise`** - `source[y][x][c] = pixelByte(seed, y, x, c)`.
-- **`gradient`** - integers only, no rounding to disagree about:
-  `red = Math.floor(x * 255 / (width - 1))`,
-  `green = Math.floor(y * 255 / (height - 1))`, `blue = (red + green) >> 1`.
-- **`blocks`** - build an 8x8x3 block of `pixelByte(seed, by, bx, c)`, then
-  `source[y][x] = block[Math.floor(y * 8 / height)][Math.floor(x * 8 / width)]`.
+- **`noise`** — `source[y][x][c] = pixelByte(seed, y, x, c)`
+- **`gradient`** — ใช้จำนวนเต็มเท่านั้นเพื่อไม่ให้การปัดเศษต่างกัน: `red = Math.floor(x * 255 / (width - 1))`, `green = Math.floor(y * 255 / (height - 1))`, `blue = (red + green) >> 1`
+- **`blocks`** — สร้าง block ขนาด 8x8x3 จาก `pixelByte(seed, by, bx, c)` แล้วกำหนด `source[y][x] = block[Math.floor(y * 8 / height)][Math.floor(x * 8 / width)]`
 
-## Cases
+## กรณีทดสอบ
 
-The reduction factor is what matters; the set spans 1.14x to 18.6x on purpose.
-A fixture set of small images would have shipped the bug.
+ปัจจัยสำคัญคืออัตราการย่อ ชุดนี้ตั้งใจครอบคลุมตั้งแต่ 1.14x ถึง 18.6x หากใช้แต่ภาพต้นทางขนาดเล็ก bug นี้คงถูกส่งต่อไปแล้ว

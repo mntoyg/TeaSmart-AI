@@ -386,7 +386,7 @@ def main() -> int:
         destination = args.out / f"{slot.name}.jpg"
         shutil.copy2(source, destination)
 
-        lines += [f"File: `demo/{destination.name}`", ""]
+        lines += [f"ไฟล์: `demo/{destination.name}`", ""]
         if outcome["rejected"]:
             lines += [
                 f"- ด่านคุณภาพ **ปฏิเสธ** ภาพนี้: `{outcome['reason']}` ค่าความเบลอ "
