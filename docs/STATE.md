@@ -319,6 +319,47 @@ effect **ตั้งข้อความได้เฉพาะตอนพ�
 **ยังไม่ขึ้น production** https://teasmart-ai.pages.dev ยังเป็น bundle เดิม
 ต้อง `wrangler pages deploy` ใหม่ก่อนกรรมการจะเห็นผลของการแก้นี้
 
+## 2026-10-21 — การ deploy ใหม่ไม่ถึงมือถือที่ติดตั้งไว้แล้ว
+
+**วัดจาก artefact จริง ไม่ได้อนุมาน** ผู้ใช้เลือกทดสอบ 7 ข้อบน build ที่อยู่บนเว็บ
+ตอนนี้ก่อน แล้ว deploy รอบเดียวทีหลัง คำถามที่ตามมาคือ service worker ตัวเก่า
+จะปล่อยให้ตัวใหม่เข้ามาหรือไม่ **คำตอบคือไม่**
+
+| หลักฐาน | ผล |
+|---|---|
+| `grep -c skipWaiting frontend/dist/sw.js` | **0** |
+| `grep -c clientsClaim frontend/dist/sw.js` | 1 |
+| `registerType` ใน `vite.config.ts` | **ไม่ได้ตั้ง** → default `"prompt"` (`vite-plugin-pwa/dist/index.js:800`) |
+| `main.tsx:11` | `registerSW({ immediate: true });` — **ทิ้งค่าที่ return** |
+
+สามอย่างนี้ประกอบกันเป็นวงจรที่ปิดตาย อ่านจาก
+`node_modules/vite-plugin-pwa/dist/client/build/register.js`:
+`registerType: "prompt"` ทำให้ `auto === false` จึงเข้า branch ที่ผูก
+`wb.addEventListener("waiting", showSkipWaitingPrompt)` และ
+`showSkipWaitingPrompt` เรียก `onNeedRefresh?.()` ซึ่ง **undefined** เพราะ
+`main.tsx` ไม่ส่ง callback ตัวนี้มา ส่วน `wb.messageSkipWaiting()` ถูกเรียกจาก
+`updateServiceWorker()` เท่านั้น ซึ่งเป็น **ค่า return ของ `registerSW`** ที่
+`main.tsx` ทิ้งไป จึงไม่มีใครเรียกมันได้เลย
+
+ผลคือ SW ตัวใหม่ install แล้วค้างที่สถานะ `waiting` **ไม่มีกำหนด** จนกว่า client
+ของตัวเก่าจะหายไปทุกตัว และ `clientsClaim()` ช่วยไม่ได้ เพราะมันมีผลตอน activate
+ไม่ใช่ตอน update
+
+**ทำไมเรื่องนี้อันตรายกว่าที่ฟัง** ไม่มีอะไรดูเหมือนพัง SW ตัวเก่าเสิร์ฟ bundle เก่า
+พร้อมโมเดลเก่าได้อย่างราบรื่น มือถือบนเวทีจะแสดง build เก่ารวมถึงบั๊กแผงออฟไลน์
+ที่เพิ่งแก้ไป โดยไม่มีสัญญาณอะไรบอก
+
+**ทางแก้ที่ใช้ก่อนเดโม: ลบออกจากหน้าโฮมแล้วติดตั้งใหม่** หลัง deploy รอบเดียวนั้น
+ไม่ต้องแก้โค้ด และรับประกันว่าได้ SW ใหม่กับ precache ใหม่ **ต้องเผื่อการดาวน์โหลด
+30.7 MB ซ้ำบน wifi คืนก่อนงาน ไม่ใช่บนเวที**
+
+**ทางแก้เชิงโค้ด เป็น P2 หลังเดโม** ต้องทำสองอย่างคู่กัน ไม่ใช่อย่างเดียว:
+`self.skipWaiting()` ใน `sw.ts` (เพราะ `strategies: 'injectManifest'` หมายความว่า
+plugin ไม่ฉีดให้) **และ** `registerType: 'autoUpdate'` ให้หน้าเว็บ reload ตอน
+SW ใหม่ activate ไม่ควรทำคืนก่อนเดโมเพราะมันเปลี่ยน semantics ของการอัปเดต
+และยืนยันไม่ได้เลยถ้าไม่ deploy จริงแล้วลองบนมือถือจริง ซึ่งคือสิ่งที่กำลังจัดลำดับกันอยู่
+**เป็นของ `frontend/` = สไลซ์ Codex**
+
 ## เรื่องที่รอผู้ใช้ตัดสินใจ
 
 1. **`max_image_pixels` เป็น 40,000,000** ไฟล์ JPEG 738 KB ถอดรหัสออกเป็น 7000×5600
