@@ -541,6 +541,50 @@ SW ใหม่ activate ไม่ควรทำคืนก่อนเดโ�
 URL สาธารณะ** คนทดสอบที่ทำตามคู่มือจะบันทึกว่าข้อ 3 ไม่ผ่าน ทั้งที่แอปทำถูก
 แก้ที่ generator แล้วให้บอกว่าบน URL สาธารณะต้องได้ `classifier_only` เสมอ
 
+## 2026-10-21 — deploy รอบที่สอง การแก้ขึ้น production แล้ว
+
+ผู้ใช้สั่ง merge แล้ว deploy **PR #18 merge เข้า `main` แล้ว (`a40476c`)**
+CI ผ่านทั้งสี่ตัวบน `eb43ae3` พอดี รวม SonarCloud
+
+ทำตาม `docs/DEPLOY-TH.md` ครบทุกข้อ:
+
+| ขั้น | ผล |
+|---|---|
+| backend รันอยู่ | `/health` ตอบ ok |
+| `git ls-files --others frontend/public` | **ว่าง** |
+| `scripts/snapshot_api.py` | config 709 B, kb 9,639 B — **ไบต์ตรงกับที่ commit ไว้** ต่างแค่ line ending แปลว่าสัญญา API ไม่ได้เลื่อน |
+| `npm run build` | precache 12 entries 30,738.02 KiB · dist 31 MB |
+| ตรวจ dist | ไม่มี `parity/` ไม่มี int8 มี `_redirects` และ snapshot ครบ |
+| `wrangler pages deploy` | อัป 4 ไฟล์ใหม่ (9 ไฟล์เดิมใช้ซ้ำ) 2.44 วินาที |
+
+### ยืนยันบน production ด้วยเครื่องที่ล้างแคชแล้ว
+
+ล้าง service worker และแคชทั้งหมดก่อน เพื่อให้เป็นผู้เข้าชมครั้งแรกจริง ๆ
+
+```
+exactPathMatch     false      <- การแก้รอบแรกที่ผิดจะตอบว่า "ยังไม่พร้อม" ตรงนี้
+ignoreSearchMatch  true
+modelBytes         16823747
+configCached       true
+swActive           activated
+```
+
+โหลดหน้าใหม่แล้วแผงขึ้นว่า
+
+```
+เตรียมออฟไลน์แล้ว · ประเมินเบื้องต้นบนอุปกรณ์ได้
+```
+
+**บั๊กที่ Codex รายงานเมื่อ 2026-10-20 ปิดแล้ว และปิดบนของจริง ไม่ใช่แค่ใน test**
+
+### ปริศนา precache 12 กับ 10 คลี่แล้ว
+
+เคยบันทึกไว้ว่า build รายงาน 12 entries แต่ production มี 10 และห้ามอ้างตัวเลข
+จนกว่าจะวัดซ้ำ วัดแล้ว: manifest ใน `dist/sw.js` มี **`icon.svg` และ
+`manifest.webmanifest` ซ้ำอย่างละสองครั้ง** (VitePWA ใส่เองทับกับที่
+`globPatterns` จับได้อยู่แล้ว) workbox จึงนับ 12 แต่ Cache API ตัดซ้ำด้วย URL
+เหลือ 10 รายการจริง **ไม่มีอะไรหาย ทั้งสองตัวเลขถูก คนละนิยาม**
+
 ## เรื่องที่รอผู้ใช้ตัดสินใจ
 
 1. **`max_image_pixels` เป็น 40,000,000** ไฟล์ JPEG 738 KB ถอดรหัสออกเป็น 7000×5600
