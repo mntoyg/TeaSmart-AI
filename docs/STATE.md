@@ -8,9 +8,9 @@
 
 - **อัปเดตล่าสุด:** 2026-10-20
 - **กำหนดสาธิต:** 2026-10-22 — **อีกสองวัน**
-- **branch ที่เปิดอยู่:** PR #14 (เอกสารความพร้อมสาธิต, Codex), PR #15
-  (prompt ส่งต่อที่เขียนตัวเองใหม่) และ PR #16 (คู่มือสาธิต, TLS, หน้าไทยสำหรับมือถือ,
-  QR, ทำความสะอาด) ทั้งสามอิสระต่อกัน PR #5 ถึง #13 merge แล้ว
+- **open PRs:** #14 (demo readiness docs), #15 (handoff prompt), #16 (demo guide, TLS,
+  mobile Thai page, QR, cleanup), and #17 (P0-2 offline scan measurement, based on PR #16);
+  PRs #5–#13 are merged. The current branch is `fix/pwa-installed-offline-scan`.
 - **เจ้าของตามไดเรกทอรี:** `docs/DESIGN.md` หัวข้อ 14 — Claude Code ดูแล `backend/`
   และ `ml/` ส่วน Codex ดูแล `frontend/`
   **2026-10-20 Claude Code ข้ามเข้า `frontend/`** เพิ่ม `vite.https.ts`,
@@ -176,14 +176,32 @@ client บังคับให้ต้องมี
 
 ---
 
-## ที่ยังไม่ได้วัด และต้องวัดก่อนขึ้นเวที
+## Remaining verification before the demo
 
-**สแกนหลังติดตั้ง PWA แล้วปิดเน็ต จะได้ผลหรือไม่ — ยังไม่รู้** ไฟล์ snapshot
-ไม่มีนามสกุล จึงไม่เข้า `globPatterns` ของ PWA และ build ยังรายงาน
-**precache 13 entries** เท่าเดิม service worker จึงไม่ได้ precache `config`
-กับ `kb` ผลขึ้นกับว่าปุ่ม "เตรียมใช้งานออฟไลน์" เก็บ config ไว้เองหรือไม่
-**ต้องกดวัดจริงบนมือถือ** ไม่ใช่เดา ถ้าไม่ผ่าน ทางแก้คือเพิ่มสองไฟล์เข้า precache
-หรือให้ปุ่มนั้นเก็บลง IndexedDB
+**P0-2 — Service-worker offline scan measured successfully with the static server stopped.**
+On 2026-10-20, the static preview was prepared for offline use until the UI reported
+"offline ready." After stopping its preview server, `/scan` reloaded through the service
+worker. With `frontend/public/parity/49.jpg`, both the on-device button and the normal
+scan button completed. The normal scan path fell back to local ONNX, returned
+`classifier_only` at 95.4% confidence, and queued the result; two local scans left two
+items waiting to sync.
+
+Scope: this was a service-worker-controlled browser preview, not a PWA installed to a
+home screen. `navigator.onLine` still reported connected; the static server was stopped
+so API requests could not reach it. Repeat on an installed iPhone/Android PWA with the
+device network disabled before closing P0-2 for the demo.
+
+UX follow-up: after offline reload, the panel resets to "offline not prepared" even
+though the cached model and config still support scans. Make the initial status reflect
+the available cache before the demo.
+
+Codex usage check, 2026-10-20 15:49 Asia/Bangkok: the usage tool reports 1% used in the
+weekly window; a daily counter is unavailable. The session baseline was 0% weekly, so
+count 1 percentage point of weekly capacity conservatively for today's work, within the
+14% daily ceiling. Native Windows validation passed with `./scripts/test.ps1`: backend
+165, ML 120, frontend 73; all lint and frontend build steps passed, ending in `All green.`
+`bash.exe ./scripts/test.sh` ran the suites but its scripts-lint path was translated
+incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
 
 **`_redirects` ยังไม่ได้ยืนยัน** `python -m http.server` ไม่อ่านไฟล์นี้ จึงทดสอบ
 ในเครื่องไม่ได้ — `/kb` ตอบ 404 ที่นี่เพราะเหตุนี้ Cloudflare Pages และ Netlify
