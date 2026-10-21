@@ -35,6 +35,16 @@ export async function prepareOffline(config?: ClientConfig) {
   if (!config) throw new Error('ยังไม่มีการตั้งค่าออฟไลน์ กรุณาเชื่อมต่อก่อน');
   await send(parseConfig(config));
 }
+// Whether an on-device scan can run right now, asked of the cache rather than
+// of this session's history. The service worker precaches the graph on install,
+// so a reload - online or offline - starts with it already there and nothing to
+// prepare. `caches` is absent in an insecure context and throws in some
+// browsers with storage disabled; either way the honest answer is "not ready".
+export async function isOfflineReady(config?: ClientConfig) {
+  if (!config || typeof caches === 'undefined') return false;
+  try { return Boolean(await caches.match(`/models/${parseConfig(config).onnx.file}`)); }
+  catch { return false; }
+}
 export async function inferOffline(image: File, scanId: string, capturedAt: string, config?: ClientConfig): Promise<LocalResult> {
   if (!config) throw new Error('ยังไม่มีการตั้งค่าออฟไลน์ กรุณาเชื่อมต่อก่อน');
   parseConfig(config);

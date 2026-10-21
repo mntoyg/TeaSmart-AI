@@ -4,7 +4,7 @@ import { adviceFields, readKnowledgeBase, readClientConfig, type KnowledgeRecord
 import { store } from './lib/storage';
 import type { ClientConfig } from './lib/scan-contract';
 import { isFull, type StoredResult } from './lib/local-result';
-import { prepareOffline } from './lib/offline';
+import { prepareOffline, isOfflineReady } from './lib/offline';
 import { syncQueue } from './lib/queue';
 import { ResultCard } from './components/ResultCard';
 import { ScanPage } from './pages/ScanPage';
@@ -63,6 +63,9 @@ function KnowledgePage({ records, loading, error }: { records: KnowledgeRecord[]
     {!loading && !records.length && <p>ยังไม่มีฐานความรู้ในอุปกรณ์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p>}
   </>;
 }
+const offlineNotPrepared = 'ยังไม่ได้เตรียมใช้งานออฟไลน์';
+const offlinePrepared = 'เตรียมออฟไลน์แล้ว · ประเมินเบื้องต้นบนอุปกรณ์ได้';
+
 export function App() {
   const navigate = useNavigate();
   const [knowledge, setKnowledge] = useState<KnowledgeRecord[]>([]);
@@ -71,7 +74,7 @@ export function App() {
   const [online, setOnline] = useState(navigator.onLine);
   const [config, setConfig] = useState<ClientConfig>();
   const [preparing, setPreparing] = useState(false);
-  const [offlineMessage, setOfflineMessage] = useState('ยังไม่ได้เตรียมใช้งานออฟไลน์');
+  const [offlineMessage, setOfflineMessage] = useState(offlineNotPrepared);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncing, setSyncing] = useState(false);
@@ -98,6 +101,16 @@ export function App() {
     }
     void load(); return () => { active = false; };
   }, [online]);
+  // The panel used to open on "not prepared" every mount, because nothing ever
+  // asked the cache. After an offline reload that read as offline being broken
+  // while scans were in fact still being served from the cached graph.
+  useEffect(() => {
+    let active = true;
+    void isOfflineReady(config).then((ready) => {
+      if (active && ready) setOfflineMessage(offlinePrepared);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [config]);
   async function saveResult(result: StoredResult) {
     try { await store.save(result); }
     catch { throw new Error('บันทึกผลตรวจไม่ได้ กรุณาตรวจพื้นที่ว่างแล้วลองใหม่'); }
@@ -129,7 +142,7 @@ export function App() {
       if (!('serviceWorker' in navigator)) throw new Error('เบราว์เซอร์นี้ยังไม่รองรับการใช้งานออฟไลน์');
       await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => setTimeout(() => reject(new Error('กรุณาเปิดแอปจากรุ่นที่ติดตั้งสำหรับใช้งานออฟไลน์')), 10_000))]);
       await prepareOffline(config);
-      setOfflineMessage('เตรียมออฟไลน์แล้ว · ประเมินเบื้องต้นบนอุปกรณ์ได้');
+      setOfflineMessage(offlinePrepared);
     } catch (failure) { setOfflineMessage(failure instanceof Error ? failure.message : 'เตรียมออฟไลน์ไม่ได้ กรุณาลองใหม่'); }
     finally { setPreparing(false); }
   }
