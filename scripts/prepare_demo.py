@@ -71,7 +71,7 @@ class Slot:
 SLOTS: tuple[Slot, ...] = (
     Slot(
         "01-brown-blight-severe",
-        "A clear diagnosis with real damage - the main claim",
+        "วินิจฉัยชัดบนใบที่เสียหายจริง — ข้อกล่าวอ้างหลัก",
         "brown_blight",
         min_confidence=0.80,
         min_severity="moderate",
@@ -80,7 +80,7 @@ SLOTS: tuple[Slot, ...] = (
     ),
     Slot(
         "02-grey-blight",
-        "A second disease, so it is not a one-class trick",
+        "โรคที่สอง เพื่อให้เห็นว่าไม่ใช่กลลวงคลาสเดียว",
         "grey_blight",
         min_confidence=0.70,
         min_affected_pct=0.01,
@@ -88,7 +88,7 @@ SLOTS: tuple[Slot, ...] = (
     ),
     Slot(
         "03-algal-spot",
-        "A third, with different advice from the knowledge base",
+        "โรคที่สาม พร้อมคำแนะนำคนละชุดจากฐานความรู้",
         "algal_spot",
         min_confidence=0.70,
         min_affected_pct=0.01,
@@ -96,169 +96,70 @@ SLOTS: tuple[Slot, ...] = (
     ),
     Slot(
         "04-healthy",
-        "A healthy leaf, which must not be given a disease name",
+        "ใบปกติ ซึ่งห้ามถูกตั้งชื่อโรคให้",
         "healthy",
         min_confidence=0.70,
         max_burn_likelihood=0.25,
     ),
     Slot(
         "05-unsure-declines-to-name",
-        "The confidence floor: it answers other_disease instead of guessing",
+        "เพดานความเชื่อมั่น: ตอบ other_disease แทนการเดา",
         None,
         low_confidence=True,
     ),
     Slot(
         "06-blurry-asks-for-a-retake",
-        "The quality gate: Thai instruction, not an error page",
+        "ด่านคุณภาพ: บอกเป็นภาษาไทยให้ถ่ายใหม่ ไม่ใช่หน้า error",
         None,
         rejected=True,
     ),
 )
 
 _PHONE_SECTION = """
-## Testing on a real phone
+## ทดสอบบนมือถือจริง
 
-Everything below that could be checked from the development machine has been,
-and the measurements are quoted. Pressing the buttons on the handset is the
-part nobody else can do.
+ทุกอย่างข้างล่างที่ตรวจได้จากเครื่องพัฒนา ตรวจแล้วและมีตัวเลขกำกับ
+ส่วนที่เหลือคือการกดปุ่มบนเครื่องจริง ซึ่งไม่มีใครทำแทนได้
 
-### 1. Make the app reachable
+### 1. กรรมการเปิดจาก URL สาธารณะ ไม่ต้องตั้งอะไรเลย
 
-Vite binds to `127.0.0.1` by default, so a phone cannot reach it at all —
-measured, the listener was `TCP 127.0.0.1:5173` and nothing else. Start it with
-the host flag instead:
+**https://teasmart-ai.pages.dev**
 
-```bash
-cd frontend && npm run dev -- --host
-```
+เป็น HTTPS จริงบนโดเมนสาธารณะ จึงเป็น secure context ตามสเปก — กล้อง
+service worker ใช้งานออฟไลน์ และติดตั้งลงหน้าโฮม ทำงานครบโดย**ไม่ต้องลงใบรับรอง
+ไม่ต้องตั้ง flag ไม่ต้องต่อสาย และไม่ต้องอยู่ wifi วงเดียวกัน**
 
-The listener becomes `0.0.0.0:5173`, and the phone uses this machine's LAN
-address. The backend does **not** need the flag: the phone talks to Vite, and
-Vite proxies `/api` to `127.0.0.1:8000` on the development machine.
+**deploy เฉพาะ frontend ไม่มี backend** ภาพที่กรรมการถ่ายจึงไม่ออกจากเครื่องตัวเอง
+และผลที่ได้เป็น `classifier_only` — **ไม่มีคำตัดสินโรค-กับ-ใบไหม้ และไม่มีความรุนแรง**
+สองอย่างนั้นสาธิตจากโน้ตบุ๊กที่รัน pipeline เต็ม **ต้องพูดความต่างนี้ออกมาให้ชัด**
+ขั้นตอน deploy อยู่ใน `docs/DEPLOY-TH.md`
 
-Verified over the LAN address from this machine:
+### 2. ตรวจเจ็ดข้อนี้ตามลำดับ
 
-```text
-GET  /                 200
-GET  /api/v1/config    200    blur 15.0, min_confidence 0.60
-POST /api/v1/scan      200    brown_blight 0.96, severe 28.2%, 100 ms
-```
+แต่ละข้อขึ้นกับข้อก่อนหน้า
 
-If the phone cannot load the page while the machine can, it is almost always
-Windows Firewall blocking inbound 5173 on the private network. Allow Node for
-private networks, or add a rule for the port.
+1. **เลย์เอาต์** ตรวจที่ 375x812 แล้วไม่มีการเลื่อนแนวนอน แต่เครื่องจริงมีรอยบาก
+   มีขนาดฟอนต์ของระบบ และมีคีย์บอร์ด
+2. **กล้อง** กด `เปิดกล้อง` อนุญาตสิทธิ์ แล้วถ่ายใบชา ต้องได้กล้องหลัง
+   (`facingMode: environment`)
+3. **สแกนออนไลน์** การ์ดผลต้องบอกชื่อโรคเป็นภาษาไทย บอกความรุนแรง
+   และระบุว่าวิเคราะห์แบบ `full`
+4. **ติดตั้ง** เมนูของเบราว์เซอร์จะเสนอ Add to home screen เมื่อ service worker
+   ลงทะเบียนแล้ว **เปิดจากไอคอนที่ติดตั้ง ไม่ใช่จากแท็บ**
+5. **เตรียมออฟไลน์** กด `เตรียมใช้งานออฟไลน์` แล้วรอ ขั้นนี้ดาวน์โหลด
+   **30.7 MB** — WASM 14.2 MB และโมเดล 16.8 MB — ทำบน wifi ก่อนวันงาน ไม่ใช่บนเวที
+6. **ออฟไลน์** เปิดโหมดเครื่องบินแล้วสแกน ผลต้องถูกกำกับว่า `classifier_only`
+   เพราะเบราว์เซอร์ไม่แยกใบออกจากพื้น จึงไม่มีการวิเคราะห์แผลและไม่มีความรุนแรง
+   **และการ์ดต้องบอกแบบนั้น**
+7. **ต่อเน็ตกลับ** คิวจะส่งซ้ำผ่าน `POST /api/v1/sync/batch` แล้วผลถูกเติมให้ครบ
+   **สแกนภาพเดิมซ้ำต้องไม่เกิดรายการประวัติสองอัน** เซิร์ฟเวอร์จะคืนผลที่เก็บไว้
+   พร้อม `replayed: true`
 
-### 2. Expect the camera and offline to be missing over plain HTTP
+### 3. ข้อ 6 วัดตัวโมเดล ไม่ใช่แค่วัดท่อ
 
-Measured in a browser at `http://<lan-ip>:5173`:
-
-```json
-{ "isSecureContext": false, "hasServiceWorker": false, "hasMediaDevices": false }
-```
-
-Those APIs are not merely blocked, they are **absent**. Over plain HTTP from a
-LAN address a phone therefore gets the file picker and online scanning, and
-none of: camera capture, the service worker, offline inference, or install to
-the home screen. That is a browser rule about secure contexts, not a fault in
-this app — `localhost` is exempt, which is why it all works on the development
-machine.
-
-So a phone test over `http://<lan-ip>` can only confirm the layout, the file
-picker and an online scan. **It cannot confirm the offline story, which is the
-part the demo is judged on.**
-
-Three ways to get a secure context. Prefer the first.
-
-**USB, on Android — and this is also how the demo gets recorded.** `adb
-reverse` publishes a port from this machine onto the handset's own `localhost`,
-and `localhost` is a secure context *by specification*, in Chrome on Android as
-anywhere else. So the handset opens `http://localhost:5173` and gets the
-camera, the service worker, offline inference and install, with no browser
-flag, no third-party tunnel, and no firewall rule — the LAN is not involved at
-all, and `--host` is not needed on Vite.
-
-Enable Developer options and USB debugging on the handset, plug it in, accept
-the authorisation prompt, then:
-
-```bash
-adb devices                              # must list the handset as `device`
-adb reverse tcp:5173 tcp:5173            # the app
-scrcpy --record=demo.mp4                 # mirror the screen and record it
-```
-
-`scrcpy` ships its own `adb.exe`; on Windows, `winget install
-Genymobile.scrcpy` installs both. Measured here: scrcpy 4.1, adb 1.0.41
-(platform-tools 37.0.0).
-
-**Open a new terminal after installing.** winget puts the package directory on
-the user `PATH` and creates a link only for `scrcpy`, and a process keeps the
-environment it started with, so the terminal the install was run from reports
-`'adb' is not recognized` - which looks exactly like a failed install. A newly
-started shell finds it. To fix the terminal you already have, without opening
-another:
-
-```bat
-set "PATH=%PATH%;%LOCALAPPDATA%\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
-```
-
-The reverse forward is dropped when the cable is unplugged or the adb server
-restarts, so re-run `adb reverse` after either and confirm with `adb reverse
---list`. The backend needs no forward of its own: the handset talks to Vite and
-Vite proxies `/api` on this machine.
-
-Record with `--record=demo.mp4` rather than screen-capturing the scrcpy window:
-it writes the handset's own video stream, so the file does not carry the
-compositor's dropped frames. `--no-audio` if the handset's audio forwarding
-gets in the way.
-
-**Chrome flag, if USB is not available.** On the phone open
-`chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add
-`http://<lan-ip>:5173`, set the flag to Enabled and relaunch Chrome. The origin
-is then treated as secure: camera, service worker, offline and install all
-work. Nothing leaves the network. Undo it after the demo. The flag names one
-exact origin, so it has to be set again if the LAN address changes.
-
-**A tunnel, if the demo is not on the same network.** `cloudflared` or `ngrok`
-gives a real HTTPS URL that any phone can open. It also sends every photograph
-and every result through a third party, so it is a decision for the owner of
-the data, not a default. It additionally needs `TEASMART_CORS_ORIGINS` set,
-because the browser's origin is then no longer `localhost:5173`.
-
-**On iPhone, none of the first two apply.** There is no `adb`, and Chrome on
-iOS is WebKit underneath with no flag for insecure origins, so a secure context
-there means `mkcert` with the root certificate trusted on the handset, or a
-tunnel. Mirroring an iPhone to Windows needs an AirPlay receiver or a capture
-card. Record the demo on Android; keep the iPhone as a WebKit cross-check.
-
-### 3. What to check once the context is secure
-
-In this order, because each step depends on the one before:
-
-1. **Layout.** Already checked at 375x812 with no sideways scrolling, but a
-   real handset has a notch, a system font scale and a software keyboard.
-2. **Camera.** `เปิดกล้อง`, allow the permission, photograph a leaf. The rear
-   camera should open (`facingMode: environment`).
-3. **An online scan.** The result card should name the disease in Thai, state
-   the severity, and say `full` analysis.
-4. **Install.** Chrome's menu offers Add to home screen once the service worker
-   is registered. Open the installed app, not the tab.
-5. **Prepare offline.** Press `เตรียมใช้งานออฟไลน์` and wait. This downloads
-   **30.7 MB** — 14.2 MB of WASM and the 16.8 MB model — so do it on wifi,
-   before the demo, not on stage.
-6. **Offline.** Put the phone in aeroplane mode and scan. The result must be
-   labelled `classifier_only`: the browser does not segment, so there is no
-   lesion analysis and no severity, and the card has to say so.
-7. **Reconnect.** Turn the network back on. The queue replays through
-   `POST /api/v1/sync/batch` and the results are filled in. Scanning the same
-   photograph twice must not produce two history entries — the server returns
-   the stored result with `replayed: true`.
-
-### 4. Step 6 measures the model, not just the plumbing
-
-The browser's resize now implements PIL's algorithm, so an on-device result is
-not drifting from a server result for preprocessing reasons. The 50-image
-parity check that section 8.4 of `docs/DESIGN.md` makes the condition for D7
-passed on 2026-10-20:
+การย่อภาพของเบราว์เซอร์ใช้อัลกอริทึมเดียวกับ PIL แล้ว ผลบนเครื่องจึงไม่ได้เพี้ยน
+จากผลเซิร์ฟเวอร์ด้วยเหตุผลเรื่องการเตรียมภาพ การตรวจ parity 50 ภาพที่
+`docs/DESIGN.md` หัวข้อ 8.4 กำหนดเป็นเงื่อนไขของ D7 **ผ่านเมื่อ 2026-10-20**
 
 ```text
 images              50
@@ -267,15 +168,41 @@ max prob delta      0.00283      (bound 0.05)
 passes              true
 ```
 
-**Eighteen times inside the bound**, over the whole chain: JPEG decoding, the
-canvas round-trip, the resize, the ImageNet normalisation and the fp32 graph.
-An offline result is therefore the same model reaching the same answer, and
-step 6 is worth presenting as such.
+**ห่างจากขอบสิบแปดเท่า** ครอบคลุมทั้งสาย: การถอดรหัส JPEG, การวนผ่าน canvas,
+การย่อภาพ, การ normalise แบบ ImageNet และกราฟ fp32 ผลออฟไลน์จึงเป็นโมเดลตัวเดียวกัน
+ที่ให้คำตอบเดียวกัน และข้อ 6 ควรนำเสนอแบบนั้น
 
-What still differs offline is the *pipeline*, not the model: the browser does
-not segment, so there is no lesion analysis and no severity, and the card says
-`classifier_only`. That is a product difference, not a defect. Evidence and
-the command that produced the table: `docs/EVIDENCE.md` section 6.
+สิ่งที่ยังต่างกันตอนออฟไลน์คือ *pipeline* ไม่ใช่โมเดล — เบราว์เซอร์ไม่แยกใบ
+จึงไม่มีการวิเคราะห์แผลและไม่มีความรุนแรง การ์ดจึงบอกว่า `classifier_only`
+**นั่นคือความต่างเชิงสินค้า ไม่ใช่ข้อบกพร่อง** หลักฐานและคำสั่งที่ผลิตตารางข้างบน:
+`docs/EVIDENCE.md` หัวข้อ 6
+
+### 4. ถ้าต้องทดสอบ build ของเครื่องพัฒนาบนมือถือ
+
+ขั้นตอนเต็มเป็นภาษาไทยอยู่ใน `docs/PHONE-TH.md` ซึ่งเขียนให้อ่านบนมือถือและกดลิงก์ได้
+สรุปสิ่งที่วัดไว้:
+
+- **Vite ผูกกับ `127.0.0.1` โดยปริยาย** มือถือจึงเข้าไม่ถึงเลย — วัดแล้ว ตัวรับฟัง
+  คือ `TCP 127.0.0.1:5173` เท่านั้น ต้องรัน `npm run dev -- --host`
+  ส่วน backend ไม่ต้องใช้ flag เพราะมือถือคุยกับ Vite แล้ว Vite proxy `/api` ต่อ
+- **ผ่าน HTTP ธรรมดาจาก LAN กล้องกับออฟไลน์จะไม่มีอยู่** วัดในเบราว์เซอร์ที่
+  `http://<lan-ip>:5173` ได้
+  `{ "isSecureContext": false, "hasServiceWorker": false, "hasMediaDevices": false }`
+  — ไม่ใช่ถูกบล็อก แต่ **ไม่มีอยู่** เป็นกฎของเบราว์เซอร์เรื่อง secure context
+  ไม่ใช่ข้อบกพร่องของแอป (`localhost` ได้รับการยกเว้น)
+- **Android: `adb reverse tcp:5173 tcp:5173`** ยกพอร์ตขึ้นเป็น `localhost` ของมือถือ
+  ซึ่งได้รับการยกเว้น จึงได้ครบโดยไม่ต้องใช้ใบรับรองเลย และ
+  `scrcpy --record=demo.mp4` อัดวิดีโอจากสายเดียวกัน
+  วัดไว้: scrcpy 4.1, adb 1.0.41 (platform-tools 37.0.0)
+- **เปิด terminal ใหม่หลังติดตั้ง scrcpy** winget ใส่โฟลเดอร์ลง user PATH และสร้าง
+  link ให้แค่ `scrcpy` ส่วน process ที่รันอยู่แล้วถือ environment เดิม terminal ที่
+  รัน install จึงขึ้น `'adb' is not recognized` ซึ่งดูเหมือนติดตั้งพลาด
+- **iPhone ใช้สองทางแรกไม่ได้** ไม่มี `adb` และ Chrome บน iOS เป็น WebKit ที่ไม่มี
+  flag สำหรับ insecure origin จึงต้องใช้ `mkcert` แล้วตั้งให้เชื่อ root certificate
+  บนเครื่อง หรือใช้ tunnel
+- **ห้ามใช้ mkcert หรือ tunnel กับมือถือของกรรมการ** การขอให้กรรมการเชื่อ CA ของเรา
+  บนเครื่องส่วนตัวเป็นสิ่งที่ไม่ควรขอ และ tunnel ส่งทุกภาพผ่านบุคคลที่สาม
+  ทางสำหรับกรรมการคือข้อ 1 ข้างบน
 """
 
 _SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
@@ -418,29 +345,28 @@ def main() -> int:
         existing.unlink()
 
     lines = [
-        "# Demo runbook",
+        "# คู่มือสาธิต",
         "",
-        "**Generated by `scripts/prepare_demo.py`. Do not edit by hand.**",
-        "Re-run it after any change to the model or the thresholds, because",
-        "every number below was measured rather than remembered.",
+        "**ไฟล์นี้ generate โดย `scripts/prepare_demo.py` ห้ามแก้ด้วยมือ**",
+        "รัน script ใหม่หลังเปลี่ยนโมเดลหรือ threshold เพราะทุกตัวเลขข้างล่าง",
+        "มาจากการวัด ไม่ได้มาจากความจำ",
         "",
-        "The images live in `demo/` and are **not committed**: they come from",
-        "public research datasets whose redistribution terms differ, and this",
-        "repository has no business holding photographs it did not create. The",
-        "source path of each one is recorded here, so the set can be rebuilt.",
+        "ภาพอยู่ใน `demo/` และ **ไม่ถูก commit** — มาจากชุดข้อมูลวิจัยสาธารณะ",
+        "ที่เงื่อนไขการเผยแพร่ซ้ำต่างกัน repository นี้ไม่มีเหตุผลที่จะถือภาพ",
+        "ที่ตัวเองไม่ได้ถ่าย ที่มาของแต่ละภาพบันทึกไว้ที่นี่ จึงสร้างชุดใหม่ได้",
         "",
-        "## Before you start",
+        "## ก่อนเริ่ม",
         "",
         "```bash",
         "cd backend && .venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --port 8000",
         "cd frontend && npm run dev",
         "```",
         "",
-        "Open `http://localhost:5173/scan`. Use **เลือกภาพใบชา** and pick from",
-        "`demo/` in the file dialog. Press **เตรียมใช้งานออฟไลน์** once before",
-        "the demo so the model and the knowledge base are cached.",
+        "เปิด `http://localhost:5173/scan` กด **เลือกภาพใบชา** แล้วเลือกจาก",
+        "โฟลเดอร์ `demo/` · กด **เตรียมใช้งานออฟไลน์** หนึ่งครั้งก่อนสาธิต",
+        "เพื่อให้โมเดลและฐานความรู้ถูกแคชไว้",
         "",
-        "## Running order",
+        "## ลำดับการเล่น",
         "",
     ]
 
@@ -449,9 +375,8 @@ def main() -> int:
         lines += [f"### {index}. {slot.headline}", ""]
         if entry is None:
             lines += [
-                "**No image in the test split fits this slot.** The script says so",
-                "rather than substituting one that does not. Re-run it after the",
-                "next model or threshold change.",
+                "**ไม่มีภาพในชุดทดสอบที่เข้าช่องนี้** script บอกตรง ๆ แทนที่จะ",
+                "เอาภาพที่ไม่เข้าเกณฑ์มาใส่แทน รันใหม่หลังเปลี่ยนโมเดลหรือ threshold",
                 "",
             ]
             continue
@@ -464,66 +389,65 @@ def main() -> int:
         lines += [f"File: `demo/{destination.name}`", ""]
         if outcome["rejected"]:
             lines += [
-                f"- the gate **rejects** it: `{outcome['reason']}`, blur score "
-                f"**{outcome['blur_score']:.1f}** against a threshold of "
+                f"- ด่านคุณภาพ **ปฏิเสธ** ภาพนี้: `{outcome['reason']}` ค่าความเบลอ "
+                f"**{outcome['blur_score']:.1f}** เทียบ threshold "
                 f"{settings.blur_threshold}",
-                f"- the screen shows **{outcome['reason_th']}** and offers a retake",
-                "- say: the gate exists because a diagnosis from an unreadable",
-                "  photograph is worse than no diagnosis",
+                f"- หน้าจอขึ้นว่า **{outcome['reason_th']}** และให้ถ่ายใหม่",
+                "- พูดว่า: ด่านนี้มีอยู่เพราะการวินิจฉัยจากภาพที่อ่านไม่ออก",
+                "  แย่กว่าการไม่วินิจฉัยเลย",
                 "",
             ]
         else:
             lines += [
-                f"- prediction **{outcome['class_name']}** at "
+                f"- ทำนาย **{outcome['class_name']}** ที่ความเชื่อมั่น "
                 f"**{outcome['confidence']:.2f}**"
-                + ("  _(below the floor, so it declines to name a disease)_"
+                + ("  _(ต่ำกว่าเพดาน จึงปฏิเสธที่จะตั้งชื่อโรค)_"
                    if outcome["low_confidence"] else ""),
-                f"- verdict **{outcome['verdict']}**, burn likelihood "
+                f"- คำตัดสิน **{outcome['verdict']}** ความน่าจะเป็นใบไหม้ "
                 f"{outcome['burn_likelihood']:.2f}",
-                f"- severity **{outcome['level']}**, "
-                f"{100 * outcome['affected_pct']:.1f}% of the leaf",
-                f"- advice from record `{outcome['advice']}` — "
+                f"- ความรุนแรง **{outcome['level']}** "
+                f"{100 * outcome['affected_pct']:.1f}% ของพื้นที่ใบ",
+                f"- คำแนะนำจาก record `{outcome['advice']}` — "
                 f"{outcome['disease_name_th']}",
-                f"- about {outcome['processing_ms']} ms on this machine",
+                f"- ประมาณ {outcome['processing_ms']} ms บนเครื่องนี้",
                 "",
             ]
         lines += [
-            f"<sub>source: `{row['path']}` ({row['canonical']}, "
+            f"<sub>ที่มา: `{row['path']}` ({row['canonical']}, "
             f"{row['source']})</sub>",
             "",
         ]
 
     lines += _PHONE_SECTION.splitlines()
     lines += [
-        "## The numbers to quote",
+        "## ตัวเลขที่อ้างได้",
         "",
         "| | |",
         "|---|---|",
-        "| corpus | 8,316 images, five classes, 70/15/15 |",
-        "| held-out test accuracy | **0.9871**, macro-F1 **0.9873** |",
-        "| diseased leaf called healthy | **0 of 584** |",
-        "| healthy leaf given a disease name | **0 of 215** |",
-        "| burn analyser specificity | **97.18%** on 1,030 disease images |",
-        "| offline model | 16.8 MB fp32 ONNX, runs in the browser |",
+        "| คลังภาพ | 8,316 ภาพ ห้าคลาส แบ่ง 70/15/15 |",
+        "| ความแม่นบนชุดทดสอบที่กันไว้ | **0.9871** macro-F1 **0.9873** |",
+        "| ใบเป็นโรคถูกเรียกว่าปกติ | **0 จาก 584** |",
+        "| ใบปกติถูกตั้งชื่อโรค | **0 จาก 215** |",
+        "| specificity ของตัววิเคราะห์ใบไหม้ | **97.18%** บนภาพโรค 1,030 ภาพ |",
+        "| โมเดลออฟไลน์ | ONNX fp32 16.8 MB รันในเบราว์เซอร์ |",
         "",
-        "## What to say about the limits, before anyone asks",
+        "## ข้อจำกัดที่ต้องพูดเอง ก่อนมีคนถาม",
         "",
-        "- **0.987 is an upper bound, not a field estimate.** The split is",
-        "  random within each class and is not grouped by photography session,",
-        "  so several shots of one leaf can land on both sides.",
-        "- **No photograph in this corpus comes from Singha Park.** Nothing has",
-        "  been tested on the farm the product is for.",
-        "- **There is no sensitivity figure for burn detection and we will not",
-        "  quote one.** No labelled burn photograph exists in any of the nine",
-        "  sources surveyed. Specificity is measured; sensitivity is not",
-        "  measurable, and the synthetic fixtures cannot settle it because they",
-        "  were built from the same feature definitions they test.",
-        "- **The classifier can be confidently wrong.** One test image is wrong",
-        "  at 0.983, above any usable confidence floor.",
-        "- An on-device result is labelled `classifier_only` and genuinely",
-        "  differs from a server result, because the browser does not segment.",
+        "- **0.987 เป็นขอบบน ไม่ใช่ค่าประมาณความแม่นในสนาม** การแบ่งชุดสุ่ม",
+        "  ภายในแต่ละคลาสและไม่ได้จัดกลุ่มตามครั้งที่ถ่าย ภาพใบเดียวกันหลายช็อต",
+        "  จึงไปอยู่ได้ทั้งสองฝั่ง",
+        "- **ไม่มีภาพใดในคลังนี้มาจากสิงห์ปาร์ค** ยังไม่เคยทดสอบบนไร่ที่สินค้านี้",
+        "  ถูกสร้างขึ้นมาเพื่อมันเลย",
+        "- **ไม่มีค่า sensitivity ของการตรวจใบไหม้ และเราจะไม่อ้างตัวเลขนั้น**",
+        "  ไม่มีภาพใบไหม้ที่มีป้ายกำกับในแหล่งข้อมูลทั้งเก้าที่สำรวจ specificity",
+        "  วัดได้ ส่วน sensitivity วัดไม่ได้ และ fixture สังเคราะห์ตัดสินแทนไม่ได้",
+        "  เพราะมันถูกสร้างจากนิยามคุณลักษณะชุดเดียวกับที่มันทดสอบ",
+        "- **ตัวจำแนกผิดได้แบบมั่นใจ** มีภาพทดสอบหนึ่งภาพผิดที่ความเชื่อมั่น",
+        "  0.983 ซึ่งสูงกว่าเพดานใด ๆ ที่ใช้ได้จริง",
+        "- ผลที่รันบนเครื่องผู้ใช้ถูกกำกับว่า `classifier_only` และ**ต่างจาก**",
+        "  ผลจากเซิร์ฟเวอร์จริง ๆ เพราะเบราว์เซอร์ไม่แยกใบออกจากพื้น",
         "",
-        "Full evidence, with the commands that produced it: `docs/EVIDENCE.md`.",
+        "หลักฐานเต็มพร้อมคำสั่งที่ผลิตมัน: `docs/EVIDENCE.md`",
         "",
     ]
 
