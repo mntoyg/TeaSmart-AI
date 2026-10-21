@@ -319,6 +319,45 @@ effect **ตั้งข้อความได้เฉพาะตอนพ�
 **ยังไม่ขึ้น production** https://teasmart-ai.pages.dev ยังเป็น bundle เดิม
 ต้อง `wrangler pages deploy` ใหม่ก่อนกรรมการจะเห็นผลของการแก้นี้
 
+### การแก้รอบแรกผิด และ unit test ของมันเองปิดตาไว้
+
+`isOfflineReady()` รอบแรกใช้ `caches.match('/models/<ไฟล์>')` เฉย ๆ
+**มันตอบ false บน production ทั้งที่โมเดลอยู่ในแคชครบ** เพราะ workbox ใส่ key
+ใต้ query param ของตัวเอง วัดจาก https://teasmart-ai.pages.dev เมื่อ 2026-10-21:
+
+```
+/models/teasmart-v1.onnx?__WB_REVISION__=abaadc472a4be7dcf36e1722778b4843
+```
+
+`caches.match(path)` → false · `caches.match(path, { ignoreSearch: true })` → true
+ขนาด 16,823,747 ไบต์ ตรงกับโมเดลที่สัญญาระบุ
+
+**เทสต์รอบแรกผ่านเพราะ stub ตอบ path เปล่า** ซึ่งเป็นสมมติฐานของคนเขียน
+implementation เอง ไม่ใช่พฤติกรรมของ Cache API จริง — stub แบบนั้นทำให้
+implementation ไหนก็ผ่าน และพิสูจน์อะไรไม่ได้เลย **เป็นบทเรียน D2 ซ้ำรอบที่สอง**
+(`AGENTS.md` หัวข้อ 5: ระบุ invariant ด้วยคุณสมบัติ ไม่ใช่ด้วยอัลกอริทึมของตัวเอง)
+stub ตอนนี้คีย์ตามที่ production คีย์จริง และถอด `ignoreSearch` ออกแล้วเทสต์แดง
+ด้วย `expected false to be true` ซึ่งคือความล้มเหลวบน production ตรงตัว
+
+### สิ่งที่วัดได้จาก production ระหว่างทาง
+
+ตรวจ https://teasmart-ai.pages.dev จาก browser pane (Chromium ไม่ใช่ WebKit
+จึง**ไม่ใช่**การแทนการทดสอบบน iPhone) **เป็นการตรวจ URL สาธารณะครั้งแรก:**
+
+| สิ่งที่วัด | ผล |
+|---|---|
+| `/` → router พาไป `/scan` | ✓ หน้าไทยเรนเดอร์ครบ ปุ่มเลือกภาพมาก่อนกล้อง |
+| `isSecureContext` | `true` |
+| service worker | active + controlling `/sw.js` ไม่มีตัวค้างที่ waiting |
+| `teasmart-resources-v1` | 2 entries — `/api/v1/config`, `/api/v1/kb` ✓ |
+| workbox precache | **10 entries** — โมเดลและ WASM อยู่ครบ |
+| แผงออฟไลน์ตอนโหลดสด | `ยังไม่ได้เตรียมใช้งานออฟไลน์` — **ยืนยันบั๊กบน production** |
+
+**10 entries ไม่ใช่ 12 ที่ build ในเครื่องรายงาน** ยังไม่ได้สืบ ส่วนหนึ่งเพราะ
+bundle ที่ deploy เป็นของ build ก่อนหน้า (hash ของ css/js ต่างกัน) แต่
+**ยังไม่ได้พิสูจน์ว่าต่างกันแค่เพราะเหตุนี้** อย่าอ้างตัวเลข precache ของ production
+จนกว่าจะ deploy รอบใหม่แล้ววัดซ้ำ
+
 ## 2026-10-21 — การ deploy ใหม่ไม่ถึงมือถือที่ติดตั้งไว้แล้ว
 
 **วัดจาก artefact จริง ไม่ได้อนุมาน** ผู้ใช้เลือกทดสอบ 7 ข้อบน build ที่อยู่บนเว็บ
