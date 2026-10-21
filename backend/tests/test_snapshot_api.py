@@ -113,6 +113,73 @@ def test_fetch_refuses_to_invent_a_snapshot(snapshot_api) -> None:
 @pytest.mark.parametrize(
     "base_url",
     [
+        "http://example.com",
+        "https://169.254.169.254",  # cloud metadata, the classic SSRF target
+        "http://10.0.0.1",
+        "http://[2001:db8::1]",
+    ],
+)
+def test_fetch_talks_only_to_this_machine(snapshot_api, base_url: str) -> None:
+    """This script reads a backend running here, and nothing else.
+
+    `--base-url` is an argument, so without a host check it is a request
+    generator pointed wherever the caller likes - from inside whatever network
+    the machine sits on. Restricting it to loopback is not a limitation: the
+    tool exists to snapshot `uvicorn` on this host before a build.
+    """
+    with pytest.raises(ValueError, match="loopback|localhost|127"):
+        snapshot_api.fetch(base_url, "config", timeout=2.0)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://127.0.0.1:9",
+        "http://localhost:9",
+        # IPv4-mapped: Python reports this as loopback, and it is one.
+        "http://[::ffff:127.0.0.1]:9",
+    ],
+)
+def test_fetch_allows_loopback(snapshot_api, base_url: str) -> None:
+    """Guards the check above: it must not reject the cases that matter.
+
+    Nothing is listening on port 9, so reaching the connection attempt at all
+    is the proof that the host check let it through.
+    """
+    with pytest.raises(RuntimeError, match="could not reach"):
+        snapshot_api.fetch(base_url, "config", timeout=2.0)
+
+
+@pytest.mark.parametrize("name", ["../config", "..\\config", "/etc/passwd", "kb/../../x"])
+def test_write_refuses_a_name_it_was_not_built_for(snapshot_api, name, tmp_path) -> None:
+    """`name` becomes a path segment; only the two snapshots are ever written."""
+    with pytest.raises(ValueError, match="config|kb"):
+        snapshot_api.write(name, {"a": 1}, tmp_path)
+
+
+def test_write_refuses_to_leave_the_directory_it_was_given(
+    snapshot_api, tmp_path
+) -> None:
+    """`--out-dir` is an argument too, and this writes a file into it.
+
+    Pointed at a parent of the repository, or anywhere else on the disk, it
+    would overwrite whatever is there - and the one directory it is meant for is
+    published by the next build.
+    """
+    outside = tmp_path / "nested" / ".." / ".." / "escaped"
+    with pytest.raises(ValueError, match="outside|under"):
+        snapshot_api.write("config", {"a": 1}, outside)
+
+
+def test_write_still_writes_where_it_should(snapshot_api, tmp_path) -> None:
+    path = snapshot_api.write("config", {"a": 1}, tmp_path, allow_any_dir=True)
+    assert path == tmp_path / "config"
+    assert json.loads(path.read_text(encoding="utf-8")) == {"a": 1}
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
         "file:///C:/Windows/win.ini",
         "file:///etc/passwd",
         "ftp://example.com",

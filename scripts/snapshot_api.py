@@ -29,6 +29,7 @@ these files, so they are only used by the built site.
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import urllib.error
 import urllib.request
@@ -46,17 +47,43 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 SNAPSHOTS = ("config", "kb")
 
 
+def is_loopback(host: str) -> bool:
+    """Whether `host` names this machine, and only this machine.
+
+    Names are matched exactly rather than resolved: resolving would let DNS
+    decide, and a name that resolves to 127.0.0.1 today can resolve elsewhere
+    on the next lookup.
+    """
+    lowered = host.lower()
+    if lowered in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    try:
+        return ipaddress.ip_address(lowered).is_loopback
+    except ValueError:
+        return False
+
+
 def fetch(base_url: str, name: str, timeout: float = 15.0) -> Any:
     url = f"{base_url.rstrip('/')}/api/v1/{name}"
-    # `--base-url` is an argument, and urlopen honours file: and other schemes.
-    # Without this the script would happily read a local file and write its
-    # contents into frontend/public/, where the next build publishes it. The
-    # scheme is checked before anything is opened.
-    scheme = urlsplit(url).scheme
-    if scheme not in {"http", "https"}:
+    # `--base-url` is an argument and it reaches urlopen, so without these two
+    # checks this script is a request generator pointed wherever the caller
+    # likes, running from inside whatever network this machine sits on, and
+    # writing what comes back into a directory the next build publishes.
+    #
+    # Scheme first: urlopen honours file:, which would read a local file.
+    parts = urlsplit(url)
+    if parts.scheme not in {"http", "https"}:
         raise ValueError(
-            f"{url!r} is not an http or https URL (scheme {scheme!r}). "
+            f"{url!r} is not an http or https URL (scheme {parts.scheme!r}). "
             "This reads a running backend, nothing else."
+        )
+    # Then the host. The tool snapshots uvicorn on this machine before a build;
+    # any other host is out of scope, including a cloud metadata endpoint.
+    if not is_loopback(parts.hostname or ""):
+        raise ValueError(
+            f"{parts.hostname!r} is not a loopback host. This reads the backend "
+            "running on this machine (127.0.0.1, localhost or ::1); it is not a "
+            "general fetcher."
         )
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
@@ -94,13 +121,31 @@ def check(config: Any, kb: Any) -> None:
         )
 
 
-def write(name: str, payload: Any, out_dir: Path = OUT_DIR) -> Path:
+def write(
+    name: str, payload: Any, out_dir: Path = OUT_DIR, *, allow_any_dir: bool = False
+) -> Path:
     """Write the payload at the path the client asks for, extension and all.
 
     The file is named exactly `config` or `kb` because that is what the client
     requests. `Response.json()` parses the body whatever content type the host
     serves it with, so the missing extension does not matter to the app.
+
+    `name` becomes a path segment and `out_dir` comes from an argument, so both
+    are constrained: only the two snapshots are ever written, and only inside
+    this repository. Pointed at a parent directory this would overwrite whatever
+    is there, and the directory it is meant for is published by the next build.
+    `allow_any_dir` exists for tests writing to a temporary directory.
     """
+    if name not in SNAPSHOTS:
+        raise ValueError(
+            f"{name!r} is not one of the snapshots this writes {SNAPSHOTS}."
+        )
+    out_dir = Path(out_dir).resolve()
+    if not allow_any_dir and not out_dir.is_relative_to(REPO.resolve()):
+        raise ValueError(
+            f"{out_dir} is outside the repository. Snapshots are written under "
+            f"{OUT_DIR.relative_to(REPO)} and nowhere else."
+        )
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / name
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
