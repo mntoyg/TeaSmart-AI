@@ -14,7 +14,8 @@ export function parseStored(value: unknown): StoredResult {
     const result = value as LocalResult;
     if (!result.quality.passed || !result.scan_id || !Number.isFinite(Date.parse(result.captured_at))
       || !classes.includes(result.prediction.class_name as typeof classes[number])
-      || classes[result.prediction.class_id] !== result.prediction.class_name
+      || !Number.isInteger(result.prediction.class_id) || result.prediction.class_id < 0
+      || result.prediction.class_id >= classes.length
       || result.prediction.confidence < 0 || result.prediction.confidence > 1) throw new Error('ผลวิเคราะห์เบื้องต้นไม่ถูกต้อง');
     return result;
   }

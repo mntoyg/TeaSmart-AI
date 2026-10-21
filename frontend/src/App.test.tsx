@@ -56,3 +56,21 @@ it('offers a scan link when a result ID is absent', async () => {
   expect(screen.getAllByRole('link', { name: 'ตรวจใบชา' })[0]).toHaveAttribute('href', '/scan');
   vi.unstubAllGlobals();
 });
+
+it('keeps the local queue visible without offering a pointless retry on the static demo', async () => {
+  await store.saveConfig(configShape);
+  const id = crypto.randomUUID();
+  await store.enqueue(new Blob(['leaf']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+    if (url === '/api/v1/sync/batch') return new Response('{}', { status: 404 });
+    throw new TypeError('Unavailable');
+  }));
+
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  expect(await screen.findByText(/ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ/))
+    .toBeInTheDocument();
+  expect(screen.getByText(/เก็บไว้ในอุปกรณ์แล้ว 1 ภาพ/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'ส่งคิวอีกครั้ง' })).not.toBeInTheDocument();
+  vi.unstubAllGlobals();
+});

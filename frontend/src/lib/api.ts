@@ -21,11 +21,13 @@ export function matches(value: unknown, shape: unknown): boolean {
   return typeof value === typeof shape;
 }
 function unit(value: number) { return value >= 0 && value <= 1; }
-export function parseScan(value: unknown): ScanResponse {
+export function parseScan(value: unknown, classOrder?: readonly string[]): ScanResponse {
   if (!matches(value, scanShape)) throw new Error('ผลวิเคราะห์ไม่ครบถ้วน กรุณาลองใหม่');
   const result = value as ScanResponse;
   if (!result.quality.passed || !classes.includes(result.prediction.class_name as typeof classes[number])
-    || classes[result.prediction.class_id] !== result.prediction.class_name
+    || !Number.isInteger(result.prediction.class_id) || result.prediction.class_id < 0
+    || result.prediction.class_id >= (classOrder?.length ?? classes.length)
+    || (classOrder && classOrder[result.prediction.class_id] !== result.prediction.class_name)
     || !unit(result.prediction.confidence) || !unit(result.burn_analysis.burn_likelihood)
     || !unit(result.severity.affected_pct) || !['mild', 'moderate', 'severe'].includes(result.severity.level)
     || !['disease', 'physical_burn'].includes(result.burn_analysis.verdict)
@@ -39,10 +41,11 @@ export function parseScan(value: unknown): ScanResponse {
 
 export function parseKnowledge(value: unknown): KnowledgeRecord[] {
   const fields = ['canonical', 'class_name', 'disease_name_th', 'pathogen', 'symptoms', ...adviceFields.map(([field]) => field)];
-  if (!Array.isArray(value) || value.length !== 6 || !value.every((entry) => object(entry)
+  const required = [...classes, 'physical_burn'];
+  if (!Array.isArray(value) || value.length < required.length || !value.every((entry) => object(entry)
     && Number.isInteger(entry.class_id) && fields.every((field) => typeof entry[field] === 'string'))
-    || new Set(value.map((entry) => entry.canonical)).size !== 6
-    || ![...classes, 'physical_burn'].every((canonical) => value.some((entry) => entry.canonical === canonical))) {
+    || new Set(value.map((entry) => entry.canonical)).size !== value.length
+    || !required.every((canonical) => value.some((entry) => entry.canonical === canonical))) {
     throw new Error('ข้อมูลความรู้ไม่ครบถ้วน กรุณาลองใหม่');
   }
   return value as KnowledgeRecord[];
@@ -69,6 +72,13 @@ export function isServerUnreachable(failure: unknown): boolean {
   return failure instanceof ServerUnreachableError;
 }
 
+export class SyncUnavailableError extends Error {
+  constructor() {
+    super('ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ');
+    this.name = 'SyncUnavailableError';
+  }
+}
+
 async function request(url: string, init?: RequestInit): Promise<unknown> {
   let response: Response;
   try { response = await fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(30_000) }); }
@@ -82,16 +92,20 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = object(body) && typeof body.detail_th === 'string' && body.detail_th.trim();
+    if (!detail && url === '/api/v1/sync/batch' && [404, 405].includes(response.status)) {
+      throw new SyncUnavailableError();
+    }
     throw new Error(detail || 'ระบบยังไม่พร้อม กรุณาลองใหม่');
   }
   return body;
 }
-export async function scanImage(image: File, field = 'image', scanId?: string, capturedAt?: string, signal?: AbortSignal) {
+export async function scanImage(image: File, field = 'image', scanId?: string, capturedAt?: string,
+  signal?: AbortSignal, classOrder?: readonly string[]) {
   const body = new FormData();
   body.append(field, image);
   if (scanId) body.append('scan_id', scanId);
   if (capturedAt) body.append('captured_at', capturedAt);
-  return parseScan(await request('/api/v1/scan', { method: 'POST', body, signal }));
+  return parseScan(await request('/api/v1/scan', { method: 'POST', body, signal }), classOrder);
 }
 export async function readKnowledgeBase() { return parseKnowledge(await request('/api/v1/kb')); }
 export function parseConfig(value: unknown): ClientConfig {

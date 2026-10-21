@@ -17,5 +17,15 @@ it('matches an independently computed reflected-border Laplacian and RGB clippin
 });
 it('counts clipping per RGB channel, even when mean gray looks acceptable', () => {
   const image = new Uint8Array(12).fill(100); image[0] = 255; image[3] = 255;
-  expect(assessQuality(image, 2, 2, settings).detail_th).toContain('สว่าง');
+  const result = assessQuality(image, 2, 2, settings);
+  expect(result.clipped_high_pct).toBeGreaterThan(settings.clip_max_pct);
+  expect(result.passed).toBe(true);
+});
+it('reports bright clipping without rejecting a frame whose exposure is acceptable', () => {
+  const image = new Uint8Array(3 * 4 * 4).fill(100);
+  image.fill(255, 0, 6);
+  const result = assessQuality(image, 4, 4, { ...settings, blur_threshold: 0 });
+  expect(result.passed).toBe(true);
+  expect(result.clipped_high_pct).toBeGreaterThan(settings.clip_max_pct);
+  expect(result.detail_th).toBeUndefined();
 });

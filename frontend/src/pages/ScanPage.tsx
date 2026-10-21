@@ -41,7 +41,11 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
   function choose(file?: File) {
     if (!file) return;
     setError('');
-    if (file.size > transportLimits.max_upload_bytes) { setError('ภาพมีขนาดเกิน 8 เมกะไบต์ กรุณาเลือกภาพที่เล็กลง'); return; }
+    if (file.size > transportLimits.max_upload_bytes) {
+      const limitMegabytes = Math.ceil(transportLimits.max_upload_bytes / (1024 * 1024));
+      setError(`ภาพมีขนาดเกิน ${limitMegabytes.toLocaleString('th-TH')} เมกะไบต์ กรุณาเลือกภาพที่เล็กลง`);
+      return;
+    }
     stopCamera(); setCamera(false);
     setCapture({ file, id: crypto.randomUUID(), at: new Date().toISOString() });
   }
@@ -82,7 +86,8 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
       let result: StoredResult;
       if (local) result = await inferOffline(capture.file, capture.id, capture.at, config);
       else try {
-        result = await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+        result = await scanImage(capture.file, multipartField, capture.id, capture.at,
+          controller.current.signal, config?.class_order);
       } catch (failure) {
         if (!isServerUnreachable(failure)) throw failure;
         result = await inferOffline(capture.file, capture.id, capture.at, config);
