@@ -6,11 +6,14 @@
 > **Codex เริ่มที่ [docs/HANDOFF-CODEX.md](HANDOFF-CODEX.md)** — ลำดับไฟล์ที่ต้องอ่าน
 > ปัญหาที่เหลือก่อนสาธิตพร้อมเจ้าของ และกับดักเรื่อง branch ที่จะทำให้เสียงานทั้งวัน
 
-- **อัปเดตล่าสุด:** 2026-10-20
-- **กำหนดสาธิต:** 2026-10-22 — **อีกสองวัน**
-- **open PRs:** #14 (demo readiness docs), #15 (handoff prompt), #16 (demo guide, TLS,
-  mobile Thai page, QR, cleanup), and #17 (P0-2 offline scan measurement, based on PR #16);
-  PRs #5–#13 are merged. The current branch is `fix/pwa-installed-offline-scan`.
+- **อัปเดตล่าสุด:** 2026-10-21
+- **กำหนดสาธิต:** 2026-10-22 — **พรุ่งนี้**
+- **PR ที่เปิดอยู่:** #14 (เอกสารความพร้อมสาธิต), #15 (prompt ส่งต่อ) และ **#16**
+  ซึ่งตอนนี้รวมงานทั้งหมด: คู่มือสาธิต, TLS, หน้าไทย, QR, ทำความสะอาด, fallback,
+  static deploy และ #17 ที่ merge เข้ามาแล้ว **#5–#13 และ #17 merge แล้ว**
+  **2026-10-21: merge #17 แล้วพบว่า base ของมันคือ `fix/demo-parity-section` ไม่ใช่
+  `main`** งานจึงยังไม่ถึง `main` — `main` ยังอยู่ที่ PR #13
+  **ต้อง merge #16 เข้า `main` จึงจะถึง** branch ปัจจุบันคือ `fix/demo-parity-section`
 - **เจ้าของตามไดเรกทอรี:** `docs/DESIGN.md` หัวข้อ 14 — Claude Code ดูแล `backend/`
   และ `ml/` ส่วน Codex ดูแล `frontend/`
   **2026-10-20 Claude Code ข้ามเข้า `frontend/`** เพิ่ม `vite.https.ts`,
@@ -175,6 +178,32 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 client บังคับให้ต้องมี
 
 ---
+
+## 2026-10-21 — ของที่ไม่มีใครตกลงให้เผยแพร่ เกือบขึ้นเว็บไปด้วย
+
+Vite ก็อปทุกไฟล์ใต้ `frontend/public/` ลง `dist` ตรง ๆ และ `dist` คือสิ่งที่อัปขึ้นเว็บ
+สาธารณะ **การ track ด้วย git คือประตูตรวจเดียวที่ไฟล์เหล่านั้นผ่าน** วัดก่อน deploy
+ไม่กี่ชั่วโมง พบ untracked 52 ไฟล์ใต้ `public/`:
+
+- `models/teasmart-v1-int8.onnx` 4.7 MB โมเดลที่**ไม่ผ่านขอบ parity** และ
+  **ถูก precache อยู่จริง** เอาออกแล้ว service worker ลดจาก 13 เหลือ 12 entries
+  และยอดดาวน์โหลดออฟไลน์กลับมาเป็น 30,737 KiB ตรงกับ 30.7 MB ที่ `docs/DEMO.md`
+  ระบุไว้ แปลว่าตัวเลขที่วัดเมื่อ 2026-10-20 (13 entries, 35.3 MB) ปนไฟล์นี้อยู่
+- `parity/` ภาพถ่าย 50 ใบจากคลัง Kaggle, Mendeley, AGML บวกเฉลย 3.7 MB
+  `.gitignore` กันไว้ด้วยเหตุผลเรื่อง**การเผยแพร่ซ้ำ** ถ้า deploy คือเอาภาพจาก
+  ชุดข้อมูลของบุคคลที่สามขึ้นเว็บสาธารณะ
+
+ทั้งสอง gitignored จึงไม่โผล่ใน `git status` และ checkout ใหม่สะอาด
+**เฉพาะเครื่องที่ generate มันเท่านั้นที่มีปัญหา** ย้ายออกแล้ว ไม่ลบ
+`backend/tests/test_shipped_models.py` เฝ้าไว้แล้ว และขั้นตอนอยู่ใน
+[docs/DEPLOY-TH.md](DEPLOY-TH.md) ข้อ 2
+
+**test ตัวนี้เขียนผิดรอบแรก** ใส่ `--exclude-standard` ซึ่งทำให้ git ตัดไฟล์
+gitignored ออกจากผลลัพธ์ ตรงข้ามกับที่ต้องการ — มันผ่านทั้งที่มี 52 ไฟล์ค้างอยู่
+และพิสูจน์อะไรไม่ได้เลย
+
+**bundle ที่สะอาดแล้ว:** 31 MB, precache 12 entries, ไม่มีโฟลเดอร์ `parity`
+มีแต่โมเดลที่สัญญาระบุ พร้อมอัปโหลด
 
 ## Remaining verification before the demo
 

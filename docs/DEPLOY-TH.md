@@ -31,7 +31,35 @@
 cd backend && .venv/Scripts/python.exe -m uvicorn app.main:create_app --factory --port 8000
 ```
 
-**2. snapshot แล้ว build** (อีกหน้าต่าง)
+**2. ล้างของที่ไม่ได้ commit ออกจาก `frontend/public/` ก่อน**
+
+Vite ก็อปทุกไฟล์ใต้ `public/` ลง `dist` ตรง ๆ และ `dist` คือสิ่งที่อัปขึ้นเว็บสาธารณะ
+**การ track ด้วย git คือประตูตรวจเดียวที่มี** ไฟล์ untracked ในนั้นคือไฟล์ที่ไม่มีใครตกลงให้เผยแพร่
+
+วัดเมื่อ 2026-10-21 ก่อน deploy ไม่กี่ชั่วโมง เจอสองอย่าง:
+
+- `models/teasmart-v1-int8.onnx` 4.7 MB — โมเดลที่**ไม่ผ่านขอบ parity** และ
+  **ถูก precache อยู่จริง** เอาออกแล้ว service worker ลดจาก 13 เหลือ 12 entries
+  และยอดดาวน์โหลดออฟไลน์กลับมาเป็น 30.7 MB ตามที่ `docs/DEMO.md` ระบุ
+  มือถือกรรมการทุกเครื่องจะดาวน์โหลดโมเดลที่เราปฏิเสธไปแล้ว
+- `parity/` — ภาพถ่าย 50 ใบจากคลัง Kaggle, Mendeley และ AGML บวกเฉลย 3.7 MB
+  `.gitignore` กันไว้ด้วยเหตุผลเรื่อง**การเผยแพร่ซ้ำ** ถ้า deploy คือเอาภาพจาก
+  ชุดข้อมูลของบุคคลที่สามขึ้นเว็บสาธารณะ
+
+ทั้งสอง gitignored จึงไม่โผล่ใน `git status` และ checkout ใหม่ก็สะอาด
+**เฉพาะเครื่องที่ generate มันเท่านั้นที่มีปัญหา** ซึ่งคือความต่างที่ไม่มีใครเห็นจนขึ้นเว็บแล้ว
+
+ตรวจว่าสะอาดหรือยัง — ต้องไม่มีผลลัพธ์:
+
+```bash
+git ls-files --others frontend/public
+```
+
+ถ้ามี ให้ย้ายออก (อย่าลบ — `parity/` สร้างใหม่ได้ด้วย `scripts/prepare_parity.py`
+ในไม่กี่วินาที แต่ย้ายไว้ก่อนปลอดภัยกว่า) `backend/tests/test_shipped_models.py`
+เฝ้าเรื่องนี้ไว้แล้ว ถ้ามีไฟล์ค้าง `./scripts/test.sh` จะแดง
+
+**3. snapshot แล้ว build** (อีกหน้าต่าง)
 
 ```bash
 python scripts/snapshot_api.py
@@ -45,7 +73,7 @@ cd frontend && npm run build
 ถ้า snapshot ล้มเหลว script จะ**ไม่เขียนอะไรเลย** เพราะ snapshot ที่ว่างเปล่า
 จะ deploy เว็บที่พังแบบเงียบ ๆ
 
-**3. ขึ้น Cloudflare Pages** — ฟรี ไม่จำกัด bandwidth และอ่าน `_redirects` ที่เราใส่ไว้
+**4. ขึ้น Cloudflare Pages** — ฟรี ไม่จำกัด bandwidth และอ่าน `_redirects` ที่เราใส่ไว้
 
 1. สมัคร / เข้า https://dash.cloudflare.com
 2. เมนูซ้าย **Workers & Pages** → **Create** → แท็บ **Pages**
@@ -59,7 +87,7 @@ https://app.netlify.com/drop) ใช้ได้เท่ากัน
 > **GitHub Pages ใช้ไม่ได้** repo นี้เป็น private และ Pages สำหรับ private repo
 > ต้องมี GitHub Pro นอกจากนั้น GitHub Pages ไม่อ่าน `_redirects` ด้วย
 
-**4. สร้าง QR ตัวจริง**
+**5. สร้าง QR ตัวจริง**
 
 ```bash
 python scripts/make_qr.py https://teasmart.pages.dev/
@@ -71,7 +99,7 @@ root จึงใช้ได้แม้ host ไม่อ่าน `_redirects
 คำสั่งนี้เขียนทับ `docs/img/app-qr.png` และ README ชี้ไป path คงที่ ไม่ต้องแก้ README
 แล้ว commit QR ใหม่
 
-**5. ทดสอบด้วยมือถือตัวเองก่อนวันงาน**
+**6. ทดสอบด้วยมือถือตัวเองก่อนวันงาน**
 
 เปิด URL นั้นบนมือถือที่ **ไม่ได้** ต่อ wifi บ้าน (ใช้เน็ตมือถือ) เพื่อให้แน่ใจว่า
 ไม่ได้เผลอพึ่งเครื่องในบ้าน แล้วไล่ตามข้อ 1-7 ใน [docs/PHONE-TH.md](PHONE-TH.md)
