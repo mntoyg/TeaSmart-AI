@@ -1,0 +1,44 @@
+{
+ "model_version": "teasmart-v1",
+ "min_confidence": 0.6,
+ "class_order": [
+  "grey_blight",
+  "brown_blight",
+  "algal_spot",
+  "healthy",
+  "other_disease"
+ ],
+ "preprocessing": {
+  "size": [
+   224,
+   224
+  ],
+  "resize": "bilinear",
+  "preserve_aspect_ratio": false,
+  "scale": 255.0,
+  "mean": [
+   0.485,
+   0.456,
+   0.406
+  ],
+  "std": [
+   0.229,
+   0.224,
+   0.225
+  ],
+  "layout": "NCHW",
+  "dtype": "float32"
+ },
+ "onnx": {
+  "file": "teasmart-v1.onnx",
+  "input": "input",
+  "output": "logits",
+  "output_is_logits": true
+ },
+ "quality": {
+  "blur_threshold": 15.0,
+  "exposure_min_mean": 40.0,
+  "exposure_max_mean": 235.0,
+  "clip_max_pct": 0.1
+ }
+}

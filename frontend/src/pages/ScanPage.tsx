@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { scanImage } from '../lib/api';
+import { isServerUnreachable, scanImage } from '../lib/api';
 import { transportLimits, type ClientConfig } from '../lib/scan-contract';
 import type { StoredResult } from '../lib/local-result';
 import { inferOffline } from '../lib/offline';
@@ -73,11 +73,23 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
     if (!capture || busy) return;
     setBusy(true); setError(''); controller.current = new AbortController();
     try {
-      const result = local
-        ? await inferOffline(capture.file, capture.id, capture.at, config)
-        : await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+      // `navigator.onLine` only says an interface exists. An access point with
+      // no route out satisfies it, which on a mountain estate is the normal
+      // case, so an unreachable server falls through to the device rather than
+      // raising at the user. A server that answered and refused does not: that
+      // is a judgement about the photograph and must reach the screen.
+      let onDevice = local;
+      let result: StoredResult;
+      if (local) result = await inferOffline(capture.file, capture.id, capture.at, config);
+      else try {
+        result = await scanImage(capture.file, multipartField, capture.id, capture.at, controller.current.signal);
+      } catch (failure) {
+        if (!isServerUnreachable(failure)) throw failure;
+        result = await inferOffline(capture.file, capture.id, capture.at, config);
+        onDevice = true;
+      }
       if (result.scan_id !== capture.id) throw new Error('ผลวิเคราะห์ไม่ตรงกับภาพ กรุณาลองใหม่');
-      if (local) await store.enqueue(capture.file, { ...result, analysis_mode: 'classifier_only' });
+      if (onDevice) await store.enqueue(capture.file, { ...result, analysis_mode: 'classifier_only' });
       if (mounted.current) await onResult(result);
     } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : 'วิเคราะห์ไม่ได้ กรุณาลองใหม่'); }
     finally { if (mounted.current) setBusy(false); }
@@ -92,18 +104,26 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
           <path d="M52 10C25 8 9 24 16 42c8 20 34 4 36-32Z" stroke="currentColor" strokeWidth="3" />
           <path d="M12 54 43 22M23 43l-1-13M32 34l13-1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         </svg><p>วางใบชาให้เต็มกรอบ</p><small>แสงธรรมชาติ · ภาพชัด · เห็นใบทั้งใบ</small></div>}</div>
+      {/* The picker leads. Every image the model was trained and measured on is
+          a close-up of a single leaf, so a phone held up to a bush indoors is
+          outside that distribution; an existing photograph is nearer the input
+          the held-out numbers describe. The camera stays, because photographing
+          a leaf in the field is what the product is for - it is just not the
+          safer of the two to put first. Once the camera is open, taking the
+          photo is the active step and stays primary. */}
       <div className="actions">
-        {camera ? <button onClick={takePhoto} disabled={busy}>ถ่ายภาพ</button>
-          : <button onClick={openCamera} disabled={busy || opening}>{opening ? 'กำลังเปิดกล้อง…' : 'เปิดกล้อง'}</button>}
-        <label className={`button secondary ${busy ? 'disabled' : ''}`}>
+        <label className={`button ${busy ? 'disabled' : ''}`}>
           เลือกภาพใบชา<input aria-label="เลือกภาพใบชา" type="file" accept="image/jpeg,image/png,image/webp"
             disabled={busy || opening} onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ''; }} /></label>
+        {camera ? <button onClick={takePhoto} disabled={busy}>ถ่ายภาพ</button>
+          : <button className="secondary" onClick={openCamera} disabled={busy || opening}>{opening ? 'กำลังเปิดกล้อง…' : 'เปิดกล้อง'}</button>}
       </div>
       {error && <p role="alert" className="notice">{error}</p>}
       {capture && <><div className="actions"><button onClick={() => void submit()} disabled={busy}>{busy ? 'กำลังวิเคราะห์…' : 'วิเคราะห์ใบชา'}</button>
         <button className="secondary" disabled={busy} onClick={() => { setCapture(undefined); setError(''); }}>ถ่ายใหม่</button></div>
         <button className="secondary local-button" onClick={() => void submit(true)} disabled={busy || !config}>ประเมินบนอุปกรณ์</button></>}
-      <p className="hint">ถ่ายทีละใบ หลีกเลี่ยงเงามืดและแสงสะท้อน</p>
+      <p className="hint">โมเดลวัดผลจากภาพโคลสอัพใบเดี่ยว ภาพที่ถ่ายไกลหรือติดหลายใบจะแม่นน้อยลง
+        · ถ่ายทีละใบ หลีกเลี่ยงเงามืดและแสงสะท้อน</p>
     </section>
   </>;
 }

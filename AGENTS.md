@@ -11,8 +11,17 @@ Do not reconstruct that from git log or by reading the whole tree.
 
 ## 1. Non-negotiable rules
 
-1. **Reply to the user in Thai.** Code, comments, docstrings, commit messages
-   and documentation stay in English.
+1. **Reply to the user in Thai, and write documentation in Thai.** Code,
+   comments, docstrings and commit messages stay in English. Changed
+   2026-10-20 at the user's request: the docs are read on a phone, in Thai, on
+   demo day. Three things make this less mechanical than it looks.
+   `docs/DEMO.md` is generated, so its Thai belongs in
+   `scripts/prepare_demo.py` and not in the file. In `docs/EVIDENCE.md` every
+   command and every output block stays verbatim - only the prose around them
+   is translated, or the evidence stops being reproducible. And a heading
+   another document links to by name has to be changed on both sides.
+   `docs/PHONE-TH.md` is Thai; `docs/STATE.md`, `docs/DEMO.md`,
+   `docs/EVIDENCE.md` and `docs/DESIGN.md` are **not yet translated**.
 2. **Commit and push after every completed activity.** Not at the end of the
    session — after each self-contained step. The repository is the record; an
    uncommitted machine is a single point of failure nine days from a deadline.
@@ -141,6 +150,17 @@ trip. On Linux or macOS swap `Scripts/python.exe` for `bin/python`.
 **Bash heredocs break in this environment** when the body contains an
 apostrophe. Repeatedly. Write code with the Write tool, or put a patch script in
 a scratch directory and run it. Do not spend three attempts rediscovering this.
+
+**An agent's shell may write somewhere the user's shell cannot read.** Measured
+2026-10-20: files written *inside* the repository appear on the real disk, but
+a file written *outside* it - `mkcert`'s CA under `%LOCALAPPDATA%` - was visible
+only to the agent. `is_dir()` answered True from the agent's shell and False
+from the user's PowerShell for the identical path, and `mkcert` then reported
+`Created a new local CA` when the user ran it, proving it had never existed for
+them. Anything the user's own processes must read - a CA, a trust store, a
+credential, a tool's state directory - has to be created **in a terminal on
+their machine**, not by the agent, and then verified from there. A green check
+run by the agent is not evidence that the user's machine has the file.
 
 **Prefer one compound command over three round trips.** Each tool call re-reads
 your whole context. Bookkeeping rides along with real work.

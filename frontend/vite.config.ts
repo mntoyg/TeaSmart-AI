@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// The extension is required: without it Vite's native config loader warns.
+import { devHttps } from './vite.https.ts';
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), VitePWA({
     strategies: 'injectManifest', srcDir: 'src', filename: 'sw.ts', injectRegister: false,
@@ -12,7 +15,9 @@ export default defineConfig({
     injectManifest: { globPatterns: ['**/*.{js,css,html,svg,webmanifest,wasm,mjs,onnx}'], maximumFileSizeToCacheInBytes: 64 * 1024 * 1024 },
   })],
   worker: { format: 'es' },
-  server: { proxy: { '/api': 'http://127.0.0.1:8000' } },
+  // `https` is undefined unless TEASMART_DEV_CERT_DIR points at an mkcert pair;
+  // see vite.https.ts for why a handset on a LAN address needs it.
+  server: { proxy: { '/api': 'http://127.0.0.1:8000' }, https: devHttps(process.env) },
   test: { include: ['src/**/*.test.{ts,tsx}'], maxWorkers: 1,
     environment: 'jsdom', setupFiles: ['./src/test/setup.ts'] },
 });

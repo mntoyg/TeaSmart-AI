@@ -1,0 +1,10 @@
+# SPA fallback for Cloudflare Pages and Netlify, which both read this file.
+#
+# Routing is client-side (BrowserRouter), so only / and the asset paths exist on
+# the host. Without this rule a shared /result/<id> link, or the installed PWA
+# fetching its start_url /scan on a cold cache, gets the host's 404 page
+# instead of the app.
+#
+# 200 rather than 301: the browser must keep the path it asked for, because
+# that path is what the router reads.
+/*  /index.html  200

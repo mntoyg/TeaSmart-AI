@@ -1,9 +1,12 @@
 # TeaSmart frontend
 
-New team members: start with [the team guide](../docs/FRONTEND_TEAM.md).
-This directory is the canonical frontend source in a normal project checkout.
-The historical `.superpowers/worktrees/` folders are separate local Git checkouts,
-not additional source folders to edit or copy into this app.
+This directory is the frontend source. There is no other copy: the two
+historical hidden worktrees were removed on 2026-10-20, their branches having
+already been merged into `main`.
+
+The boundary with the backend is the API contract in
+[docs/DESIGN.md](../docs/DESIGN.md) section 8. Runtime constants come from
+`GET /api/v1/config`; do not hard-code them.
 
 ## Source map
 

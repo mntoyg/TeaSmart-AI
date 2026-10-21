@@ -167,18 +167,68 @@ So a phone test over `http://<lan-ip>` can only confirm the layout, the file
 picker and an online scan. **It cannot confirm the offline story, which is the
 part the demo is judged on.**
 
-Two ways to get a secure context, both of which need a decision:
+Three ways to get a secure context. Prefer the first.
 
-**Chrome flag, local and free.** On the phone open
+**USB, on Android — and this is also how the demo gets recorded.** `adb
+reverse` publishes a port from this machine onto the handset's own `localhost`,
+and `localhost` is a secure context *by specification*, in Chrome on Android as
+anywhere else. So the handset opens `http://localhost:5173` and gets the
+camera, the service worker, offline inference and install, with no browser
+flag, no third-party tunnel, and no firewall rule — the LAN is not involved at
+all, and `--host` is not needed on Vite.
+
+Enable Developer options and USB debugging on the handset, plug it in, accept
+the authorisation prompt, then:
+
+```bash
+adb devices                              # must list the handset as `device`
+adb reverse tcp:5173 tcp:5173            # the app
+scrcpy --record=demo.mp4                 # mirror the screen and record it
+```
+
+`scrcpy` ships its own `adb.exe`; on Windows, `winget install
+Genymobile.scrcpy` installs both. Measured here: scrcpy 4.1, adb 1.0.41
+(platform-tools 37.0.0).
+
+**Open a new terminal after installing.** winget puts the package directory on
+the user `PATH` and creates a link only for `scrcpy`, and a process keeps the
+environment it started with, so the terminal the install was run from reports
+`'adb' is not recognized` - which looks exactly like a failed install. A newly
+started shell finds it. To fix the terminal you already have, without opening
+another:
+
+```bat
+set "PATH=%PATH%;%LOCALAPPDATA%\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
+```
+
+The reverse forward is dropped when the cable is unplugged or the adb server
+restarts, so re-run `adb reverse` after either and confirm with `adb reverse
+--list`. The backend needs no forward of its own: the handset talks to Vite and
+Vite proxies `/api` on this machine.
+
+Record with `--record=demo.mp4` rather than screen-capturing the scrcpy window:
+it writes the handset's own video stream, so the file does not carry the
+compositor's dropped frames. `--no-audio` if the handset's audio forwarding
+gets in the way.
+
+**Chrome flag, if USB is not available.** On the phone open
 `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, add
 `http://<lan-ip>:5173`, set the flag to Enabled and relaunch Chrome. The origin
 is then treated as secure: camera, service worker, offline and install all
-work. Nothing leaves the network. Undo it after the demo.
+work. Nothing leaves the network. Undo it after the demo. The flag names one
+exact origin, so it has to be set again if the LAN address changes.
 
 **A tunnel, if the demo is not on the same network.** `cloudflared` or `ngrok`
 gives a real HTTPS URL that any phone can open. It also sends every photograph
 and every result through a third party, so it is a decision for the owner of
-the data, not a default.
+the data, not a default. It additionally needs `TEASMART_CORS_ORIGINS` set,
+because the browser's origin is then no longer `localhost:5173`.
+
+**On iPhone, none of the first two apply.** There is no `adb`, and Chrome on
+iOS is WebKit underneath with no flag for insecure origins, so a secure context
+there means `mkcert` with the root certificate trusted on the handset, or a
+tunnel. Mirroring an iPhone to Windows needs an AirPlay receiver or a capture
+card. Record the demo on Android; keep the iPhone as a WebKit cross-check.
 
 ### 3. What to check once the context is secure
 
@@ -203,14 +253,29 @@ In this order, because each step depends on the one before:
    photograph twice must not produce two history entries — the server returns
    the stored result with `replayed: true`.
 
-### 4. Known gap before step 6 means anything
+### 4. Step 6 measures the model, not just the plumbing
 
-The browser's resize does not match Python's yet, so an on-device result can
-differ from a server result for reasons that have nothing to do with the model.
-The fixtures are in `frontend/src/test/fixtures/preprocess/` and the 50-image
-parity check in section 8.4 of `docs/DESIGN.md` is what closes it. Until that
-passes, treat an offline result as a demonstration of the plumbing rather than
-of the model.
+The browser's resize now implements PIL's algorithm, so an on-device result is
+not drifting from a server result for preprocessing reasons. The 50-image
+parity check that section 8.4 of `docs/DESIGN.md` makes the condition for D7
+passed on 2026-10-20:
+
+```text
+images              50
+top-1 agreement     50/50
+max prob delta      0.00283      (bound 0.05)
+passes              true
+```
+
+**Eighteen times inside the bound**, over the whole chain: JPEG decoding, the
+canvas round-trip, the resize, the ImageNet normalisation and the fp32 graph.
+An offline result is therefore the same model reaching the same answer, and
+step 6 is worth presenting as such.
+
+What still differs offline is the *pipeline*, not the model: the browser does
+not segment, so there is no lesion analysis and no severity, and the card says
+`classifier_only`. That is a product difference, not a defect. Evidence and
+the command that produced the table: `docs/EVIDENCE.md` section 6.
 """
 
 _SEVERITY_ORDER = {"mild": 0, "moderate": 1, "severe": 2}
