@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import { adviceFields, readKnowledgeBase, readClientConfig, type KnowledgeRecord } from './lib/api';
+import { adviceFields, readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
 import type { ClientConfig } from './lib/scan-contract';
 import { isFull, type StoredResult } from './lib/local-result';
@@ -14,19 +14,22 @@ function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
   const [result, setResult] = useState<StoredResult>();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
-  const [queueError, setQueueError] = useState('');
+  const [queueError, setQueueError] = useState<{ detail_th: string; status?: number }>();
   useEffect(() => {
     let active = true;
     setLoaded(false); setError('');
     void store.get(id ?? '').then((value) => { if (active) setResult(value); })
       .catch(() => { if (active) setError('อ่านผลตรวจไม่ได้ กรุณาลองใหม่'); })
       .finally(() => { if (active) setLoaded(true); });
-    void store.queueStatus(id ?? '').then((entry) => { if (active) setQueueError(entry?.detail_th ?? ''); }).catch(() => {});
+    void store.queueStatus(id ?? '').then((entry) => {
+      if (active) setQueueError(entry?.detail_th ? { detail_th: entry.detail_th, status: entry.status } : undefined);
+    }).catch(() => {});
     return () => { active = false; };
   }, [id]);
   if (!loaded) return <p role="status">กำลังอ่านผลตรวจ…</p>;
   if (!result) return <section className="card"><h1>{error || 'ไม่พบผลตรวจนี้ในอุปกรณ์'}</h1><Link to="/scan">ตรวจใบชา</Link></section>;
-  return <>{queueError && <p role="alert" className="notice">{queueError} · กรุณาถ่ายใหม่</p>}<ResultCard result={result} knowledge={knowledge.find((record) => record.canonical === (
+  return <>{queueError && <p role="alert" className="notice">{queueError.detail_th}
+    {[400, 413, 415, 422].includes(queueError.status ?? 0) && ' · กรุณาถ่ายใหม่'}</p>}<ResultCard result={result} knowledge={knowledge.find((record) => record.canonical === (
     isFull(result) && result.burn_analysis.verdict === 'physical_burn' ? 'physical_burn' : result.prediction.class_name))} />
     <Link className="button" to="/scan">ตรวจใบถัดไป</Link></>;
 }
@@ -77,6 +80,7 @@ export function App() {
   const [offlineMessage, setOfflineMessage] = useState(offlineNotPrepared);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncMessage, setSyncMessage] = useState('');
+  const [syncUnavailable, setSyncUnavailable] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -120,13 +124,17 @@ export function App() {
   useEffect(() => { void store.pending().then((entries) => setPendingCount(entries.length)).catch(() => setSyncMessage('อ่านคิวไม่ได้')); }, [revision, online]);
   async function replay() {
     if (syncing) return;
+    setSyncUnavailable(false);
     setSyncing(true); setSyncMessage('กำลังส่งคิวเพื่อวิเคราะห์เพิ่มเติม…');
     const run = async () => syncQueue(store);
     try {
       if (navigator.locks) await navigator.locks.request('teasmart-sync', { ifAvailable: true }, async (lock) => { if (lock) await run(); });
       else await run();
       setSyncMessage('ตรวจสอบคิวแล้ว ผลที่พร้อมบันทึกในประวัติ'); setRevision((value) => value + 1);
-    } catch (failure) { setSyncMessage(failure instanceof Error ? failure.message : 'ส่งคิวไม่ได้ กรุณาลองใหม่'); }
+    } catch (failure) {
+      if (failure instanceof SyncUnavailableError) setSyncUnavailable(true);
+      setSyncMessage(failure instanceof Error ? failure.message : 'ส่งคิวไม่ได้ กรุณาลองใหม่');
+    }
     finally { setSyncing(false); }
   }
   useEffect(() => {
@@ -151,9 +159,9 @@ export function App() {
       <span className="connection" role="status">{online ? 'เชื่อมต่อเครือข่าย' : 'ไม่มีเครือข่าย'}</span></div>
     <main><aside className="offline-panel"><p role="status">{offlineMessage}</p>
       <button className="secondary" disabled={preparing || !online} onClick={prepare}>เตรียมใช้งานออฟไลน์</button>
-      {pendingCount > 0 && <p>รอวิเคราะห์เพิ่มเติม {pendingCount.toLocaleString('th-TH')} ภาพ</p>}
+      {pendingCount > 0 && <p>เก็บไว้ในอุปกรณ์แล้ว {pendingCount.toLocaleString('th-TH')} ภาพ</p>}
       {syncMessage && pendingCount > 0 && <p role="status">{syncMessage}</p>}
-      {pendingCount > 0 && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
+      {pendingCount > 0 && !syncUnavailable && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
     </aside><Routes>
       <Route path="/scan" element={<ScanPage onResult={saveResult} config={config} />} />
       <Route path="/result/:id" element={<ResultPage key={revision} knowledge={knowledge} />} />

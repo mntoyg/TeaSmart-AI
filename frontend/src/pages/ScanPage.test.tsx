@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi, afterEach } from 'vitest';
 import { ScanPage } from './ScanPage';
+import { transportLimits } from '../lib/scan-contract';
 
 // The on-device model and IndexedDB are stood in for, because what these tests
 // pin is *which* path the page takes, not what ONNX returns.
@@ -14,6 +15,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   inferOffline.mockReset();
   enqueue.mockClear();
+  transportLimits.max_upload_bytes = 8 * 1024 * 1024;
 });
 
 function pickALeaf() {
@@ -71,6 +73,15 @@ it('states the input the model was measured on', () => {
   // Not a style note: a judge photographing a whole bush gets an answer the
   // held-out numbers do not cover, and nothing on screen would say so.
   expect(screen.getByText(/โคลสอัพ/)).toBeInTheDocument();
+});
+
+it('shows the upload limit from the shared transport contract', () => {
+  transportLimits.max_upload_bytes = 3 * 1024 * 1024;
+  render(<ScanPage onResult={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), {
+    target: { files: [new File([new Uint8Array(3 * 1024 * 1024 + 1)], 'large.jpg', { type: 'image/jpeg' })] },
+  });
+  expect(screen.getByRole('alert')).toHaveTextContent('ภาพมีขนาดเกิน 3 เมกะไบต์');
 });
 
 it('runs the model on the device when the server cannot be reached', async () => {

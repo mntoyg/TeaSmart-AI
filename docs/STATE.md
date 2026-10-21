@@ -125,10 +125,8 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 คู่ซ้ำข้ามชุด **0** คู่ สร้างใหม่ด้วย
 `cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare`
 
-**การทดสอบตอนนี้:** **196 backend, 120 ml, 78 frontend**, ruff สะอาด, `All green.`
-วัดเมื่อ 2026-10-21 ด้วย `./scripts/test.ps1` · ตัวเลขเดิมในไฟล์นี้ (169) และใน
-handoff (195) **ผิดทั้งคู่** ไม่มีใครรันของจริงตอนเขียน จึงอย่าคัดลอกตัวเลขชุดนี้
-ต่อไปโดยไม่รัน
+**การทดสอบก่อนใบสั่งงานรอบนี้:** 196 backend, 120 ML และ 78 frontend
+ผลล่าสุดหลังเพิ่ม regression tests อยู่ในบันทึก "ใบสั่งงาน Codex ข้อ 1–13" ด้านล่าง
 
 ---
 
@@ -541,6 +539,170 @@ SW ใหม่ activate ไม่ควรทำคืนก่อนเดโ�
 URL สาธารณะ** คนทดสอบที่ทำตามคู่มือจะบันทึกว่าข้อ 3 ไม่ผ่าน ทั้งที่แอปทำถูก
 แก้ที่ generator แล้วให้บอกว่าบน URL สาธารณะต้องได้ `classifier_only` เสมอ
 
+## 2026-10-21 — deploy รอบที่สอง การแก้ขึ้น production แล้ว
+
+ผู้ใช้สั่ง merge แล้ว deploy **PR #18 merge เข้า `main` แล้ว (`a40476c`)**
+CI ผ่านทั้งสี่ตัวบน `eb43ae3` พอดี รวม SonarCloud
+
+ทำตาม `docs/DEPLOY-TH.md` ครบทุกข้อ:
+
+| ขั้น | ผล |
+|---|---|
+| backend รันอยู่ | `/health` ตอบ ok |
+| `git ls-files --others frontend/public` | **ว่าง** |
+| `scripts/snapshot_api.py` | config 709 B, kb 9,639 B — **ไบต์ตรงกับที่ commit ไว้** ต่างแค่ line ending แปลว่าสัญญา API ไม่ได้เลื่อน |
+| `npm run build` | precache 12 entries 30,738.02 KiB · dist 31 MB |
+| ตรวจ dist | ไม่มี `parity/` ไม่มี int8 มี `_redirects` และ snapshot ครบ |
+| `wrangler pages deploy` | อัป 4 ไฟล์ใหม่ (9 ไฟล์เดิมใช้ซ้ำ) 2.44 วินาที |
+
+### ยืนยันบน production ด้วยเครื่องที่ล้างแคชแล้ว
+
+ล้าง service worker และแคชทั้งหมดก่อน เพื่อให้เป็นผู้เข้าชมครั้งแรกจริง ๆ
+
+```
+exactPathMatch     false      <- การแก้รอบแรกที่ผิดจะตอบว่า "ยังไม่พร้อม" ตรงนี้
+ignoreSearchMatch  true
+modelBytes         16823747
+configCached       true
+swActive           activated
+```
+
+โหลดหน้าใหม่แล้วแผงขึ้นว่า
+
+```
+เตรียมออฟไลน์แล้ว · ประเมินเบื้องต้นบนอุปกรณ์ได้
+```
+
+**บั๊กที่ Codex รายงานเมื่อ 2026-10-20 ปิดแล้ว และปิดบนของจริง ไม่ใช่แค่ใน test**
+
+### ปริศนา precache 12 กับ 10 คลี่แล้ว
+
+เคยบันทึกไว้ว่า build รายงาน 12 entries แต่ production มี 10 และห้ามอ้างตัวเลข
+จนกว่าจะวัดซ้ำ วัดแล้ว: manifest ใน `dist/sw.js` มี **`icon.svg` และ
+`manifest.webmanifest` ซ้ำอย่างละสองครั้ง** (VitePWA ใส่เองทับกับที่
+`globPatterns` จับได้อยู่แล้ว) workbox จึงนับ 12 แต่ Cache API ตัดซ้ำด้วย URL
+เหลือ 10 รายการจริง **ไม่มีอะไรหาย ทั้งสองตัวเลขถูก คนละนิยาม**
+
+## 2026-10-21 — ตรวจโค้ดและโครงสร้างก่อนส่งให้ Codex แก้
+
+ผู้ใช้ขอให้ไล่หาบั๊กที่หลุดรอดอยู่ **ของที่ตรวจแล้วและสะอาด บันทึกไว้ด้วย
+เพื่อไม่ให้มีใครไปไล่ซ้ำ**
+
+### สะอาด ไม่ต้องแตะ
+
+- ไม่มีไฟล์ untracked ที่ไหนเลยในทั้ง repository
+- `frontend/public` ไม่มีทั้งไฟล์ untracked และไฟล์ที่ถูก ignore — พื้นผิวเผยแพร่สะอาด
+- `.certs` ไม่ถูก track · ของที่ ignore มีแต่ `__pycache__` กับ `.mypy_cache`/`.ruff_cache`
+- `scan-contract.ts` **generate จาก `docs/DESIGN.md` หัวข้อ 8** และ `npm run build`
+  รัน `generate-contract.mjs --check` ก่อนเสมอ ไฟล์ที่ล้าสมัยจึงทำให้ build แดง
+  **นี่ออกแบบมาดี อย่าไปแก้เป็น hard-code**
+- `ServerUnreachableError` แยกกรณีต่อไม่ถึงออกจากกรณีเซิร์ฟเวอร์ปฏิเสธภาพ
+  และ abort ของผู้ใช้ถูกส่งผ่านเป็นตัวมันเอง **ตรรกะนี้ถูกและมีคอมเมนต์อธิบายไว้ดี**
+- `syncQueue` จับคู่ item กับไฟล์ด้วย `scan_id` และตรวจว่าทุก id ที่ส่งไปกลับมา
+  ครบและไม่ซ้ำ **ตรงตามสัญญาหัวข้อ 8.2**
+
+### บั๊กและความเสี่ยงที่เจอ เรียงตามความสำคัญ
+
+**1. ไม่มีอะไรผูก `docs/DESIGN.md` กับ `backend/app/core/config.py`**
+ห่วงโซ่คือ `config.py` → `DESIGN.md` → `scan-contract.ts` มีการตรวจสองจุด
+แต่**ผูกกันแค่สองในสามข้อต่อ**: `generate-contract.mjs --check` ผูก TS กับ
+`DESIGN.md` และ `backend/tests/test_config.py:11` ผูก Settings กับ**ตัวเลขดิบ**
+`8388608` ที่พิมพ์ไว้ในไฟล์เทสต์เอง **ไม่มีอะไรตรวจว่า `DESIGN.md` ตรงกับ Settings**
+ถ้าใครแก้ `max_upload_bytes` ใน `DESIGN.md` เป็น 16 MiB: TS จะ generate เป็น 16 MiB,
+build ผ่าน, `test_config.py` ก็ยังผ่านเพราะมันตรวจ Settings กับเลขดิบ
+ผลคือ **client ยอมรับภาพ 16 MiB แล้วเซิร์ฟเวอร์ตอบ 413**
+ทิศกลับกันถูกจับอยู่แล้ว (แก้ Settings แล้ว `test_config.py` แดง) **ช่องโหว่เป็นทางเดียว**
+แก้: ให้ `test_config.py` อ่านตัวเลขจาก `DESIGN.md` แทนการพิมพ์ซ้ำ
+
+**2. `ScanPage.tsx:44` เขียน "8 เมกะไบต์" เป็นข้อความตายตัว**
+เงื่อนไขใช้ `transportLimits.max_upload_bytes` แต่ข้อความที่ผู้ใช้เห็นพิมพ์เลข 8 ไว้
+ถ้าเพดานเปลี่ยน **ข้อความจะโกหกโดยที่ไม่มีเทสต์ไหนแดง** ให้คำนวณจากค่าคงที่
+
+**3. `parseKnowledge` บังคับว่าต้องมี record เท่ากับ 6 พอดี**
+`value.length !== 6` และ `new Set(...).size !== 6` **โรคที่เจ็ดทำ client พังทั้งตัว**
+ไม่ใช่แค่ไม่แสดงโรคใหม่ ฐานความรู้โหลดไม่ได้เลย แปลว่าไม่มีคำแนะนำภาษาไทยสักอัน
+ควรตรวจว่า**มีครบ**ที่ต้องมี ไม่ใช่ตรวจว่า**ไม่เกิน**
+
+**4. `classes` ใน `api.ts` hard-code ลำดับคลาส และใช้ตัดสินใจจริง**
+`parseScan` ตรวจ `classes[result.prediction.class_id] !== result.prediction.class_name`
+**ถ้า backend สลับลำดับคลาสเมื่อไร client จะปฏิเสธผลที่ถูกต้อง** ไม่ใช่แค่แสดงผิด
+`DESIGN.md` หัวข้อ 14 ห้ามเรื่องนี้ไว้ตรง ๆ และ `GET /api/v1/config` เสิร์ฟ
+`class_order` ให้อยู่แล้ว **ให้ตรวจเทียบกับ config ที่โหลดมา ไม่ใช่กับค่าในไฟล์**
+
+**5. `syncQueue` ทิ้งผลที่เซิร์ฟเวอร์วิเคราะห์เสร็จแล้ว ถ้ามีตัวใดไม่ใช่ `full`**
+`if (results.some(r => r.analysis_mode !== 'full')) throw` เกิดขึ้น**ก่อน**
+`applyBatch` ผลทั้ง batch จึงถูกทิ้งและคิวยังค้าง งานที่เซิร์ฟเวอร์ทำไปแล้วหายหมด
+เป็นการป้องกันที่ถูกเจตนา แต่ลงโทษทั้ง batch เพราะตัวเดียว
+
+**6. `facingMode: { ideal: 'environment' }` ไม่ใช่ `exact`**
+บนเครื่องที่ไม่มีกล้องหลัง มันจะเงียบ ๆ ใช้กล้องหน้าแทน `docs/DEMO.md` ข้อ 2
+สั่งให้ตรวจว่า "ต้องได้กล้องหลัง" ซึ่งโค้ดรับประกันให้ไม่ได้ **`ideal` เป็นทางเลือก
+ที่ถูกแล้ว** (`exact` จะพังไปเลย) แต่คู่มือพูดแรงกว่าที่โค้ดทำได้
+
+**7. ข้อความ `ระบบยังไม่พร้อม กรุณาลองใหม่` คือ fallback ของ `request()`**
+`api.ts` โยนข้อความนี้เมื่อเซิร์ฟเวอร์ตอบไม่ใช่ 2xx และไม่มี `detail_th` ใน body
+บน static deploy `POST /api/v1/sync/batch` ไม่มีปลายทาง จึงเข้าทางนี้ทุกครั้ง
+**ข้อความถูกตามหลักการ แต่ผิดตามบริบท** เพราะสถานะนี้ไม่มีวันหาย
+
+### ใบสั่งงานรอบแรก — Codex ทำครบทั้ง 7 ข้อบน branch `fix/audit-seven`
+
+ผู้ใช้สั่งเมื่อ 2026-10-21 ให้ Codex แก้ครบทั้งเจ็ด **และรับความเสี่ยงของการ
+แก้โค้ดคืนก่อนเดโมด้วยตัวเอง** Claude Code ค้านไว้แล้วว่าข้อ 1-6 จะไม่ระเบิด
+ระหว่างเดโมและเสนอให้แก้เฉพาะข้อ 7 ผู้ใช้ยืนยันคำสั่งเดิม **เรื่องนี้จบแล้ว
+ไม่ต้องยกมาค้านอีก**
+
+อัปเดต 2026-10-21: ทำครบทั้งเจ็ดข้อแบบ test-first บน branch `fix/audit-seven`:
+ผูก `Settings` กับตัวเลข transport ใน spec, ทำข้อความขนาดภาพให้มาจาก limit,
+ยอมรับ KB ที่มี record เพิ่มโดยยังบังคับ record หลักครบและไม่ซ้ำ, ตรวจ class ID
+ตาม `class_order` จาก config, เก็บผล `full` โดยไม่ทิ้งทั้ง batch เมื่อมีผลอื่น,
+แก้คำอธิบายกล้องในต้นทาง DEMO และบอกข้อจำกัด sync บน static demo ตามจริง
+
+**อนุญาตให้ Codex ข้ามไดเรกทอรี** ข้อ 1 อยู่ใน `backend/tests/` และข้อ 6 อยู่ใน
+`scripts/` ซึ่งเป็นสไลซ์ของ Claude Code ตาม `DESIGN.md` หัวข้อ 14 ผู้ใช้สั่งให้
+Codex ทำทั้งเจ็ด จึงอนุญาต **Claude Code จะไม่แตะ `backend/tests/test_config.py`
+และ `scripts/prepare_demo.py` จนกว่า PR ของ Codex จะ merge** เพื่อไม่ให้สอง
+agent ชนกันบนไฟล์เดียวกัน
+
+ใบสั่งงานเต็มพร้อม file:line และ test ที่ต้องแดงก่อน อยู่ที่
+[docs/HANDOFF-CODEX.md](HANDOFF-CODEX.md) หัวข้อ "ใบสั่งงาน 2026-10-21"
+
+### รอบสอง — ทำข้อ 8 ถึง 13 ครบแล้วบน branch `fix/audit-seven`
+
+ผู้ใช้สั่งให้อ่านส่วนที่ค้าง อ่านแล้วทั้ง `resize.ts`, `storage.ts`,
+`inference.ts`, `quality.ts`, `backend/app/services/quality.py`,
+`idempotency.py` และ `main.py` รายละเอียดเต็มอยู่ใน
+[HANDOFF-CODEX.md](HANDOFF-CODEX.md) หัวข้อ "เพิ่มเติม 2026-10-21 รอบสอง"
+
+อัปเดต 2026-10-21: ปรับ quality gate ฝั่ง browser ให้รายงาน bright clipping
+แต่ไม่ปฏิเสธภาพเพราะ clipping อย่างเดียว; แก้ threshold quality ในตัวอย่าง spec
+ให้ตรงกับ Settings; ทดสอบ migration IndexedDB จาก v2 ไป v3; จำกัด transient
+failure ใน queue ไว้สามครั้งพร้อมข้อความไทย; เก็บค่าที่ `parseStored` คืนมาทั้ง
+`save`, `enqueue` และ `applyBatch`; ตรวจ production bundle แล้วพบว่า test-only
+resize helpers ถูก tree-shake ออก จึงไม่ต้องย้ายไฟล์
+
+**ข้อ 8 — แก้แล้วใน `fix/audit-seven`**
+ก่อนแก้ `quality.ts` ปฏิเสธภาพเมื่อ `clippedHigh > clip_max_pct` แต่ `quality.py`
+**จงใจไม่ปฏิเสธด้วยเหตุนี้ตั้งแต่ 2026-10-19** เพราะเงื่อนไขนั้นเคยปฏิเสธ
+ใบชาที่ถ่ายบนกระดาษขาวทั้งสามภาพที่ทดสอบสดกับ endpoint จริง ตอนนี้ browser
+ยังรายงาน `clipped_high_pct` แต่ยอมรับภาพที่ exposure ผ่านเกณฑ์และไม่มืดเกินไป
+
+**ข้อ 9 — แก้แล้วใน `fix/audit-seven`** ตัวอย่าง config ใน `DESIGN.md` หัวข้อ 8.5
+และ generated `scan-contract.ts` ใช้ `blur_threshold: 15.0` กับ
+`exposure_max_mean: 235.0` ให้ตรงกับ `Settings`; regression test อ่านค่าจาก spec
+
+**ข้อ 10–13 — แก้หรือตรวจยืนยันแล้วใน `fix/audit-seven`** migration ตรวจ store
+ทั้งสี่ก่อนสร้าง, transient failure มีเพดานสามครั้ง, ทุกทางเขียนใช้ค่าที่
+`parseStored` คืนมา และ production build ตัด test-only resize helpers ออกจริง
+
+**สะอาดและอย่าแตะ:** `resize.ts` (triangle filter เข้ากับ PIL มี fixture
+ระดับไบต์ หนุนด้วย parity 50 ภาพ delta 0.00283) · `inference.ts`
+(**ทำถูกตามหัวข้อ 14 ทุกข้อ ใช้เป็นแบบอย่างตอนแก้ข้อ 4**) ·
+`main.py` (CORS allowlist ไม่มี wildcard) · `idempotency.py` (LRU deep copy
+สองทาง) · `quality.py` (ตัดสิน exposure ก่อน blur โดยมีเหตุผล)
+
+**ยังไม่ได้อ่าน:** `local-result.ts`, `segment.py`, `lesion.py`, `severity.py`,
+`expert.py`, `classify.py`, `images.py` และ `ml/` ทั้งหมด
+**ไม่มีชื่อข้างบนไม่ได้แปลว่าสะอาด แปลว่ายังไม่มีใครดู**
 ## 2026-10-21 — รายการสำหรับผู้ใช้จริงจำนวนมาก แยกออกเป็นไฟล์ของตัวเอง
 
 ผู้ใช้สั่งให้ทำหน้าที่ PM และรีวิวโค้ด แล้วสรุปว่าต้องทำอะไรอีกก่อนที่
@@ -649,10 +811,9 @@ Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"
   `GET /api/v1/config` **อย่า hard-code**
 - จุดเริ่มอ่าน: [frontend/README.md](../frontend/README.md)
 - ยังมี warning `inlineDynamicImports` ของ VitePWA ค้างอยู่ตอน build ยังไม่แก้
-- **ค้างอยู่สองข้อ P2 ที่เป็นของ `frontend/`:**
-  `src/lib/api.ts` hard-code รายชื่อคลาสซ้ำกับที่ `GET /api/v1/config` เสิร์ฟ
-  (วันนี้ค่าตรงกัน การมีสำเนาที่สองคือตัวปัญหา) และ `parseKnowledge` บังคับให้มี
-  record ในฐานความรู้ **เท่ากับ 6 รายการพอดี** โรคที่เจ็ดจะทำให้ client พัง
+- ~~สองข้อ P2 เรื่อง class order และจำนวน record ของ KB~~ **แก้ครบแล้วใน
+  `fix/audit-seven`**: scan response ใช้ `class_order` จาก config ที่โหลดมาแล้ว
+  และ KB รับ record เพิ่มได้เมื่อรายการหลักครบกับ canonical ไม่ซ้ำ
 
 ---
 
@@ -665,6 +826,33 @@ Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"
 `docs/EVIDENCE.md` คงคำสั่งและ output ทุกบล็อกตามต้นฉบับและแปลเฉพาะร้อยแก้ว
 
 บันทึกโควตา Codex ของวันที่ 2026-10-21 ตามเวลา `Asia/Bangkok`: baseline ก่อนเริ่มงาน
-รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **3%** และหน้าต่าง 5 ชั่วโมง
-**13%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 3 จุดเปอร์เซ็นต์เป็นขอบเขตบน
+รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **5%** และหน้าต่าง 5 ชั่วโมง
+**11%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 5 จุดเปอร์เซ็นต์เป็นขอบเขตบน
 แบบระมัดระวังของวันนี้ ซึ่งต่ำกว่าเพดานรายวัน 14 จุดเปอร์เซ็นต์
+
+## 2026-10-21 — ใบสั่งงาน Codex ข้อ 1–13 ทำครบ รอ PR
+
+ครบทั้ง 13 ข้อใน `docs/HANDOFF-CODEX.md` บน branch `fix/audit-seven` ซึ่งมี
+`origin/main` อยู่ในประวัติ งานข้อ 1/6 ที่แตะ `backend/tests/` และ `scripts/`
+ทำตามการอนุญาตข้ามสไลซ์ในใบสั่งงาน ไม่มีการแก้ `frontend/public/` และไม่ได้
+เปลี่ยนสัญญา API ข้อ 6 สร้าง `docs/DEMO.md` ใหม่จาก `scripts/prepare_demo.py`
+เท่านั้น
+
+เขียน regression tests ก่อนแก้ และเห็นผลแดงสำหรับ spec mismatch, upload limit,
+KB record เพิ่ม, class order, partial batch, camera wording, static sync error,
+bright clipping, quality thresholds, IndexedDB upgrade, retry ceiling และรูปแบบ
+ข้อมูลที่จัดเก็บ รอบตรวจเต็ม `./scripts/test.ps1` ผ่าน lint backend/ML/scripts,
+backend 198 tests, ML 120 tests, frontend 89 tests และ production build
+สำเร็จ จบด้วย `All green.`; build ยังแสดงคำเตือน VitePWA เรื่อง
+`inlineDynamicImports` ตามที่บันทึกไว้ก่อนหน้านี้
+
+การตรวจ tree-shaking ใช้ production build แล้วค้น `dist/assets`: ไม่พบ
+`pixelByte`, `sourceImage`, `HashConstants` หรือ `SourceSpec` จึงไม่ย้าย helpers
+จาก `resize.ts`
+
+โควตาวันนี้: baseline weekly **1%**, ค่าล่าสุด weekly **5%** และหน้าต่าง 5 ชั่วโมง
+**11%** ไม่มีตัวนับรายวัน จึงนับยอด weekly ปัจจุบันทั้งหมด **5 จุดเปอร์เซ็นต์**
+เป็นขอบเขตบนของการใช้วันนี้ ต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์
+
+หลัง PR merge ยังต้อง deploy ใหม่ตาม `docs/DEPLOY-TH.md` และติดตั้ง PWA ใหม่บน
+โทรศัพท์ที่ใช้สาธิต เพื่อรับ service worker รุ่นล่าสุด

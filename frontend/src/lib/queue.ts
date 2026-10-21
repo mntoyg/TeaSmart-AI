@@ -16,6 +16,7 @@ export function chunkQueue(entries: QueueEntry[]) {
   return batches;
 }
 export async function syncQueue(repository: ReturnType<typeof createStore>) {
+  const config = await repository.config();
   for (const batch of chunkQueue(await repository.pending())) {
     const form = new FormData();
     form.append('items', JSON.stringify(batch.map((entry) => ({ scan_id: entry.scan_id,
@@ -26,8 +27,8 @@ export async function syncQueue(repository: ReturnType<typeof createStore>) {
     const response = await request('/api/v1/sync/batch', { method: 'POST', body: form });
     if (!response || typeof response !== 'object' || !('results' in response) || !('failed' in response)
       || !Array.isArray(response.results) || !Array.isArray(response.failed)) throw new Error('ผลการส่งคิวไม่ครบถ้วน');
-    const results: ScanResponse[] = response.results.map(parseScan);
-    if (results.some((result) => result.analysis_mode !== 'full')) throw new Error('คิวยังไม่ได้วิเคราะห์ครบขั้นตอน');
+    const parsedResults: ScanResponse[] = response.results.map((result: unknown) => parseScan(result, config?.class_order));
+    const results = parsedResults.filter((result) => result.analysis_mode === 'full');
     const failed = response.failed.map((entry: unknown) => {
       if (!entry || typeof entry !== 'object' || !('scan_id' in entry) || typeof entry.scan_id !== 'string'
         || !('status' in entry) || typeof entry.status !== 'number' || !Number.isInteger(entry.status)
@@ -37,7 +38,7 @@ export async function syncQueue(repository: ReturnType<typeof createStore>) {
       return { scan_id: entry.scan_id, status: entry.status, detail_th: entry.detail_th };
     });
     const sent = new Set(batch.map((entry) => entry.scan_id));
-    const returned = [...results, ...failed].map((entry) => entry.scan_id);
+    const returned = [...parsedResults, ...failed].map((entry) => entry.scan_id);
     if (returned.length !== batch.length || new Set(returned).size !== returned.length || returned.some((id) => !sent.has(id))) {
       throw new Error('ผลการส่งคิวไม่ตรงกับภาพ กรุณาลองใหม่');
     }

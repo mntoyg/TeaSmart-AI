@@ -1,3 +1,7 @@
+import json
+import re
+from pathlib import Path
+
 from app.core.config import Settings
 
 
@@ -23,3 +27,25 @@ def test_kb_path_default_is_absolute_so_it_resolves_from_any_cwd():
     settings = Settings(_env_file=None)
     assert settings.kb_path.is_absolute()
     assert settings.kb_path.name == "diseases.json"
+
+
+def test_settings_match_transport_and_quality_values_in_the_api_spec():
+    settings = Settings(_env_file=None)
+    spec = Path(__file__).resolve().parents[2] / "docs" / "DESIGN.md"
+    document = spec.read_text(encoding="utf-8")
+
+    for field in ("max_upload_bytes", "max_image_pixels", "max_batch_items", "max_batch_bytes"):
+        match = re.search(rf"`{field}`\s+(\d+)", document)
+        assert match is not None, f"{field} is missing from docs/DESIGN.md"
+        assert getattr(settings, field) == int(match.group(1)), field
+
+    cache_size = re.search(r"`Settings\.idempotency_cache_size`,\s*(\d+)", document)
+    assert cache_size is not None, "idempotency_cache_size is missing from docs/DESIGN.md"
+    assert settings.idempotency_cache_size == int(cache_size.group(1))
+
+    section = document.split("### 8.5", 1)[1].split("## 9.", 1)[0]
+    sample = re.search(r"```json\s*([\s\S]*?)```", section)
+    assert sample is not None, "config JSON sample is missing from section 8.5"
+    quality = json.loads(sample.group(1))["quality"]
+    for field in ("blur_threshold", "exposure_min_mean", "exposure_max_mean", "clip_max_pct"):
+        assert getattr(settings, field) == quality[field], field
