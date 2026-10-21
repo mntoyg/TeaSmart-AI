@@ -107,47 +107,36 @@ def test_check_rejects_an_empty_class_order(snapshot_api) -> None:
 def test_fetch_refuses_to_invent_a_snapshot(snapshot_api) -> None:
     """A snapshot taken from nothing would deploy a broken site silently."""
     with pytest.raises(RuntimeError, match="could not reach"):
-        snapshot_api.fetch("http://127.0.0.1:9", "config", timeout=2.0)
+        snapshot_api.fetch(9, "config", timeout=2.0)
+
+
+@pytest.mark.parametrize("port", [1, 80, 8000, 65535])
+def test_the_url_always_points_at_this_machine(snapshot_api, port: int) -> None:
+    """The host and scheme are literals, so there is nothing to redirect.
+
+    An earlier version took a --base-url and validated it. Validating is weaker
+    than not accepting: the string still reached urlopen, so the script was a
+    request generator aimed wherever the caller liked - 169.254.169.254, say -
+    writing the response into a directory the next build publishes. A port is
+    the only thing that legitimately varies, so a port is all it takes.
+    """
+    url = snapshot_api.api_url(port, "config")
+    assert url == f"http://127.0.0.1:{port}/api/v1/config"
+    assert url.startswith("http://127.0.0.1:")
 
 
 @pytest.mark.parametrize(
-    "base_url",
-    [
-        "http://example.com",
-        "https://169.254.169.254",  # cloud metadata, the classic SSRF target
-        "http://10.0.0.1",
-        "http://[2001:db8::1]",
-    ],
+    "port", [0, -1, 65536, "8000", "80; curl evil", None, True, 1.5]
 )
-def test_fetch_talks_only_to_this_machine(snapshot_api, base_url: str) -> None:
-    """This script reads a backend running here, and nothing else.
-
-    `--base-url` is an argument, so without a host check it is a request
-    generator pointed wherever the caller likes - from inside whatever network
-    the machine sits on. Restricting it to loopback is not a limitation: the
-    tool exists to snapshot `uvicorn` on this host before a build.
-    """
-    with pytest.raises(ValueError, match="loopback|localhost|127"):
-        snapshot_api.fetch(base_url, "config", timeout=2.0)
+def test_the_port_must_be_a_port(snapshot_api, port) -> None:
+    with pytest.raises(ValueError, match="port"):
+        snapshot_api.api_url(port, "config")
 
 
-@pytest.mark.parametrize(
-    "base_url",
-    [
-        "http://127.0.0.1:9",
-        "http://localhost:9",
-        # IPv4-mapped: Python reports this as loopback, and it is one.
-        "http://[::ffff:127.0.0.1]:9",
-    ],
-)
-def test_fetch_allows_loopback(snapshot_api, base_url: str) -> None:
-    """Guards the check above: it must not reject the cases that matter.
-
-    Nothing is listening on port 9, so reaching the connection attempt at all
-    is the proof that the host check let it through.
-    """
-    with pytest.raises(RuntimeError, match="could not reach"):
-        snapshot_api.fetch(base_url, "config", timeout=2.0)
+@pytest.mark.parametrize("name", ["../config", "scan", "", "config/../../x"])
+def test_the_url_names_only_the_two_snapshots(snapshot_api, name: str) -> None:
+    with pytest.raises(ValueError, match="config|kb"):
+        snapshot_api.api_url(8000, name)
 
 
 @pytest.mark.parametrize("name", ["../config", "..\\config", "/etc/passwd", "kb/../../x"])
@@ -177,22 +166,19 @@ def test_write_still_writes_where_it_should(snapshot_api, tmp_path) -> None:
     assert json.loads(path.read_text(encoding="utf-8")) == {"a": 1}
 
 
-@pytest.mark.parametrize(
-    "base_url",
-    [
-        "file:///C:/Windows/win.ini",
-        "file:///etc/passwd",
-        "ftp://example.com",
-        "data:text/plain,hello",
-    ],
-)
-def test_fetch_opens_nothing_but_http(snapshot_api, base_url: str) -> None:
-    """`--base-url` decides what gets opened, and it is an argument.
+def test_the_cli_cannot_name_a_host_at_all(snapshot_api) -> None:
+    """Nothing on the command line decides where the request goes.
 
-    `urlopen` honours file: and other schemes, so without this check a crafted
-    `--base-url` makes this script read a local file and write its contents into
-    frontend/public/, where the next build publishes it to the open web. The
-    scheme is checked before anything is opened, not after.
+    `urlopen` honours file:, so a --base-url that accepted one would have made
+    this read a local file into a published directory. The option is gone
+    rather than guarded, and this pins that it stays gone.
     """
-    with pytest.raises(ValueError, match="http"):
-        snapshot_api.fetch(base_url, "config", timeout=2.0)
+    import inspect
+
+    source = inspect.getsource(snapshot_api)
+    # The declaration, not a mention: the docstrings explain why the option was
+    # removed, and saying so must not fail this.
+    assert 'add_argument("--base-url"' not in source, (
+        "a --base-url option is back; the host must stay a literal"
+    )
+    assert 'add_argument("--port"' in source

@@ -29,62 +29,44 @@ these files, so they are only used by the built site.
 from __future__ import annotations
 
 import argparse
-import ipaddress
 import json
 import urllib.error
 import urllib.request
 from pathlib import Path
-from urllib.parse import urlsplit
 from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO / "frontend" / "public" / "api" / "v1"
 
-DEFAULT_BASE_URL = "http://127.0.0.1:8000"
+DEFAULT_PORT = 8000
 
 # Endpoints that are read-only, identical for every caller, and small. POST
 # /api/v1/scan is not here and cannot be: it runs the pipeline.
 SNAPSHOTS = ("config", "kb")
 
 
-def is_loopback(host: str) -> bool:
-    """Whether `host` names this machine, and only this machine.
+def api_url(port: int, name: str) -> str:
+    """The URL this reads. The host and scheme are literals, by design.
 
-    Names are matched exactly rather than resolved: resolving would let DNS
-    decide, and a name that resolves to 127.0.0.1 today can resolve elsewhere
-    on the next lookup.
+    An earlier version took a `--base-url` and validated it. Validating an
+    input is weaker than not accepting it: the string still reached `urlopen`,
+    so the script was a request generator aimed wherever the caller liked -
+    from inside whatever network this machine sits on - writing the response
+    into a directory the next build publishes.
+
+    This tool snapshots `uvicorn` running on this machine before a build. A
+    port is the only thing that legitimately varies, so a port is the only
+    thing it takes. There is nothing left to point elsewhere.
     """
-    lowered = host.lower()
-    if lowered in {"localhost", "127.0.0.1", "::1"}:
-        return True
-    try:
-        return ipaddress.ip_address(lowered).is_loopback
-    except ValueError:
-        return False
+    if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+        raise ValueError(f"{port!r} is not a TCP port number")
+    if name not in SNAPSHOTS:
+        raise ValueError(f"{name!r} is not one of {SNAPSHOTS}")
+    return f"http://127.0.0.1:{port}/api/v1/{name}"
 
 
-def fetch(base_url: str, name: str, timeout: float = 15.0) -> Any:
-    url = f"{base_url.rstrip('/')}/api/v1/{name}"
-    # `--base-url` is an argument and it reaches urlopen, so without these two
-    # checks this script is a request generator pointed wherever the caller
-    # likes, running from inside whatever network this machine sits on, and
-    # writing what comes back into a directory the next build publishes.
-    #
-    # Scheme first: urlopen honours file:, which would read a local file.
-    parts = urlsplit(url)
-    if parts.scheme not in {"http", "https"}:
-        raise ValueError(
-            f"{url!r} is not an http or https URL (scheme {parts.scheme!r}). "
-            "This reads a running backend, nothing else."
-        )
-    # Then the host. The tool snapshots uvicorn on this machine before a build;
-    # any other host is out of scope, including a cloud metadata endpoint.
-    if not is_loopback(parts.hostname or ""):
-        raise ValueError(
-            f"{parts.hostname!r} is not a loopback host. This reads the backend "
-            "running on this machine (127.0.0.1, localhost or ::1); it is not a "
-            "general fetcher."
-        )
+def fetch(port: int, name: str, timeout: float = 15.0) -> Any:
+    url = api_url(port, name)
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
             if response.status != 200:
@@ -154,11 +136,12 @@ def write(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT,
+                        help="port uvicorn is listening on, on this machine")
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
     args = parser.parse_args(argv)
 
-    payloads = {name: fetch(args.base_url, name) for name in SNAPSHOTS}
+    payloads = {name: fetch(args.port, name) for name in SNAPSHOTS}
     check(payloads["config"], payloads["kb"])
     for name, payload in payloads.items():
         path = write(name, payload, args.out_dir)
