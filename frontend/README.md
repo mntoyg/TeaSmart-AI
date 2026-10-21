@@ -1,35 +1,37 @@
-# TeaSmart frontend
+# frontend ของ TeaSmart
 
-This directory is the frontend source. There is no other copy: the two
-historical hidden worktrees were removed on 2026-10-20, their branches having
-already been merged into `main`.
+โฟลเดอร์นี้คือซอร์สของ frontend **ไม่มีสำเนาอื่น** — worktree ที่ซ่อนอยู่สองชุดถูกลบ
+เมื่อ 2026-10-20 หลัง branch ของทั้งสอง merge เข้า `main` แล้ว
 
-The boundary with the backend is the API contract in
-[docs/DESIGN.md](../docs/DESIGN.md) section 8. Runtime constants come from
-`GET /api/v1/config`; do not hard-code them.
+ขอบเขตกับ backend คือสัญญา API ใน [docs/DESIGN.md](../docs/DESIGN.md) หัวข้อ 8
+ค่าคงที่ตอนรันมาจาก `GET /api/v1/config` — **อย่า hard-code**
 
-## Source map
+---
 
-| path | edit here for |
+## แผนที่ซอร์ส
+
+| path | แก้ที่นี่เมื่อจะทำ |
 |---|---|
-| `src/main.tsx` | React bootstrap and service-worker registration |
-| `src/App.tsx` | routes, navigation, history/KB views and offline status |
-| `src/pages/ScanPage.tsx` | camera capture, image picker and retakes |
-| `src/components/ResultCard.tsx` | Thai result presentation and analysis-mode label |
-| `src/lib/api.ts` | validated API/config/KB boundary |
-| `src/lib/storage.ts`, `src/lib/queue.ts` | IndexedDB and replay |
-| `src/lib/offline.ts`, `src/lib/onnx-worker.ts` | local inference orchestration |
-| `src/lib/inference.ts`, `src/lib/quality.ts` | numerical preprocessing and quality gate |
-| `src/lib/scan-contract.ts` | generated types; change the agreed spec, then regenerate |
-| `src/styles.css` | shared visual styles |
-| `src/sw.ts` | offline caching policy |
-| `src/test/`, adjacent `*.test.ts(x)` | fixtures, setup and regression coverage |
-| `public/` | icons and separately delivered model assets |
-| `scripts/` | contract generation/checking |
+| `src/main.tsx` | bootstrap ของ React และการลงทะเบียน service worker |
+| `src/App.tsx` | route, การนำทาง, หน้าประวัติ/ฐานความรู้ และสถานะออฟไลน์ |
+| `src/pages/ScanPage.tsx` | เลือกภาพ ถ่ายภาพ และถ่ายใหม่ |
+| `src/components/ResultCard.tsx` | การแสดงผลภาษาไทยและป้ายโหมดการวิเคราะห์ |
+| `src/lib/api.ts` | ขอบเขต API/config/KB ที่ผ่านการตรวจค่า |
+| `src/lib/storage.ts`, `src/lib/queue.ts` | IndexedDB และการส่งซ้ำ |
+| `src/lib/offline.ts`, `src/lib/onnx-worker.ts` | การรันโมเดลบนเครื่อง |
+| `src/lib/inference.ts`, `src/lib/quality.ts` | การเตรียมภาพเชิงตัวเลขและด่านคุณภาพ |
+| `src/lib/scan-contract.ts` | type ที่ generate — แก้ที่ spec ที่ตกลงกันแล้วค่อย generate ใหม่ |
+| `src/styles.css` | สไตล์ที่ใช้ร่วมกัน |
+| `src/sw.ts` | นโยบายแคชออฟไลน์ |
+| `src/test/` และ `*.test.ts(x)` ข้าง ๆ โค้ด | fixture, setup และ test กันพฤติกรรมถอยหลัง |
+| `public/` | ไอคอน, โมเดล และ snapshot ของ API |
+| `vite.https.ts` | TLS แบบ opt-in สำหรับ dev server (ดู `docs/PHONE-TH.md`) |
 
-## Run and verify
+---
 
-Requires Node 22.12+ and npm. From this directory:
+## รันและตรวจ
+
+ต้องมี Node 22.12+ และ npm จากโฟลเดอร์นี้:
 
 ```powershell
 npm ci
@@ -39,65 +41,89 @@ npm test
 npm run build
 ```
 
-Open `http://localhost:5173/scan`. Vite proxies `/api` to
-`http://127.0.0.1:8000`. Production hosting must serve the built `dist/` with a
-fallback to `index.html` for client routes and forward `/api` to the backend.
-Camera access requires HTTPS (or localhost). No external font or image is fetched.
+เปิด `http://localhost:5173/scan` · Vite ส่งต่อ `/api` ไปที่ `http://127.0.0.1:8000`
 
-Scan types are generated from design spec section 8, confirmed in `4fe7263`.
-Run `npm run generate:contract` after an agreed spec update. The build rejects
-stale generated types. Runtime validation treats API and stored data as untrusted.
+type ของ scan generate จาก spec หัวข้อ 8 ยืนยันใน `4fe7263` รัน
+`npm run generate:contract` หลัง spec เปลี่ยนตามที่ตกลงกัน **build จะปฏิเสธ type
+ที่ generate ไว้เก่า** และการตรวจค่าตอนรันถือว่าข้อมูลจาก API และที่เก็บไว้เป็นของไม่น่าเชื่อถือ
 
-History and the last validated KB are stored in IndexedDB. Retrying an image
-preserves its UUID and timestamp. A new capture gets a new UUID. The frontend
-does not infer burn or severity: the server owns those stages.
-
-D6 is tested against fixtures because D5 `/api/v1/scan` has not landed yet.
-D7 includes a service worker, local WASM assets, an ONNX Web Worker, client
-quality gate, atomic image/result queue, and UUID-matched batch replay. Config is
-fetched from `/api/v1/config`, validated, and cached with the KB. Thresholds,
-normalization and class order are read from that document, never copied into
-runtime defaults. Scan POSTs and sync POSTs are never cached.
-
-To test the PWA, run `npm run build` then `npm run preview`. Development mode
-does not register a service worker. Select **Prepare offline** while online;
-the UI only reports preparation success after an actual model session loads.
-Supply the model at `public/models/teasmart-v1-int8.onnx` before building. Models
-are gitignored: deployment packaging must include this file separately. Models
-present at build time are precached; preparing later also caches a fetched model.
-All WASM, module and worker assets are bundled locally; no CDN is required.
-
-The real D5 model is currently absent. The production app cannot issue a local
-diagnosis until it is supplied. Shape-compatible stubs exist only in unit tests.
-Do not call D7 complete until the required 50-image browser/Python parity check
-passes, the offline scan/reconnect flow is exercised with the actual endpoints,
-and real-camera behavior is checked on the demo phone.
+ประวัติและ KB ชุดล่าสุดที่ผ่านการตรวจเก็บใน IndexedDB การลองภาพเดิมซ้ำจะคง UUID
+และเวลาเดิมไว้ ภาพใหม่ได้ UUID ใหม่ **frontend ไม่ตัดสินใบไหม้และไม่คำนวณความรุนแรง
+— สองด่านนั้นเป็นของเซิร์ฟเวอร์**
 
 ---
 
-# Working here as a team
+## `public/` คือพื้นผิวเผยแพร่
 
-Moved from `docs/FRONTEND_TEAM.md`, which no longer exists: `docs/` is three
-files, and guidance about this directory belongs next to it. The clone
-instructions it carried are gone because the integration branch is merged -
-branch from `main`, and set up with `./scripts/setup.ps1` or `./scripts/setup.sh`
-from the repository root.
+Vite ก็อปทุกไฟล์ใต้ `public/` ลง `dist` ตรง ๆ และ `dist` คือสิ่งที่อัปขึ้นเว็บสาธารณะ
+**การ track ด้วย git คือประตูตรวจเดียวที่ไฟล์เหล่านั้นผ่าน**
 
-## Pick a task without colliding
+ต้องไม่มีผลลัพธ์จากคำสั่งนี้:
 
-| task | primary files | coordinate before editing |
+```bash
+git ls-files --others frontend/public
+```
+
+`backend/tests/test_shipped_models.py` เฝ้าไว้แล้ว ถ้ามีไฟล์ค้าง `./scripts/test.sh` จะแดง
+เมื่อ 2026-10-21 เจอ 52 ไฟล์ค้างอยู่ก่อน deploy ไม่กี่ชั่วโมง — โมเดลที่ถูกปฏิเสธ
+และภาพ 50 ใบจากคลังข้อมูลของบุคคลที่สาม รายละเอียดใน `docs/DEPLOY-TH.md` ข้อ 2
+
+**โมเดลที่ใช้คือ `public/models/teasmart-v1.onnx` (fp32, 16.8 MB) ซึ่ง commit ไว้แล้ว**
+checkout ใหม่จึงสาธิตได้โดยไม่ต้องมี GPU
+**`teasmart-v1-int8.onnx` ห้ามอยู่ในโฟลเดอร์นี้** มันไม่ผ่านขอบ parity —
+top-1 ตรงกันทั้ง 50 ภาพ แต่ขยับความน่าจะเป็นไป 0.248 เทียบขอบ 0.05
+ไฟล์ที่เบราว์เซอร์โหลดระบุอยู่ใน `GET /api/v1/config` อ่านจากที่นั่น
+
+---
+
+## ทดสอบ PWA และออฟไลน์
+
+```bash
+npm run build
+npm run preview
+```
+
+โหมด dev **ไม่ลงทะเบียน** service worker กด **เตรียมใช้งานออฟไลน์** ตอนออนไลน์ —
+UI จะรายงานว่าสำเร็จก็ต่อเมื่อโหลด session ของโมเดลได้จริงเท่านั้น
+WASM, module และ worker ทั้งหมดรวมอยู่ในบันเดิล **ไม่ต้องใช้ CDN**
+POST ของ scan และ sync ไม่ถูกแคชเลย
+
+ของจริงอยู่ที่ **https://teasmart-ai.pages.dev** — deploy เฉพาะ frontend ไม่มี backend
+ทุกการสแกนจึงเป็น `classifier_only` ขั้นตอน deploy อยู่ใน `docs/DEPLOY-TH.md`
+
+---
+
+## สถานะจริงของ D7
+
+ผ่านแล้ว: การตรวจ parity 50 ภาพ (PR #13), `/api/v1/scan` และ `/api/v1/sync/batch`
+ทดสอบสดแล้ว, และสแกนออฟไลน์ผ่าน service worker วัดได้เมื่อ 2026-10-20 — ได้
+`classifier_only` ที่ความเชื่อมั่น 95.4% และเข้าคิวรอ sync
+
+**ยังค้าง:** การรันบนมือถือที่ **ติดตั้งลงหน้าโฮมแล้วปิดเน็ตเครื่องจริง** ข้อ 1-7 ใน
+`docs/PHONE-TH.md` ยังไม่มีใครยืนยันบน URL สาธารณะ และมีบั๊กที่พบแล้ว: หลังโหลด
+ออฟไลน์ แผงสถานะเด้งกลับเป็น "ยังไม่ได้เตรียมใช้งานออฟไลน์" ทั้งที่แคชยังใช้ได้
+
+**ผลแบบ classifier-only ห้ามอ้างว่าคำนวณใบไหม้หรือความรุนแรงมาแล้ว**
+และแอปนี้ไม่ส่งผลวินิจฉัยปลอมออกไปเด็ดขาด
+
+---
+
+# ทำงานร่วมกันในโฟลเดอร์นี้
+
+## เลือกงานโดยไม่ชนกัน
+
+| งาน | ไฟล์หลัก | ต้องคุยก่อนแก้ |
 |---|---|---|
-| scan/camera UX | `frontend/src/pages/ScanPage.tsx` | capture IDs, queue behavior |
-| result cards | `frontend/src/components/ResultCard.tsx` | analysis mode and supplied advice |
-| styles/accessibility | `frontend/src/styles.css`, relevant components | shared navigation/layout |
-| history/knowledge views | `frontend/src/App.tsx` | routing and app coordinator changes |
-| offline/sync | `frontend/src/lib/`, `frontend/src/sw.ts` | API/model contract and parity |
+| UX การสแกน/กล้อง | `src/pages/ScanPage.tsx` | capture ID และพฤติกรรมของคิว |
+| การ์ดผลลัพธ์ | `src/components/ResultCard.tsx` | โหมดการวิเคราะห์และคำแนะนำที่ได้รับมา |
+| สไตล์/การเข้าถึง | `src/styles.css` และคอมโพเนนต์ที่เกี่ยว | การนำทางและเลย์เอาต์ที่ใช้ร่วมกัน |
+| หน้าประวัติ/ความรู้ | `src/App.tsx` | การเปลี่ยน routing และตัวประสานของแอป |
+| ออฟไลน์/sync | `src/lib/`, `src/sw.ts` | สัญญา API/โมเดล และ parity |
 
-Call out shared files in your PR description and keep branches short. Tests live
-beside the code they cover; shared fixtures are in `frontend/src/test/`.
-The [frontend source map](../frontend/README.md#source-map) explains each module.
+บอกไฟล์ที่ใช้ร่วมกันไว้ในคำอธิบาย PR และอย่าปล่อย branch ให้ยาว
+test อยู่ข้างโค้ดที่มันคุ้มครอง ส่วน fixture ที่ใช้ร่วมกันอยู่ใน `src/test/`
 
-## Before opening a PR
+## ก่อนเปิด PR
 
 ```bash
 cd frontend
@@ -106,22 +132,22 @@ npm test
 npm run build
 ```
 
-Or `./scripts/test.*` from the root, which runs these plus the Python suites and
-the linter - the same steps CI runs, in the same order.
+หรือรัน `./scripts/test.*` จาก root ซึ่งรวมชุด Python และ linter ด้วย —
+เป็นขั้นตอนเดียวกับที่ CI รัน ในลำดับเดียวกัน
 
-Write the regression test before changing behaviour and watch it fail. UI text
-is Thai; code, comments, commits and documentation are English. Update
-`docs/STATE.md` when a slice is done, in the same push. Every AI follows the 14%
-hard daily ceiling in the root `AGENTS.md`.
+**เขียน test กันพฤติกรรมถอยหลังก่อนแก้ แล้วดูมันพัง** · ข้อความที่ผู้ใช้เห็น
+และ**เอกสาร**เป็นภาษาไทย ส่วนโค้ด คอมเมนต์ และ commit เป็นภาษาอังกฤษ
+(เอกสารเปลี่ยนเป็นไทยเมื่อ 2026-10-20 ดู `AGENTS.md` ข้อ 1) ·
+อัปเดต `docs/STATE.md` ใน push เดียวกันเมื่อปิดสไลซ์ ·
+AI ทุกตัวอยู่ใต้เพดานการใช้งานต่อวันใน `AGENTS.md`
 
-## Integration boundaries
+## ขอบเขตการต่อกับฝั่งอื่น
 
-The contract in [section 8 of docs/DESIGN.md](../docs/DESIGN.md)
-is shared with Claude Code's backend/ML work. Do not change it alone. API types
-are generated; inference thresholds and preprocessing come from `/api/v1/config`.
-Advice comes from the curated KB and must not be rewritten casually.
+สัญญาใน [หัวข้อ 8 ของ docs/DESIGN.md](../docs/DESIGN.md) ใช้ร่วมกับงาน backend/ML
+ของ Claude Code **ห้ามเปลี่ยนฝ่ายเดียว** · type ของ API generate มา ส่วน threshold
+และการเตรียมภาพมาจาก `/api/v1/config` · คำแนะนำมาจาก KB ที่คัดมาแล้ว
+**ห้ามเรียบเรียงใหม่ตามใจ**
 
-D6 UI and D7 infrastructure exist, but D7 is not certified complete. The real
-model, 50-image Python/browser parity, live endpoint/reconnect checks and demo
-phone validation are still required. A classifier-only result must never claim
-that burn analysis or severity was computed. The app ships no fake model.
+**2026-10-20 และ 2026-10-21 Claude Code ข้ามเข้ามาแก้โฟลเดอร์นี้สามครั้ง**
+(TLS, fallback เมื่อต่อเซิร์ฟเวอร์ไม่ถึง, และสลับให้ปุ่มเลือกภาพมาก่อนกล้อง)
+ทั้งหมดผู้ใช้สั่งมาเอง บันทึกไว้ใน `docs/STATE.md` **ไฟล์เหล่านี้เป็นของ Codex**

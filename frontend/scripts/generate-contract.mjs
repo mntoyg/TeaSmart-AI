@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 // numbering did not change. Kept as a path into the document rather than a
 // copy of the contract, which is the point of generating this.
 const source = new URL('../../docs/DESIGN.md', import.meta.url);
-const spec = readFileSync(source, 'utf8').split('## 8. API contract')[1]?.split('## 9.')[0];
+const document = readFileSync(source, 'utf8');
+const spec = document.match(/^## 8\..*?\r?\n([\s\S]*?)^## 9\./m)?.[1];
 const example = spec?.match(/```json\s*([\s\S]*?)```/)?.[1];
 if (!example) throw new Error('Section 8 scan response sample is missing');
 const sample = JSON.parse(example);

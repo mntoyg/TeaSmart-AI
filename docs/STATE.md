@@ -8,12 +8,14 @@
 
 - **อัปเดตล่าสุด:** 2026-10-21
 - **กำหนดสาธิต:** 2026-10-22 — **พรุ่งนี้**
-- **PR ที่เปิดอยู่:** #14 (เอกสารความพร้อมสาธิต), #15 (prompt ส่งต่อ) และ **#16**
-  ซึ่งตอนนี้รวมงานทั้งหมด: คู่มือสาธิต, TLS, หน้าไทย, QR, ทำความสะอาด, fallback,
-  static deploy และ #17 ที่ merge เข้ามาแล้ว **#5–#13 และ #17 merge แล้ว**
-  **2026-10-21: merge #17 แล้วพบว่า base ของมันคือ `fix/demo-parity-section` ไม่ใช่
-  `main`** งานจึงยังไม่ถึง `main` — `main` ยังอยู่ที่ PR #13
-  **ต้อง merge #16 เข้า `main` จึงจะถึง** branch ปัจจุบันคือ `fix/demo-parity-section`
+- **`main` มีงานครบแล้ว** PR #16 merge เข้า `main` เมื่อ 2026-10-21 (`d341de9`)
+  พร้อมทุกอย่าง: คู่มือสาธิต, TLS, หน้าไทย, QR, ทำความสะอาด, fallback,
+  static deploy, snapshot และ #17 ที่ merge เข้ามาก่อนหน้า
+  **#5–#13, #16 และ #17 merge แล้ว** · **ยังเปิด:** #14 (เอกสารความพร้อมสาธิต),
+  #15 (prompt ส่งต่อ) ทั้งคู่เป็นเอกสารล้วนและอิสระจากกัน
+  **กับดักที่เจอระหว่างทาง:** base ของ #17 คือ `fix/demo-parity-section` ไม่ใช่
+  `main` การ merge #17 จึงไม่ทำให้งานถึง `main` ต้อง merge #16 อีกทอด
+  — เช็กด้วย `git merge-base --is-ancestor HEAD origin/main` ทุกครั้ง
 - **เจ้าของตามไดเรกทอรี:** `docs/DESIGN.md` หัวข้อ 14 — Claude Code ดูแล `backend/`
   และ `ml/` ส่วน Codex ดูแล `frontend/`
   **2026-10-20 Claude Code ข้ามเข้า `frontend/`** เพิ่ม `vite.https.ts`,
@@ -123,7 +125,10 @@ script **ปฏิเสธ** URL ที่เป็น loopback, วง private
 คู่ซ้ำข้ามชุด **0** คู่ สร้างใหม่ด้วย
 `cd ml && .venv/Scripts/python.exe -m teasmart_ml.cli prepare`
 
-**การทดสอบตอนนี้:** 169 backend, 120 ml, 75 frontend, ruff สะอาด, `All green.`
+**การทดสอบตอนนี้:** **196 backend, 120 ml, 78 frontend**, ruff สะอาด, `All green.`
+วัดเมื่อ 2026-10-21 ด้วย `./scripts/test.ps1` · ตัวเลขเดิมในไฟล์นี้ (169) และใน
+handoff (195) **ผิดทั้งคู่** ไม่มีใครรันของจริงตอนเขียน จึงอย่าคัดลอกตัวเลขชุดนี้
+ต่อไปโดยไม่รัน
 
 ---
 
@@ -238,32 +243,31 @@ gitignored ออกจากผลลัพธ์ ตรงข้ามกั�
 **bundle ที่สะอาดแล้ว:** 31 MB, precache 12 entries, ไม่มีโฟลเดอร์ `parity`
 มีแต่โมเดลที่สัญญาระบุ พร้อมอัปโหลด
 
-## Remaining verification before the demo
+## สิ่งที่ยังต้องตรวจยืนยันก่อนสาธิต
 
-**P0-2 — Service-worker offline scan measured successfully with the static server stopped.**
-On 2026-10-20, the static preview was prepared for offline use until the UI reported
-"offline ready." After stopping its preview server, `/scan` reloaded through the service
-worker. With `frontend/public/parity/49.jpg`, both the on-device button and the normal
-scan button completed. The normal scan path fell back to local ONNX, returned
-`classifier_only` at 95.4% confidence, and queued the result; two local scans left two
-items waiting to sync.
+**P0-2 — วัดแล้วว่า scan ผ่าน service worker ได้เมื่อหยุด static server**
+เมื่อ 2026-10-20 เตรียม static preview สำหรับออฟไลน์จน UI แจ้งว่า "offline ready"
+หลังหยุด preview server แล้ว `/scan` โหลดซ้ำผ่าน service worker เมื่อใช้ภาพ
+`frontend/public/parity/49.jpg` ทั้งปุ่มบนอุปกรณ์และปุ่ม scan ปกติทำงานสำเร็จ
+เส้นทาง scan ปกติ fallback ไปรัน ONNX ในเครื่อง ได้ผล `classifier_only` ที่ความเชื่อมั่น
+95.4% และเข้าคิวผลลัพธ์; scan ในเครื่องสองครั้งเหลือสองรายการรอ sync
 
-Scope: this was a service-worker-controlled browser preview, not a PWA installed to a
-home screen. `navigator.onLine` still reported connected; the static server was stopped
-so API requests could not reach it. Repeat on an installed iPhone/Android PWA with the
-device network disabled before closing P0-2 for the demo.
+ขอบเขตการทดสอบ: เป็น browser preview ที่ service worker ควบคุม ไม่ใช่ PWA ที่ติดตั้ง
+ลงหน้า Home screen ค่า `navigator.onLine` ยังรายงานว่าเชื่อมต่ออยู่ แต่หยุด static
+server เพื่อไม่ให้ API request ติดต่อได้ ก่อนปิด P0-2 สำหรับเดโม ให้ทดสอบซ้ำกับ PWA
+ที่ติดตั้งบน iPhone/Android และปิดเครือข่ายของอุปกรณ์จริง
 
-UX follow-up: after offline reload, the panel resets to "offline not prepared" even
-though the cached model and config still support scans. Make the initial status reflect
-the available cache before the demo.
+งาน UX ที่เหลือ: หลัง reload แบบออฟไลน์ แผงสถานะกลับไปเป็น "offline not prepared"
+ทั้งที่โมเดลและ config ใน cache ยังรองรับการ scan ปรับสถานะเริ่มต้นให้สะท้อน cache
+ที่ใช้ได้ก่อนสาธิต
 
-Codex usage check, 2026-10-20 15:49 Asia/Bangkok: the usage tool reports 1% used in the
-weekly window; a daily counter is unavailable. The session baseline was 0% weekly, so
-count 1 percentage point of weekly capacity conservatively for today's work, within the
-14% daily ceiling. Native Windows validation passed with `./scripts/test.ps1`: backend
-165, ML 120, frontend 73; all lint and frontend build steps passed, ending in `All green.`
-`bash.exe ./scripts/test.sh` ran the suites but its scripts-lint path was translated
-incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
+บันทึกโควตา Codex วันที่ 2026-10-20 เวลา 15:49 `Asia/Bangkok`: เครื่องมือรายงาน
+weekly window ใช้ไป 1%; ไม่มีตัวนับรายวัน baseline ของ session คือ weekly 0% จึงนับ
+1 จุดเปอร์เซ็นต์ของ weekly capacity เป็นขอบเขตแบบระมัดระวังของงานวันนั้น ซึ่งไม่เกิน
+เพดานรายวัน 14% การตรวจบน Windows ผ่านด้วย `./scripts/test.ps1`: backend 165, ML 120,
+frontend 73; lint และ frontend build ผ่านทั้งหมด และจบด้วย `All green.` คำสั่ง
+`bash.exe ./scripts/test.sh` รันชุดทดสอบได้ แต่ path ของ scripts-lint ถูกแปลผิดผ่าน WSL
+ให้ใช้ PowerShell runner ของ repository บน Windows เครื่องนี้
 
 **`_redirects` ยังไม่ได้ยืนยัน** `python -m http.server` ไม่อ่านไฟล์นี้ จึงทดสอบ
 ในเครื่องไม่ได้ — `/kb` ตอบ 404 ที่นี่เพราะเหตุนี้ Cloudflare Pages และ Netlify
@@ -279,6 +283,264 @@ incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
 `pipeline` เต็มรันจากโน้ตบุ๊กบนเวทีแทน **ต้องพูดความต่างนี้ออกมาให้ชัด**
 ไม่ใช่ปล่อยให้กรรมการเข้าใจว่าที่เห็นบนมือถือคือทั้งหมดที่ระบบทำได้
 
+## 2026-10-21 — แผงออฟไลน์โกหก และมันไม่ใช่การ reset
+
+Codex รายงานเมื่อ 2026-10-20 ว่าหลังโหลดแบบออฟไลน์ แผงเด้งกลับไปเป็น
+"ยังไม่ได้เตรียมใช้งานออฟไลน์" ทั้งที่สแกนได้จริง **วัดแล้วพบว่าหนักกว่าที่รายงาน**
+
+`App.tsx` ตั้ง `offlineMessage` เป็น string ค่าคงที่ตอน `useState` และสิ่งเดียวที่
+เคยเปลี่ยนมันคือการกดปุ่ม `prepare()` **ไม่มีโค้ดตรงไหนเลยที่ถามแคช** จึงไม่ใช่
+การ reset หลังโหลดออฟไลน์ แต่เป็นคำตอบที่ไม่ได้มาจากสถานะจริงตั้งแต่แรก —
+แผงรายงาน "ยังไม่ได้เตรียม" **ทุกครั้งที่ mount รวมถึงตอนออนไลน์** หลัง service
+worker ติดตั้งเสร็จและโมเดลอยู่ใน precache แล้ว
+
+และ precache คือจุดสำคัญ `vite.config.ts` ใส่ `onnx`, `wasm`, `mjs` ใน
+`globPatterns` ของ `injectManifest` ดังนั้น `precacheAndRoute(self.__WB_MANIFEST)`
+ใน `sw.ts` ดึงโมเดลลงมาตอน install อยู่แล้ว ปุ่ม `เตรียมใช้งานออฟไลน์` จึงไม่ได้
+เป็นคนทำให้พร้อมใช้ มันแค่อุ่น session ของ worker **ความพร้อมออฟไลน์เป็นจริง
+ก่อนที่ใครจะกดปุ่ม**
+
+แก้โดยถามแคชแทนถามประวัติการกดปุ่ม `isOfflineReady()` ใน `lib/offline.ts`
+ตอบจาก `caches.match('/models/<ไฟล์จาก config>')` ซึ่งเป็นเงื่อนไขจริงของการสแกน
+บนเครื่อง และ `App.tsx` อ่านค่านั้นใน effect ที่ผูกกับ `config`
+effect **ตั้งข้อความได้เฉพาะตอนพร้อม** ไม่เขียนทับข้อความ "กำลังเตรียม…"
+หรือข้อความ error ของ `prepare()`
+`caches` ไม่มีใน insecure context และ throw ได้ถ้าปิด storage — ทั้งสองกรณี
+ตอบ "ยังไม่พร้อม" ซึ่งเป็นคำตอบที่ซื่อสัตย์
+
+3 tests ใหม่ (78 frontend) ตรวจการกลายพันธุ์แล้ว: พลิกเงื่อนไขของ effect
+แล้ว test แดงเพราะแผงไม่ขึ้นข้อความพร้อมใช้ ไม่ใช่แดงเพราะ import พัง
+
+**ข้ามเข้า `frontend/` ครั้งที่สี่** ผู้ใช้สั่งมาในรายการ P0 และเดโมเหลือวันเดียว
+ไฟล์ที่แตะ: `src/App.tsx`, `src/lib/offline.ts`, `src/App.test.tsx`,
+`src/lib/offline.test.ts` **ไฟล์เหล่านี้เป็นของ Codex**
+
+**ยังไม่ขึ้น production** https://teasmart-ai.pages.dev ยังเป็น bundle เดิม
+ต้อง `wrangler pages deploy` ใหม่ก่อนกรรมการจะเห็นผลของการแก้นี้
+
+### การแก้รอบแรกผิด และ unit test ของมันเองปิดตาไว้
+
+`isOfflineReady()` รอบแรกใช้ `caches.match('/models/<ไฟล์>')` เฉย ๆ
+**มันตอบ false บน production ทั้งที่โมเดลอยู่ในแคชครบ** เพราะ workbox ใส่ key
+ใต้ query param ของตัวเอง วัดจาก https://teasmart-ai.pages.dev เมื่อ 2026-10-21:
+
+```
+/models/teasmart-v1.onnx?__WB_REVISION__=abaadc472a4be7dcf36e1722778b4843
+```
+
+`caches.match(path)` → false · `caches.match(path, { ignoreSearch: true })` → true
+ขนาด 16,823,747 ไบต์ ตรงกับโมเดลที่สัญญาระบุ
+
+**เทสต์รอบแรกผ่านเพราะ stub ตอบ path เปล่า** ซึ่งเป็นสมมติฐานของคนเขียน
+implementation เอง ไม่ใช่พฤติกรรมของ Cache API จริง — stub แบบนั้นทำให้
+implementation ไหนก็ผ่าน และพิสูจน์อะไรไม่ได้เลย **เป็นบทเรียน D2 ซ้ำรอบที่สอง**
+(`AGENTS.md` หัวข้อ 5: ระบุ invariant ด้วยคุณสมบัติ ไม่ใช่ด้วยอัลกอริทึมของตัวเอง)
+stub ตอนนี้คีย์ตามที่ production คีย์จริง และถอด `ignoreSearch` ออกแล้วเทสต์แดง
+ด้วย `expected false to be true` ซึ่งคือความล้มเหลวบน production ตรงตัว
+
+### สิ่งที่วัดได้จาก production ระหว่างทาง
+
+ตรวจ https://teasmart-ai.pages.dev จาก browser pane (Chromium ไม่ใช่ WebKit
+จึง**ไม่ใช่**การแทนการทดสอบบน iPhone) **เป็นการตรวจ URL สาธารณะครั้งแรก:**
+
+| สิ่งที่วัด | ผล |
+|---|---|
+| `/` → router พาไป `/scan` | ✓ หน้าไทยเรนเดอร์ครบ ปุ่มเลือกภาพมาก่อนกล้อง |
+| `isSecureContext` | `true` |
+| service worker | active + controlling `/sw.js` ไม่มีตัวค้างที่ waiting |
+| `teasmart-resources-v1` | 2 entries — `/api/v1/config`, `/api/v1/kb` ✓ |
+| workbox precache | **10 entries** — โมเดลและ WASM อยู่ครบ |
+| แผงออฟไลน์ตอนโหลดสด | `ยังไม่ได้เตรียมใช้งานออฟไลน์` — **ยืนยันบั๊กบน production** |
+
+**10 entries ไม่ใช่ 12 ที่ build ในเครื่องรายงาน** ยังไม่ได้สืบ ส่วนหนึ่งเพราะ
+bundle ที่ deploy เป็นของ build ก่อนหน้า (hash ของ css/js ต่างกัน) แต่
+**ยังไม่ได้พิสูจน์ว่าต่างกันแค่เพราะเหตุนี้** อย่าอ้างตัวเลข precache ของ production
+จนกว่าจะ deploy รอบใหม่แล้ววัดซ้ำ
+
+## 2026-10-21 — การ deploy ใหม่ไม่ถึงมือถือที่ติดตั้งไว้แล้ว
+
+**วัดจาก artefact จริง ไม่ได้อนุมาน** ผู้ใช้เลือกทดสอบ 7 ข้อบน build ที่อยู่บนเว็บ
+ตอนนี้ก่อน แล้ว deploy รอบเดียวทีหลัง คำถามที่ตามมาคือ service worker ตัวเก่า
+จะปล่อยให้ตัวใหม่เข้ามาหรือไม่ **คำตอบคือไม่**
+
+| หลักฐาน | ผล |
+|---|---|
+| `grep -c skipWaiting frontend/dist/sw.js` | **0** |
+| `grep -c clientsClaim frontend/dist/sw.js` | 1 |
+| `registerType` ใน `vite.config.ts` | **ไม่ได้ตั้ง** → default `"prompt"` (`vite-plugin-pwa/dist/index.js:800`) |
+| `main.tsx:11` | `registerSW({ immediate: true });` — **ทิ้งค่าที่ return** |
+
+สามอย่างนี้ประกอบกันเป็นวงจรที่ปิดตาย อ่านจาก
+`node_modules/vite-plugin-pwa/dist/client/build/register.js`:
+`registerType: "prompt"` ทำให้ `auto === false` จึงเข้า branch ที่ผูก
+`wb.addEventListener("waiting", showSkipWaitingPrompt)` และ
+`showSkipWaitingPrompt` เรียก `onNeedRefresh?.()` ซึ่ง **undefined** เพราะ
+`main.tsx` ไม่ส่ง callback ตัวนี้มา ส่วน `wb.messageSkipWaiting()` ถูกเรียกจาก
+`updateServiceWorker()` เท่านั้น ซึ่งเป็น **ค่า return ของ `registerSW`** ที่
+`main.tsx` ทิ้งไป จึงไม่มีใครเรียกมันได้เลย
+
+ผลคือ SW ตัวใหม่ install แล้วค้างที่สถานะ `waiting` **ไม่มีกำหนด** จนกว่า client
+ของตัวเก่าจะหายไปทุกตัว และ `clientsClaim()` ช่วยไม่ได้ เพราะมันมีผลตอน activate
+ไม่ใช่ตอน update
+
+**ทำไมเรื่องนี้อันตรายกว่าที่ฟัง** ไม่มีอะไรดูเหมือนพัง SW ตัวเก่าเสิร์ฟ bundle เก่า
+พร้อมโมเดลเก่าได้อย่างราบรื่น มือถือบนเวทีจะแสดง build เก่ารวมถึงบั๊กแผงออฟไลน์
+ที่เพิ่งแก้ไป โดยไม่มีสัญญาณอะไรบอก
+
+**ทางแก้ที่ใช้ก่อนเดโม: ลบออกจากหน้าโฮมแล้วติดตั้งใหม่** หลัง deploy รอบเดียวนั้น
+ไม่ต้องแก้โค้ด และรับประกันว่าได้ SW ใหม่กับ precache ใหม่ **ต้องเผื่อการดาวน์โหลด
+30.7 MB ซ้ำบน wifi คืนก่อนงาน ไม่ใช่บนเวที**
+
+**ทางแก้เชิงโค้ด เป็น P2 หลังเดโม** ต้องทำสองอย่างคู่กัน ไม่ใช่อย่างเดียว:
+`self.skipWaiting()` ใน `sw.ts` (เพราะ `strategies: 'injectManifest'` หมายความว่า
+plugin ไม่ฉีดให้) **และ** `registerType: 'autoUpdate'` ให้หน้าเว็บ reload ตอน
+SW ใหม่ activate ไม่ควรทำคืนก่อนเดโมเพราะมันเปลี่ยน semantics ของการอัปเดต
+และยืนยันไม่ได้เลยถ้าไม่ deploy จริงแล้วลองบนมือถือจริง ซึ่งคือสิ่งที่กำลังจัดลำดับกันอยู่
+**เป็นของ `frontend/` = สไลซ์ Codex**
+
+## 2026-10-21 — pipeline เต็มรันได้วันนี้ ยิงของจริงแล้ว
+
+ก่อนหน้านี้ "ทดสอบสดครบวง" ถูกบันทึกไว้ตอน PR #8 **ไม่มีใครยืนยันว่ายังรันได้วันนี้**
+ยิงจริงผ่าน `POST /api/v1/scan` สามภาพจาก `demo/`:
+
+```
+/health  {"status":"ok","app":"TeaSmart AI","model_version":"teasmart-v1"}
+
+01-brown-blight-severe   HTTP 200
+  prediction    brown_blight 0.9623
+  BURN VERDICT  disease   likelihood 0.046
+  SEVERITY      severe    28.2 percent
+  advice TH     โรคใบไหม้น้ำตาล
+  mode / ms     full / 98
+
+04-healthy               HTTP 200
+  prediction    healthy 0.9496
+  BURN VERDICT  disease   likelihood 0.0
+  SEVERITY      mild      0.1 percent
+  advice TH     ใบปกติ / สุขภาพดี
+  mode / ms     full / 31
+
+06-blurry                HTTP 422
+  detail_th     ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น
+  blur_score    11.720447423284186   (threshold 15.0)
+```
+
+**ตรงกับ `docs/DEMO.md` ทุกค่า** รวมถึง 98 ms และ 31 ms และ blur 11.7
+ด่าน 1-6 ครบ `analysis_mode: full` คำตัดสินโรค-กับ-ใบไหม้และความรุนแรงมีจริง
+**นี่คือเส้นทางที่สาธิตจากโน้ตบุ๊กบนเวที และมันทำงาน**
+
+ไฟล์ที่เดโมต้องใช้มีอยู่บนดิสก์ครบ: `demo/` ทั้ง 6 ภาพ,
+`frontend/public/models/teasmart-v1.onnx` 16,823,747 ไบต์,
+`data/artifacts/teasmart-v1.pt`, `backend/app/kb/diseases.json`
+
+**เซิร์ฟเวอร์บนพอร์ต 8000 ไม่ใช่ตัวที่ agent สตาร์ท** ตัวที่สั่งชนพอร์ตแล้วตาย
+(exit 1) แต่ `/health` ตอบอยู่ก่อนแล้ว แปลว่ามี uvicorn ค้างอยู่จากเซสชันก่อน
+**เรื่องนี้สำคัญเพราะแคช idempotency อยู่ในหน่วยความจำ** รีสตาร์ตเครื่องแล้ว
+ต้องสตาร์ต backend ใหม่เอง และคิวที่เคยส่งจะไม่ถูกจำ
+
+**ยังไม่ได้ยืนยัน:** การสแกนผ่าน UI จริงที่คุยกับ backend (โหมด `full` บนหน้าจอ)
+หยุดเพราะเพดาน 5 ชั่วโมงอยู่ที่ 92% **ไม่ใช่เพราะวัดแล้วผ่าน**
+
+## 2026-10-21 — ผลจาก iPhone จริงบน URL สาธารณะ ครั้งแรก
+
+ผู้ใช้รันบน iPhone ผ่าน Safari เวลา 17:16 และ 17:35 **นี่คือการแตะเครื่องจริง
+ครั้งแรกของโครงการ** หลักฐานเป็น screenshot สี่ภาพ
+
+### ผ่าน
+
+- **ข้อ 1 เลย์เอาต์** เรนเดอร์ไทยครบ ไม่มีการเลื่อนแนวนอน
+- **ข้อ 2 กล้อง** เปิดได้ เป็นกล้องหลัง Safari แสดงจุดเขียวว่ากล้องทำงาน
+  ปุ่มเปลี่ยนเป็น `ถ่ายภาพ` ตอนกล้องเปิด
+- **การ์ดผลบอกโหมดถูกต้อง** `ประเมินเบื้องต้นบนอุปกรณ์ · จำแนกโรคเท่านั้น`
+  และ `ยังแยกโรคกับแผลไหม้ไม่ได้ รอเชื่อมต่อเพื่อวิเคราะห์เพิ่มเติม`
+  ความรุนแรงขึ้นว่า `รอการวิเคราะห์เพิ่มเติม` **สัญญาข้อ `classifier_only` ถูกรักษาไว้จริง**
+
+### ปัญหาที่หนักที่สุด: ถ่ายอะไรก็ได้คำตอบเป็นโรค
+
+ผู้ใช้ไม่มีภาพใบชา จึง**ถ่ายหน้าจอโน้ตบุ๊กที่มีโค้ด** แอปตอบ
+
+```
+โรคใบไหม้น้ำตาล   ความมั่นใจ 76.8%
+```
+
+76.8% สูงกว่า `min_confidence` 0.60 ตะแกรง `other_disease` จึงไม่ทำงาน
+และผู้ใช้ได้คำแนะนำการเกษตรเต็มรูปแบบสำหรับภาพหน้าจอคอมพิวเตอร์
+
+**ด่านคุณภาพจับไม่ได้เพราะมันวัดความเบลอกับแสง ไม่ได้วัดว่าในภาพเป็นใบไม้หรือไม่**
+และเบราว์เซอร์ไม่มีด่าน 2 แยกใบ ตัวจำแนกมีห้าคลาสปิด ไม่มี open-set rejection
+**ทุกภาพจึงถูกบังคับให้เป็นหนึ่งในห้าคลาสเสมอ**
+
+`docs/EVIDENCE.md` บันทึกไว้แล้วว่า "ตัวจำแนกผิดได้แบบมั่นใจ" แต่กรณีนั้นเป็นใบชา
+ที่ทายผิด **กรณีนี้หนักกว่า: ไม่ใช่ใบไม้เลยก็ยังได้ชื่อโรค** และกรรมการที่ส่องกล้อง
+ไปที่มือตัวเอง โต๊ะ หรือพื้น จะเจอสิ่งนี้ภายในสิบวินาที
+
+**แก้ด้วยโค้ดคืนก่อนเดโมไม่ได้** ต้องมีตัวตรวจว่าเป็นใบไม้หรือ open-set rejection
+ซึ่งเป็นงานของโมเดล ไม่ใช่งานปรับ threshold **ทางที่เหลือคือพูดเองบนเวที**
+และควรอยู่ในหัวข้อข้อจำกัดของ `docs/DEMO.md` — แก้ที่
+`scripts/prepare_demo.py` ไม่ใช่ที่ `.md`
+
+### ข้อ 7 ขึ้น error ที่อ่านแล้วเหมือนพัง
+
+หน้าจอค้างอยู่ที่
+
+```
+รอวิเคราะห์เพิ่มเติม 1 ภาพ
+ระบบยังไม่พร้อม กรุณาลองใหม่      [ ส่งคิวอีกครั้ง ]
+```
+
+**บน deploy แบบ static คิวนี้ระบายไม่ได้เลยตลอดกาล** เพราะไม่มี backend
+`POST /api/v1/sync/batch` ไปไม่ถึงไหน ข้อความนี้จึงไม่ใช่สถานะชั่วคราว
+มันเป็นสถานะถาวรของแอปที่กรรมการถืออยู่ และอ่านแล้วแปลว่าระบบพัง
+
+### บั๊กแผงออฟไลน์ ยืนยันบนเครื่องจริงแล้ว
+
+แผงขึ้น `ยังไม่ได้เตรียมใช้งานออฟไลน์` **ในขณะที่เครื่องเพิ่งสแกนด้วยโมเดลที่แคชไว้
+สำเร็จไปเมื่อครู่** ตรงกับที่วัดไว้ทุกอย่าง และยืนยันว่าการแก้ใน `d9f6c2c` จำเป็น
+
+### เล็กกว่า: เนื้อหาเลื่อนไปใต้แถบสถานะ
+
+`ความมั่นใจ 76.8%` และ `ผลตรวจใบชา` ถูกนาฬิกากับแบตเตอรี่บังบางส่วนตอนเลื่อน
+เป็นเรื่อง safe-area inset ด้านบน ไม่ถึงกับใช้งานไม่ได้ แต่บนเวทีคือตัวอักษรถูกหั่น
+
+## 2026-10-21 — ทดสอบเครื่องที่สอง iPhone XS และผลที่อันตรายที่สุดที่เจอมา
+
+เพื่อนของผู้ใช้เปิดบน **iPhone XS** ผ่าน Safari เวลา 18:38 **เครื่องเก่ากว่า
+และยังทำงานครบ** หน้าเรนเดอร์ไทยถูกต้อง สแกนได้ การ์ดผลรักษาสัญญา
+`classifier_only` เหมือนเครื่องแรก
+
+**ภาพที่ใช้คือมือกำยอดชาสด เขียวสมบูรณ์ ไม่มีอาการโรคใด ๆ**
+
+```
+โรคใบไหม้น้ำตาล    ความมั่นใจ 92.4%
+```
+
+**หนักกว่ากรณีภาพหน้าจอโน้ตบุ๊ก (76.8%) อย่างมีนัยสำคัญ** เพราะกรณีนี้
+**เป็นใบชาจริง** อยู่ในขอบเขตที่สินค้านี้อ้างว่าทำได้ และ**ใบมันปกติดี**
+
+`docs/DEMO.md` ตารางตัวเลขที่อ้างได้ระบุว่า **ใบปกติถูกตั้งชื่อโรค 0 จาก 215**
+ตัวเลขนั้นไม่ผิด แต่มันจริงเฉพาะบน**ชุดทดสอบที่เป็นภาพโคลสอัพใบเดี่ยว**
+ภาพจริงมีหลายใบ มีมือ และมีพุ่มชาเป็นฉากหลัง **อยู่นอกการกระจายนั้นทั้งหมด**
+เบราว์เซอร์ไม่มีด่าน 2 แยกใบ ทั้งเฟรมจึงถูกย่อเป็น 224x224 โดยไม่รักษาอัตราส่วน
+รวมมือและฉากหลังเข้าไปด้วย
+
+**นี่คือ "0.987 เป็นขอบบน ไม่ใช่ค่าประมาณในสนาม" ที่กลายเป็นรูปธรรม**
+และเป็นพฤติกรรมที่กรรมการมีแนวโน้มทำมากที่สุด คือยกมือถือส่องพุ่มชา
+ผลคือคำว่าเป็นโรคบนต้นที่แข็งแรง พร้อมคำแนะนำให้ฉีดพ่น
+
+หน้าจอของแอป**เตือนเรื่องนี้ไว้แล้ว**: "โมเดลวัดผลจากภาพโคลสอัพใบเดี่ยว
+ภาพที่ถ่ายไกลหรือติดหลายใบจะแม่นน้อยลง" คำเตือนถูกต้องและอยู่ถูกที่
+**แต่แอปบังคับให้ทำตามไม่ได้** เพิ่มเป็นข้อแรกของข้อจำกัดใน
+`scripts/prepare_demo.py` แล้ว
+
+**คิวขึ้นเป็น 2 ภาพ** และยังค้างที่ `ระบบยังไม่พร้อม กรุณาลองใหม่` เหมือนเดิม
+**ยืนยันบนสองเครื่องแล้วว่าเป็นสถานะถาวร ไม่ใช่ชั่วคราว**
+
+### แก้คำสั่งในคู่มือที่ขัดกับของจริง
+
+`docs/DEMO.md` ข้อ 3 เคยสั่งให้ตรวจว่าการ์ดระบุ `full` **ซึ่งเป็นไปไม่ได้บน
+URL สาธารณะ** คนทดสอบที่ทำตามคู่มือจะบันทึกว่าข้อ 3 ไม่ผ่าน ทั้งที่แอปทำถูก
+แก้ที่ generator แล้วให้บอกว่าบน URL สาธารณะต้องได้ `classifier_only` เสมอ
+
 ## เรื่องที่รอผู้ใช้ตัดสินใจ
 
 1. **`max_image_pixels` เป็น 40,000,000** ไฟล์ JPEG 738 KB ถอดรหัสออกเป็น 7000×5600
@@ -291,6 +553,29 @@ incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
    ถ้าตรวจด้วยตาจะได้ข้อมูลเทรนจริงกลับมา
 
 ---
+
+## 2026-10-21 — SonarCloud จับช่องโหว่ในสคริปต์ที่ AI เขียนเอง
+
+กั้น merge อยู่ครึ่งวัน และเป็นของจริงทั้งคู่ อยู่ใน `scripts/snapshot_api.py`
+ที่ Claude เขียนเมื่อ 2026-10-20:
+
+| ระดับ | ปัญหา |
+|---|---|
+| High | **Path Traversal** — `--out-dir` เขียนไฟล์ไปโฟลเดอร์ไหนก็ได้ |
+| Medium | **SSRF** — `--base-url` ยิง request ไปโฮสต์ไหนก็ได้ แล้วเขียนคำตอบลงโฟลเดอร์ที่ build ถัดไปเอาขึ้นเว็บ |
+
+Sonar เรียกมันว่า *"via faulty LLM-supplied CLI arguments"* — สคริปต์ที่ AI เขียน
+แล้วรับ argument โดยไม่ตรวจ **สามบทเรียนที่ควรจำ:**
+
+1. **เดาแล้วแก้เสียเวลาเปล่า** รอบแรกแก้สิ่งที่ linter ของเราเองชี้ (bind 0.0.0.0,
+   partial path) gate ยังแดงเพราะไม่ใช่สิ่งที่ Sonar ชี้ **อ่าน finding จริงก่อน**
+   ต้องให้ผู้ใช้ล็อกอิน SonarCloud ครั้งเดียว
+2. **ตรวจ input อ่อนกว่าไม่รับ input** รอบสองเพิ่มการตรวจว่า host ต้องเป็น loopback
+   แต่ taint analysis ยังเห็น string จาก CLI ไหลเข้า `urlopen` อยู่ดี และมันไม่ผิด
+   ที่จะไม่เชื่อ ทางที่ได้ผลคือ**ตัด `--base-url` ทิ้ง** เหลือ `--port` แล้ว hardcode
+   `http://127.0.0.1:{port}` — ไม่เหลืออะไรให้ชี้ไปที่อื่น จึงไม่ต้องตรวจ
+3. **`frontend/public/` คือพื้นผิวเผยแพร่** อะไรที่เขียนลงไปได้ คือสิ่งที่ขึ้นเว็บได้
+   ช่องโหว่ทั้งสองจบลงที่โฟลเดอร์เดียวกับที่เช้าวันนั้นเพิ่งกันของที่ไม่ควรเผยแพร่ออกไป
 
 ## เรื่องที่เป็นจริงและพลาดง่าย
 
@@ -344,3 +629,18 @@ incorrectly by WSL; use the repository's PowerShell runner on this Windows host.
   `src/lib/api.ts` hard-code รายชื่อคลาสซ้ำกับที่ `GET /api/v1/config` เสิร์ฟ
   (วันนี้ค่าตรงกัน การมีสำเนาที่สองคือตัวปัญหา) และ `parseKnowledge` บังคับให้มี
   record ในฐานความรู้ **เท่ากับ 6 รายการพอดี** โรคที่เจ็ดจะทำให้ client พัง
+
+---
+
+## งานแปล Markdown เป็นภาษาไทย — 2026-10-21
+
+ผู้ใช้ขอให้แปลไฟล์ Markdown ทั้ง repository พบไฟล์ที่ติดตามใน Git 15 ไฟล์
+แปลและตรวจภาษาไทยแล้ว 14 ไฟล์ ส่วน `private/README.md` ไม่อ่านหรือแก้เพราะกฎ
+โครงการปิดกั้น `private/` จากเครื่องมือ ไฟล์ `docs/DEMO.md` สร้างอัตโนมัติ
+จึงเปลี่ยนป้ายชื่อที่ `scripts/prepare_demo.py` แล้วสร้างใหม่ สำหรับ
+`docs/EVIDENCE.md` คงคำสั่งและ output ทุกบล็อกตามต้นฉบับและแปลเฉพาะร้อยแก้ว
+
+บันทึกโควตา Codex ของวันที่ 2026-10-21 ตามเวลา `Asia/Bangkok`: baseline ก่อนเริ่มงาน
+รายงาน weekly capacity ใช้ไป **1%**; ค่าล่าสุดคือ weekly **3%** และหน้าต่าง 5 ชั่วโมง
+**13%** ระบบไม่มีตัวนับรายวัน จึงนับยอด weekly ทั้งหมด 3 จุดเปอร์เซ็นต์เป็นขอบเขตบน
+แบบระมัดระวังของวันนี้ ซึ่งต่ำกว่าเพดานรายวัน 14 จุดเปอร์เซ็นต์

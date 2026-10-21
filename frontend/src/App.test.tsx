@@ -8,8 +8,19 @@ import { store } from './lib/storage';
 import { scanFixture } from './test/fixtures';
 import { configShape } from './lib/scan-contract';
 import { localFixture } from './test/local-fixture';
-import { inferOffline } from './lib/offline';
-vi.mock('./lib/offline', () => ({ inferOffline: vi.fn(), prepareOffline: vi.fn() }));
+import { inferOffline, isOfflineReady } from './lib/offline';
+vi.mock('./lib/offline', () => ({ inferOffline: vi.fn(), prepareOffline: vi.fn(), isOfflineReady: vi.fn(async () => false) }));
+
+it('says offline is prepared after a reload that found the model still cached', async () => {
+  await store.saveConfig(configShape);
+  vi.mocked(isOfflineReady).mockResolvedValue(true);
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  expect(await screen.findByText(/เตรียมออฟไลน์แล้ว/)).toBeInTheDocument();
+  expect(screen.queryByText('ยังไม่ได้เตรียมใช้งานออฟไลน์')).not.toBeInTheDocument();
+  vi.mocked(isOfflineReady).mockResolvedValue(false);
+  vi.unstubAllGlobals();
+});
 
 it('loads a persisted result by its URL after refresh', async () => {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));

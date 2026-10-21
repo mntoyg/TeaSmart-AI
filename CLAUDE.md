@@ -1,56 +1,38 @@
 # CLAUDE.md
 
-**Read [AGENTS.md](AGENTS.md).** It is the single source of truth for this
-project: the rules, the architecture, the constraints, and the token discipline.
-Then read [docs/STATE.md](docs/STATE.md) for where the work currently stands.
+**อ่าน [AGENTS.md](AGENTS.md)** ซึ่งเป็นแหล่งข้อมูลหลักเพียงแห่งเดียวของโครงการนี้ ทั้งกฎ สถาปัตยกรรม ข้อจำกัด และวินัยการใช้โควตา จากนั้นอ่าน [docs/STATE.md](docs/STATE.md) เพื่อดูสถานะปัจจุบันของงาน
 
-This file only adds what is specific to Claude Code.
+ไฟล์นี้เพิ่มเฉพาะข้อกำหนดของ Claude Code
 
-## The three rules most easily forgotten
+## กฎสามข้อที่มักลืม
 
-1. Reply in **Thai**, and write docs in **Thai** (changed 2026-10-20, see
-   AGENTS.md rule 1 for what that does and does not cover). Code and
-   commits stay in English.
-2. **Commit and push after every completed step**, not at the end of the session.
-3. Run tests through the package venv: `./.venv/Scripts/python.exe -m pytest -q`
-   from `backend/` or from `ml/`. A bare `python` has none of the dependencies.
+1. ตอบผู้ใช้เป็น **ภาษาไทย** และเขียนเอกสารเป็น **ภาษาไทย** (เปลี่ยนเมื่อ 2026-10-20 ดูข้อ 1 ใน `AGENTS.md` สำหรับขอบเขต) โค้ดและ commit ใช้ภาษาอังกฤษ
+2. **Commit และ push หลังจบแต่ละขั้น** อย่ารอจนจบ session
+3. รัน test ผ่าน virtualenv ของแพ็กเกจ: จาก `backend/` หรือ `ml/` ใช้ `./.venv/Scripts/python.exe -m pytest -q` คำสั่ง `python` เปล่าไม่มี dependency ที่ต้องใช้
 
-## Workflow
+## ขั้นตอนทำงาน
 
-This project is built with the superpowers skills, in this order:
+โครงการนี้ใช้ superpowers skills ตามลำดับต่อไปนี้:
 
-| situation | skill |
+| สถานการณ์ | skill |
 |---|---|
-| a new slice or feature | `superpowers:brainstorming` → `writing-plans` → `executing-plans` |
-| a bug or unexpected result | `superpowers:systematic-debugging` |
-| about to claim something works | `superpowers:verification-before-completion` |
-| a branch is finished | `superpowers:requesting-code-review`, then `finishing-a-development-branch` |
+| เริ่มสไลซ์หรืองานใหม่ | `superpowers:brainstorming` → `writing-plans` → `executing-plans` |
+| พบ bug หรือผลที่ไม่คาดคิด | `superpowers:systematic-debugging` |
+| ก่อนยืนยันว่าบางอย่างทำงานได้ | `superpowers:verification-before-completion` |
+| branch เสร็จแล้ว | `superpowers:requesting-code-review` แล้วตามด้วย `finishing-a-development-branch` |
 
-There is no separate plan file any more. When executing a slice, read its brief
-rather than the whole plan, and keep the ledger line in the same tool call as
-the commit — context does not survive compaction, the ledger does.
+ตอนนี้ไม่มีไฟล์แผนแยกแล้ว เมื่อทำสไลซ์ให้อ่านเอกสารย่อของงานนั้นแทนการอ่านแผนทั้งหมด และบันทึกบรรทัดสถานะใน tool call เดียวกับ commit เพราะ context ไม่อยู่ข้ามการย่อบทสนทนา แต่บันทึกสถานะอยู่
 
-**At roughly 70% context**, finish the task in progress, then write the next
-session a handoff prompt, update `docs/STATE.md`, push, and hand it over.
-The hard daily usage ceiling in `AGENTS.md` takes precedence over this context
-guideline: every AI must stop at a pushed boundary before using more than 14%
-of its own weekly capacity in a Bangkok calendar day.
+**เมื่อใช้ context ไปประมาณ 70%** ให้จบงานปัจจุบันก่อน แล้วเขียน prompt ส่งต่อ session ถัดไป อัปเดต `docs/STATE.md` และ push เพื่อนำไปทำต่อ เพดานการใช้ต่อวันใน `AGENTS.md` สำคัญกว่าคำแนะนำเรื่อง context: AI ทุกตัวต้องหยุดที่จุดที่ push แล้ว ก่อนใช้เกิน 14% ของ weekly capacity ต่อวันตามปฏิทินกรุงเทพฯ
 
-## Environment notes that cost a round trip each
+## บันทึกสภาพแวดล้อมที่ช่วยลดการลองผิดซ้ำ
 
-- Bash heredocs in this environment break when the body contains an apostrophe.
-  Use the Write tool, or write a patch script into the scratchpad and run it.
-- `grep -rn` from the repository root walks both `.venv` trees and `data/` and
-  hits the command timeout. Scope every search to `ml/teasmart_ml` or
-  `backend/app`.
-- The two test suites have separate virtualenvs. Run them as two commands.
-- Mendeley refuses urllib3 and answers curl, so `ml` shells out to curl for
-  those downloads. This is deliberate; see the ruling in
-  `docs/DESIGN.md` section 13, next to the decisions already recorded there.
-- Long runs (dataset preparation, training) belong in the background.
+- Bash heredoc ในสภาพแวดล้อมนี้พังเมื่อเนื้อหามี apostrophe ใช้เครื่องมือเขียนไฟล์ หรือเขียน patch script ใน scratchpad แล้วรัน
+- `grep -rn` จาก root จะเดินเข้า virtualenv ทั้งสองและ `data/` จนคำสั่งหมดเวลา จำกัดขอบเขตค้นหาไว้ที่ `ml/teasmart_ml` หรือ `backend/app`
+- test สองชุดใช้ virtualenv แยกกัน
+- Mendeley ปฏิเสธ urllib3 แต่ตอบ curl ได้ จึงให้ shell ของ `ml` เรียก curl เพื่อดาวน์โหลดตามที่กำหนดไว้ ดูเหตุผลใน `docs/DESIGN.md` หัวข้อ 13
+- งานที่ใช้เวลานาน เช่น เตรียมชุดข้อมูลและ train ให้รันเบื้องหลัง
 
-## What not to read
+## สิ่งที่ไม่ควรอ่าน
 
-`data/`, both `.venv/` trees, and `*.onnx` are noise in your context and are
-listed in `.claudeignore`. Credentials are denied outright in
-`.claude/settings.json`. If a file there looks necessary, ask first.
+`data/`, virtualenv ทั้งสอง (`.venv/`) และ `*.onnx` ไม่ช่วยให้เข้าใจงาน และระบุไว้ใน `.claudeignore` ข้อมูลรับรองถูกปิดกั้นใน `.claude/settings.json` หากเห็นว่าจำเป็นต้องใช้ไฟล์เหล่านี้ ให้ถามก่อน

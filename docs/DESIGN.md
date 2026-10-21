@@ -1,131 +1,118 @@
-# TeaSmart AI — design and contract
+# TeaSmart AI — การออกแบบและสัญญา
 
-**The binding authority.** When this file and any other disagree, this one
-wins. The API contract in section 8 is a shared interface between the backend
-and the PWA: neither side changes it alone. A change is written here first,
-noted in `docs/STATE.md`, and raised with the user.
+**เอกสารอ้างอิงที่มีผลผูกพัน** หากไฟล์นี้ขัดกับไฟล์อื่น ให้ยึดไฟล์นี้ สัญญา API ในหัวข้อ 8 เป็น interface ร่วมระหว่าง backend กับ PWA ห้ามฝ่ายใดเปลี่ยนฝ่ายเดียว หากต้องแก้ ให้บันทึกในไฟล์นี้ก่อน ระบุใน `docs/STATE.md` และแจ้งผู้ใช้
 
-Three files are the whole of `docs/`:
+เอกสารหลักสามไฟล์ใน `docs/`:
 
-| file | what it is for |
+| ไฟล์ | ใช้ทำอะไร |
 |---|---|
-| `docs/STATE.md` | where the work is right now. **Read it first.** |
-| `docs/DESIGN.md` | this file: scope, pipeline, contract, decisions |
-| `docs/EVIDENCE.md` | measured results, with the methods that produced them |
+| `docs/STATE.md` | สถานะปัจจุบันของงาน **อ่านก่อน** |
+| `docs/DESIGN.md` | ไฟล์นี้: ขอบเขต pipeline สัญญา และการตัดสินใจ |
+| `docs/EVIDENCE.md` | ผลที่วัดได้พร้อมวิธีที่ใช้สร้างผลนั้น |
 
-- **Date:** 2026-10-13
-- **Deadline:** 2026-10-22 (hackathon submission) — 9 working days
-- **Status:** Approved design, pending written-spec review
+- **วันที่:** 2026-10-13
+- **กำหนดส่ง:** 2026-10-22 (ส่งงานแฮกกาธอน) — เหลือเวลาทำงาน 9 วัน
+- **สถานะ:** อนุมัติการออกแบบแล้ว รอตรวจทานข้อกำหนดที่เขียนไว้
 
-## 1. Purpose
+## 1. จุดประสงค์
 
-TeaSmart AI is a smart-farming assistant for large-scale Oolong tea estates
-(reference site: Singha Park, Chiang Rai). A worker photographs a tea leaf with
-a phone (or uploads a drone frame), and the system returns:
+TeaSmart AI เป็นผู้ช่วยเกษตรอัจฉริยะสำหรับไร่ชาอู่หลงขนาดใหญ่ (พื้นที่อ้างอิง: สิงห์ปาร์ค เชียงราย) คนงานถ่ายรูปใบชาด้วยโทรศัพท์หรืออัปโหลดภาพจากโดรน แล้วระบบส่งผลดังนี้:
 
-1. the disease class and its severity,
-2. an explicit judgement of whether the damage is **biological disease** or
-   **physical burn** (sun scorch / chemical burn), and
-3. actionable Thai-language treatment advice from a curated expert knowledge
-   base.
+1. คลาสของโรคและระดับความรุนแรง
+2. คำตัดสินอย่างชัดเจนว่าความเสียหายเป็น **โรคทางชีวภาพ** หรือ **แผลไหม้ทางกายภาพ** (แดดเผาหรือสารเคมีไหม้)
+3. คำแนะนำการรักษาภาษาไทยที่นำไปทำตามได้ จากฐานความรู้ผู้เชี่ยวชาญที่คัดมา
 
-**Success criterion for the demo:** a judge picks up a phone, photographs a tea
-leaf, and gets a correct, readable Thai result in a few seconds — *with the
-network switched off*.
+**เกณฑ์ความสำเร็จของการสาธิต:** กรรมการหยิบโทรศัพท์ขึ้นมาถ่ายใบชา แล้วได้ผลภาษาไทยที่ถูกต้องและอ่านเข้าใจภายในไม่กี่วินาที — *แม้ปิดเครือข่ายอยู่*
 
-## 2. Scope
+## 2. ขอบเขต
 
-### In scope (Phase 1)
+### อยู่ในขอบเขต (ระยะที่ 1)
 
-- Image quality gating (blur / exposure) with actionable Thai feedback
-- Leaf segmentation and lesion localisation
-- 5-class disease classifier (MobileNetV3-Large, transfer learning)
-- Rule-based burn-vs-disease discriminator
-- Severity estimation from lesion-to-leaf area ratio
-- Rule-based expert system returning Thai advice
-- PWA web app (camera capture, on-device ONNX inference, offline queue)
-- ~~Android `.apk` via Capacitor~~ — **cut on 2026-10-19.** A PWA installed
-  from Chrome demonstrates the same thing on the same phone, and the time it
-  frees goes to the burn-versus-disease analyser, which is the feature the
-  product exists for. Nothing in the codebase depends on it.
+- ด่านตรวจคุณภาพภาพ (ความเบลอ/การรับแสง) พร้อมคำแนะนำภาษาไทยที่ทำตามได้
+- แยกใบชาออกจากพื้นหลังและระบุตำแหน่งรอยโรค
+- ตัวจำแนกโรค 5 คลาส (MobileNetV3-Large, transfer learning)
+- ตัวแยกแผลไหม้กับโรคโดยใช้กฎ
+- ประเมินความรุนแรงจากสัดส่วนพื้นที่รอยโรคต่อพื้นที่ใบ
+- ระบบผู้เชี่ยวชาญแบบกฎเกณฑ์ที่ให้คำแนะนำภาษาไทย
+- เว็บแอป PWA (ถ่ายภาพด้วยกล้อง รัน ONNX บนอุปกรณ์ และคิวออฟไลน์)
+- ~~แอป Android `.apk` ผ่าน Capacitor~~ — **ตัดออกเมื่อ 2026-10-19** PWA ที่ติดตั้งจาก Chrome สาธิตสิ่งเดียวกันบนโทรศัพท์เครื่องเดียวกัน เวลาที่ได้คืนมานำไปทำตัววิเคราะห์แผลไหม้กับโรค ซึ่งเป็นคุณสมบัติหลักของผลิตภัณฑ์ ไม่มีส่วนใดใน codebase พึ่งพา Capacitor
 
-### Out of scope (Phase 2+)
+### อยู่นอกขอบเขต (ระยะที่ 2 เป็นต้นไป)
 
-- Yield forecasting (stated in the project vision, deliberately deferred)
-- Multi-user accounts, estate/plot management, server-side history
-- Drone flight planning or orthomosaic stitching
-- Weather-anomaly modelling
+- พยากรณ์ผลผลิต (อยู่ในวิสัยทัศน์โครงการ แต่เลื่อนออกไปโดยตั้งใจ)
+- บัญชีหลายผู้ใช้ การจัดการไร่/แปลง และประวัติฝั่งเซิร์ฟเวอร์
+- วางแผนเส้นทางบินโดรนหรือประกอบภาพ orthomosaic
+- สร้างแบบจำลองความผิดปกติของสภาพอากาศ
 
-## 3. Constraints
+## 3. ข้อจำกัด
 
-| Constraint | Consequence for the design |
+| ข้อจำกัด | ผลต่อการออกแบบ |
 |---|---|
-| RTX 3050 Laptop, 4 GB VRAM | MobileNetV3-Large at 224 px, batch 32, mixed precision. No ViT, no high-res backbone. |
-| Unstable mountain internet | On-device ONNX inference is the primary path; the server is an enhancement, not a dependency. |
-| 9 days, capped daily AI usage | One vertical slice per day, each independently testable and committed. |
-| No labelled burn images exist | Burn detection is **rule-based computer vision**, never a trained class. |
-| Variable phone image quality | A quality gate runs before inference and rejects unusable frames instead of guessing. |
+| RTX 3050 Laptop, VRAM 4 GB | ใช้ MobileNetV3-Large ที่ 224 px, batch 32 และ mixed precision ห้ามใช้ ViT หรือ backbone ความละเอียดสูง |
+| อินเทอร์เน็ตบนภูเขาไม่เสถียร | ONNX บนอุปกรณ์เป็นเส้นทางหลัก เซิร์ฟเวอร์เป็นส่วนเพิ่ม ไม่ใช่ dependency |
+| เหลือ 9 วันและมีเพดานการใช้ AI ต่อวัน | ทำงานแนวตั้งวันละหนึ่งสไลซ์ โดยแต่ละสไลซ์ทดสอบและ commit แยกได้ |
+| ไม่มีภาพใบไหม้ที่ติดป้ายกำกับ | ตรวจใบไหม้ด้วย **computer vision แบบกฎเกณฑ์** ห้ามฝึกเป็นคลาส |
+| คุณภาพภาพจากโทรศัพท์ไม่คงที่ | ตรวจคุณภาพก่อน inference และปฏิเสธภาพที่ใช้ไม่ได้แทนการเดา |
 
-## 4. Repository layout
+## 4. โครงสร้าง repository
 
 ```
 TeaSmart AI/
-├─ ml/                      Python training package (teasmart_ml)
+├─ ml/                      แพ็กเกจ Python สำหรับ train (teasmart_ml)
 │  ├─ teasmart_ml/
-│  │  ├─ datasets/sources.py     source registry + downloaders
-│  │  ├─ datasets/ingest.py      normalise every source to canonical classes
-│  │  ├─ datasets/dedup.py       perceptual-hash dedup across sources
+│  │  ├─ datasets/sources.py     รายการแหล่งข้อมูลและตัวดาวน์โหลด
+│  │  ├─ datasets/ingest.py      ปรับชื่อคลาสทุกแหล่งให้เป็น canonical classes
+│  │  ├─ datasets/dedup.py       ลบข้อมูลซ้ำข้ามแหล่งด้วย perceptual hash
 │  │  ├─ datasets/manifest.py    manifest.csv (path, class, source, split, phash)
-│  │  ├─ transforms.py           train/eval augmentation
-│  │  ├─ train.py                transfer learning loop
-│  │  ├─ evaluate.py             confusion matrix, per-class P/R/F1
-│  │  └─ export_onnx.py          ONNX for the browser, with parity measurement
+│  │  ├─ transforms.py           augmentation สำหรับ train/eval
+│  │  ├─ train.py                วงรอบ transfer learning
+│  │  ├─ evaluate.py             confusion matrix และ P/R/F1 รายคลาส
+│  │  └─ export_onnx.py          ส่งออก ONNX สำหรับเบราว์เซอร์พร้อมวัด parity
 │  └─ tests/
-├─ backend/                 FastAPI service
+├─ backend/                 บริการ FastAPI
 │  ├─ app/
 │  │  ├─ main.py
 │  │  ├─ api/v1/scan.py, api/v1/kb.py, api/v1/sync.py
-│  │  ├─ core/config.py, core/images.py (safe decode)
-│  │  ├─ services/quality.py     stage 1
-│  │  ├─ services/segment.py     stage 2
-│  │  ├─ services/classify.py    stage 3 (onnxruntime)
-│  │  ├─ services/lesion.py      stage 4 burn-vs-disease
-│  │  ├─ services/severity.py    stage 5
-│  │  ├─ services/expert.py      stage 6
-│  │  └─ kb/diseases.json        knowledge base (6 records)
+│  │  ├─ core/config.py, core/images.py (ถอดรหัสภาพอย่างปลอดภัย)
+│  │  ├─ services/quality.py     ขั้นที่ 1
+│  │  ├─ services/segment.py     ขั้นที่ 2
+│  │  ├─ services/classify.py    ขั้นที่ 3 (onnxruntime)
+│  │  ├─ services/lesion.py      ขั้นที่ 4 แยกแผลไหม้กับโรค
+│  │  ├─ services/severity.py    ขั้นที่ 5
+│  │  ├─ services/expert.py      ขั้นที่ 6
+│  │  └─ kb/diseases.json        ฐานความรู้ (6 records)
 │  └─ tests/
 ├─ frontend/                React + Vite + TypeScript + Tailwind (PWA)
 │  ├─ src/features/scan/, result/, history/, kb/
-│  ├─ src/lib/onnx.ts            onnxruntime-web on-device inference
-│  ├─ src/lib/queue.ts           IndexedDB offline queue + sync
+│  ├─ src/lib/onnx.ts            inference บนอุปกรณ์ด้วย onnxruntime-web
+│  ├─ src/lib/queue.ts           คิวออฟไลน์และ sync ผ่าน IndexedDB
 │  └─ public/models/             teasmart-v1.onnx (fp32, 16.8 MB)
-├─ data/                    gitignored
+├─ data/                    ถูก gitignore
 │  ├─ raw/<source-id>/           untouched downloads
 │  ├─ interim/<source-id>/       extracted
 │  └─ processed/{train,val,test}/<class>/
-└─ docs/                   three files, no subfolders
-   ├─ STATE.md                   where the work is; read first
-   ├─ DESIGN.md                  this document
-   └─ EVIDENCE.md                measured results
+└─ docs/                   เอกสารสามไฟล์ ไม่มีโฟลเดอร์ย่อย
+   ├─ STATE.md                   สถานะงาน; อ่านก่อน
+   ├─ DESIGN.md                  เอกสารนี้
+   └─ EVIDENCE.md                ผลที่วัดได้
 ```
 
-## 5. Canonical class taxonomy
+## 5. รายการคลาส canonical
 
-Five **trained** classes. `physical_burn` is produced by stage 4, not by the
-model.
+มีคลาสที่ **นำไป train** ห้าคลาส ส่วน `physical_burn` เป็นผลจากขั้นที่ 4 ไม่ใช่คลาสของโมเดล
 
-| id | canonical class | KB record |
+| id | คลาส canonical | ระเบียนใน KB |
 |---|---|---|
-| 0 | `grey_blight` | Tea Grey Blight (given) |
-| 1 | `brown_blight` | Tea Brown Blight (given) |
-| 2 | `algal_spot` | Algal Leaf Spot (given) |
-| 3 | `healthy` | Healthy (given) |
-| 4 | `other_disease` | **new** — abnormality outside the three primary diseases |
-| — | `physical_burn` | **new** — emitted by the rule engine only |
+| 0 | `grey_blight` | Tea Grey Blight (ได้รับมา) |
+| 1 | `brown_blight` | Tea Brown Blight (ได้รับมา) |
+| 2 | `algal_spot` | Algal Leaf Spot (ได้รับมา) |
+| 3 | `healthy` | Healthy (ได้รับมา) |
+| 4 | `other_disease` | **ใหม่** — ความผิดปกตินอกเหนือจากโรคหลักสามชนิด |
+| — | `physical_burn` | **ใหม่** — สร้างจาก rule engine เท่านั้น |
 
-### Source label mapping
+### การจับคู่ป้ายชื่อจากแหล่งข้อมูล
 
-| source label | canonical |
+| ป้ายชื่อจากแหล่ง | canonical |
 |---|---|
 | `gray_blight`, `gray_light`, `Gray Blight` | `grey_blight` |
 | `brown_blight`, `Brown Blight` | `brown_blight` |
@@ -133,194 +120,119 @@ model.
 | `healthy`, `Healthy` | `healthy` |
 | `anthracnose`, `bird_eye_spot`, `red_spot`, `red_leaf_spot`, `Red Leaf Spot`, `helopeltis`, `Helopeltis`, `white_spot` | `other_disease` |
 
-Rationale for `other_disease`: every source dataset carries disease classes
-absent from the knowledge base. Dropping them would make the model answer
-"Brown Blight" with high confidence when shown a real Red Leaf Spot leaf in the
-field. Merging them into one class lets the system say "an abnormality was
-detected but it is not one of the three primary diseases — have an agronomist
-inspect it", which is honest and materially safer advice.
+เหตุผลที่มี `other_disease`: ทุกชุดข้อมูลจากแหล่งภายนอกมีคลาสโรคที่ไม่มีในฐานความรู้ หากตัดคลาสเหล่านี้ทิ้ง โมเดลอาจตอบ “Brown Blight” ด้วยความมั่นใจสูงเมื่อเห็นใบ Red Leaf Spot จริงในไร่ การรวมคลาสเหล่านี้ไว้ด้วยกันทำให้ระบบบอกได้ว่า “พบความผิดปกติ แต่ไม่ใช่โรคหลักสามชนิด ควรให้นักวิชาการเกษตรตรวจ” ซึ่งซื่อตรงและปลอดภัยกว่าอย่างมีนัยสำคัญ
 
-## 6. Data sources
+## 6. แหล่งข้อมูล
 
-Probed 2026-10-13. Only no-authentication sources are used in Phase 1.
+ตรวจสอบเมื่อ 2026-10-13 ระยะที่ 1 ใช้เฉพาะแหล่งที่ไม่ต้องยืนยันตัวตน
 
-| id | source | status | size | role |
+| id | แหล่งข้อมูล | สถานะ | ขนาด | บทบาท |
 |---|---|---|---|---|
-| `agml` | HF `Project-AgML/tea_leaf_disease_classification` | public parquet | 32 MB / 5,867 img / 6 classes | primary classifier training set |
-| `yunusserhat` | HF `yunusserhat/tea_sickness_dataset` | public parquet | 780 MB / 885 img / 8 classes | high-resolution variety; lesion-feature tuning |
-| `mendeley_mz598` | Mendeley `mz598gxfw9` | public zip (Roboflow YOLO) | 108 MB / 6 classes + bboxes | lesion localisation and severity validation |
-| `mendeley_d2xy` | Mendeley `d2xybhfw59` | public zip, 3.07 GB | deferred | optional extra volume |
-| `mendeley_94fz` | Mendeley `94fzcdz8gz` | public rar, 964 MB | deferred | optional extra volume |
-| `mendeley_sjmy` | Mendeley `sjmy6k24d6` | **HTTP 451, unavailable** | — | dropped |
-| `kaggle_*` x2, `hf_ttkqwe123` | Kaggle / gated HF | needs credentials | deferred | `sources.py` keeps the entries so they can be enabled later by dropping in a token |
+| `agml` | HF `Project-AgML/tea_leaf_disease_classification` | parquet สาธารณะ | 32 MB / 5,867 ภาพ / 6 คลาส | ชุดหลักสำหรับ train classifier |
+| `yunusserhat` | HF `yunusserhat/tea_sickness_dataset` | parquet สาธารณะ | 780 MB / 885 ภาพ / 8 คลาส | ภาพความละเอียดสูง; ปรับคุณลักษณะของรอยโรค |
+| `mendeley_mz598` | Mendeley `mz598gxfw9` | zip สาธารณะ (Roboflow YOLO) | 108 MB / 6 คลาส + bounding box | ระบุตำแหน่งรอยโรคและตรวจสอบความรุนแรง |
+| `mendeley_d2xy` | Mendeley `d2xybhfw59` | zip สาธารณะ, 3.07 GB | เลื่อนออกไป | เพิ่มปริมาณข้อมูลตามต้องการ |
+| `mendeley_94fz` | Mendeley `94fzcdz8gz` | rar สาธารณะ, 964 MB | เลื่อนออกไป | เพิ่มปริมาณข้อมูลตามต้องการ |
+| `mendeley_sjmy` | Mendeley `sjmy6k24d6` | **HTTP 451, ใช้ไม่ได้** | — | ตัดออก |
+| `kaggle_*` 2 แหล่ง, `hf_ttkqwe123` | Kaggle / HF ที่จำกัดสิทธิ์ | ต้องใช้ credential | เลื่อนออกไป | `sources.py` เก็บรายการไว้ เพื่อเปิดใช้ภายหลังเมื่อนำ token มาใส่ |
 
-Usable immediately: **11,853 labelled images plus bounding-box annotations**, which deduplicate to a corpus of **8,316**. Counted on 2026-10-13; the
-estimate here before the sources were opened was 6,752, which missed that
-`mendeley_mz598` carries 5,180 images of its own rather than annotations alone.
+นำมาใช้ได้ทันที: **ภาพที่ติดป้ายกำกับ 11,853 ภาพ พร้อม bounding-box annotations** เมื่อลบข้อมูลซ้ำแล้วเหลือ **8,316 ภาพ** นับเมื่อ 2026-10-13; ก่อนเปิดดูแหล่งข้อมูลคาดไว้ 6,752 ภาพ ซึ่งนับ `mendeley_mz598` เป็นเพียง annotation และพลาดภาพ 5,180 ภาพที่แหล่งนี้มีอยู่ด้วย
 
-### Leakage control
+### การควบคุมข้อมูลรั่วไหลระหว่างชุด
 
-A duplicate is defined by pixels: two images are the same photograph when the
-mean absolute difference of their 32x32 greyscale thumbnails is at most 8.0 of
-255. Every pair is compared, made tractable by an exact lower bound (the mean
-absolute difference of 4x4 block means can never exceed that of the pixels they
-average), so nothing is discarded on an approximation. Confirmed duplicates
-collapse to the highest-resolution copy; a group spanning two classes is
-dropped rather than resolved. Splits are then stratified 70/15/15 **after**
-dedup. The manifest records each image's source and perceptual hash so the
-result is auditable, and its paths are relative to the interim root.
+นิยามภาพซ้ำอิงพิกเซล: ภาพสองใบเป็นภาพถ่ายเดียวกันเมื่อค่าเฉลี่ยความต่างสัมบูรณ์ของภาพย่อขาวดำขนาด 32x32 ไม่เกิน 8.0 จาก 255 เปรียบเทียบทุกคู่ โดยลดจำนวนคู่ที่ต้องคำนวณด้วยขอบเขตล่างแบบ exact (ค่าเฉลี่ยความต่างสัมบูรณ์ของค่าเฉลี่ยบล็อก 4x4 ไม่มีทางมากกว่าค่าของพิกเซลที่นำมาเฉลี่ย) จึงไม่มีภาพใดถูกตัดสินจากค่าประมาณ ภาพซ้ำที่ยืนยันแล้วจะยุบเหลือภาพที่ความละเอียดสูงสุด หากกลุ่มภาพซ้ำมีมากกว่าหนึ่งคลาส ให้ตัดทั้งกลุ่มทิ้งแทนการเดาคลาส จากนั้นแบ่งชุดแบบ stratified 70/15/15 **หลังลบข้อมูลซ้ำ** manifest บันทึกแหล่งที่มาและ perceptual hash ของแต่ละภาพเพื่อให้ตรวจสอบย้อนหลังได้ และ path อ้างอิงจาก interim root
 
-A perceptual hash is **not** used to decide anything, and this is the most
-expensive lesson of D2. Using pHash within a Hamming distance of 5 as the test
-collapsed pairs that were not the same photograph 24% of the time. Using it to
-generate candidates for a pixel confirmation looked right and was worse in the
-way that matters: it silently capped recall, and the manifest it produced
-contained 127 cross-split duplicate pairs, leaving 3.24% of the evaluation set
-with a twin in training. pHash thresholds DCT coefficients at their median, so a
-low-contrast image has many coefficients sitting on it and a near-identical copy
-flips them - two images measured 0.01 of 255 apart hashed 26 bits apart.
+**ห้ามใช้ perceptual hash ตัดสินคู่ภาพ** นี่คือบทเรียนที่มีต้นทุนสูงที่สุดของ D2 การใช้ pHash ที่ Hamming distance ไม่เกิน 5 เป็นเกณฑ์ทำให้ 24% ของคู่ที่ไม่ใช่ภาพเดียวกันถูกรวมเข้าด้วยกัน การใช้มันสร้างรายการ candidate แล้วค่อยยืนยันด้วยพิกเซลดูเหมือนถูกต้อง แต่กลับพลาดในจุดสำคัญ: มันจำกัด recall อย่างเงียบ ๆ และ manifest ที่ได้มีคู่ภาพซ้ำข้ามชุด 127 คู่ ทำให้ข้อมูลประเมิน 3.24% มีภาพคู่แฝดอยู่ในชุด train ด้วย pHash ใช้ค่ามัธยฐานของสัมประสิทธิ์ DCT เป็น threshold ภาพ contrast ต่ำจึงมีสัมประสิทธิ์หลายค่าค้างอยู่ตรงนั้น และสำเนาที่แทบเหมือนกันอาจพลิกบิตได้ ภาพสองใบที่ค่าพิกเซลต่างกัน 0.01 จาก 255 กลับมี hash ต่างกัน 26 บิต
 
-**Verified, not asserted.** After each build, every pair of manifest rows is
-compared in pixel terms, and the check is stated without reference to how
-candidates are generated: the earlier version only examined pairs the hash had
-proposed, which is why it reported zero while those 127 pairs existed. The
-current corpus reports 0 cross-split duplicate pairs out of 8,316 rows. See
-`docs/EVIDENCE.md` section 1 for the numbers and the two wrong
-answers that preceded them.
+**ตรวจสอบแล้ว ไม่ใช่แค่กล่าวอ้าง** หลังสร้างแต่ละครั้ง จะเปรียบเทียบทุกคู่ของแถวใน manifest ด้วยค่าพิกเซล และกำหนดเงื่อนไขตรวจโดยไม่อ้างวิธีสร้าง candidate: รุ่นก่อนหน้าตรวจเฉพาะคู่ที่ hash เสนอมา จึงรายงานศูนย์ทั้งที่มีคู่ข้ามชุด 127 คู่ corpus ปัจจุบันรายงานคู่ภาพซ้ำข้ามชุด 0 คู่ จากทั้งหมด 8,316 แถว ดูตัวเลขและผลผิดสองครั้งก่อนหน้านั้นใน `docs/EVIDENCE.md` หัวข้อ 1
 
-## 7. Inference pipeline
+## 7. Pipeline การวิเคราะห์
 
 ```
 image -> [1] quality gate -> [2] leaf segment -> [3] classifier
       -> [4] lesion analyser -> [5] severity -> [6] expert system -> result
 ```
 
-Every stage is a pure function over a well-defined input, independently
-testable, with no knowledge of any other stage's internals.
+ทุกขั้นเป็น pure function ที่รับ input ซึ่งระบุชัด ทดสอบแยกกันได้ และไม่ต้องรู้รายละเอียดภายในของขั้นอื่น
 
-### Stage 1 — Quality gate (`services/quality.py`)
+### ขั้นที่ 1 — ด่านตรวจคุณภาพ (`services/quality.py`)
 
-- **Blur:** variance of the Laplacian; reject below a calibrated threshold.
-- **Exposure:** mean luminance plus the fraction of clipped pixels at both ends
-  of the histogram; reject over/under-exposed frames.
-- Returns `{passed, blur_score, exposure_score, reason_th}`. On failure the API
-  returns `422` with a Thai instruction ("ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น")
-  rather than a guessed diagnosis.
+- **ความเบลอ:** วัด variance ของ Laplacian และปฏิเสธภาพที่ต่ำกว่า threshold ซึ่งปรับเทียบไว้
+- **การรับแสง:** ดูค่า luminance เฉลี่ยและสัดส่วนพิกเซลที่ถูก clip ที่ปลายทั้งสองด้านของ histogram แล้วปฏิเสธภาพที่สว่างหรือมืดเกินไป
+- ส่งคืน `{passed, blur_score, exposure_score, reason_th}` หากไม่ผ่าน API ตอบ `422` พร้อมคำแนะนำภาษาไทย (เช่น “ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น”) แทนการเดาผลวินิจฉัย
 
-Thresholds are calibrated against the training corpus plus synthetically
-blurred and re-exposed copies, and are stored in config, not hard-coded at call
-sites.
+ปรับเทียบ threshold จาก training corpus รวมกับสำเนาที่สร้างให้เบลอหรือปรับ exposure แล้ว และเก็บไว้ใน config ห้าม hard-code ณ จุดเรียกใช้
 
-### Stage 2 — Leaf segmentation (`services/segment.py`)
+### ขั้นที่ 2 — แยกใบชาออกจากพื้นหลัง (`services/segment.py`)
 
-Excess-green index combined with an HSV green mask, morphological cleanup, then
-the largest connected contour. Outputs the leaf mask, a tight crop, and the
-leaf's pixel area. Without this step the severity ratio is meaningless and the
-background drives false positives.
+ใช้ excess-green index ร่วมกับ HSV green mask ทำ morphological cleanup แล้วเลือก contour ที่เชื่อมต่อกันและมีขนาดใหญ่ที่สุด ส่งออก leaf mask, crop ที่กระชับ และพื้นที่พิกเซลของใบ หากไม่มีขั้นนี้ severity ratio จะไม่มีความหมายและพื้นหลังจะทำให้เกิด false positive
 
-### Stage 3 — Classifier (`services/classify.py`)
+### ขั้นที่ 3 — ตัวจำแนก (`services/classify.py`)
 
-MobileNetV3-Large, ImageNet-pretrained, head replaced with 5 outputs. Input
-224x224 on the segmented crop. Training: AdamW, cosine schedule, label
-smoothing 0.05, class-balanced sampling, mixed precision, early stopping on
-validation macro-F1. Augmentation targets the real failure modes: random
-resized crop, rotation, horizontal/vertical flip, colour jitter, motion blur,
-and brightness/contrast shifts standing in for field lighting.
+ใช้ MobileNetV3-Large ที่ pretrain ด้วย ImageNet และเปลี่ยน head ให้มี output 5 คลาส ใช้ภาพ crop ที่แยกใบแล้ว ขนาด input 224x224 วิธี train: AdamW, cosine schedule, label smoothing 0.05, sampling ให้สมดุลตามคลาส, mixed precision และ early stopping โดยดู validation macro-F1 การเพิ่มข้อมูลจำลองจุดพลาดจริง ได้แก่ crop แล้วปรับขนาดแบบสุ่ม หมุน พลิกแนวนอน/แนวตั้ง ปรับสี จำลอง motion blur และปรับ brightness/contrast เพื่อแทนแสงในไร่
 
-Outputs `{class_id, class_name, confidence, top_k}`. Confidence below a
-configured floor downgrades the result to `other_disease` with an explicit
-low-confidence flag.
+ส่งออก `{class_id, class_name, confidence, top_k}` หาก confidence ต่ำกว่าเกณฑ์ใน config ให้ลดผลเป็น `other_disease` พร้อมตั้ง flag ว่าความเชื่อมั่นต่ำ
 
-### Stage 4 — Burn-vs-disease discriminator (`services/lesion.py`)
+### ขั้นที่ 4 — ตัวแยกแผลไหม้กับโรค (`services/lesion.py`)
 
-This is the project's differentiator and it uses **no labelled burn data**. From
-the lesion mask (threshold within the leaf mask on the non-green residual), five
-normalised features are computed:
+นี่คือคุณสมบัติที่ทำให้โครงการแตกต่าง และใช้ **ข้อมูลใบไหม้ที่ติดป้ายกำกับเป็นศูนย์ภาพ** จาก lesion mask (threshold ภายใน leaf mask บนส่วนสีที่ไม่เขียว) จะคำนวณคุณลักษณะที่ปรับสเกลแล้วห้าค่า:
 
-| feature | computation | burn | disease |
+| คุณลักษณะ | วิธีคำนวณ | ใบไหม้ | โรค |
 |---|---|---|---|
-| `edge_sharpness` | mean Sobel gradient magnitude in a band along the lesion boundary | low (diffuse) | high (crisp dark margin) |
-| `ring_score` | sign changes / dominant frequency of the radial intensity profile from the lesion centroid | low (absent) | high (concentric zonation) |
-| `acervuli_score` | bottom-hat morphology plus blob detection, size-filtered to 2-8 px, density per lesion area | low (absent) | high (black fruiting dots) |
-| `edge_affinity` | fraction of lesion pixels within k px of the leaf contour | high (tip/margin, sun-facing) | low (scattered over the lamina) |
-| `colour_zonation` | number of distinct hue/value clusters inside the lesion (k-means, inertia drop) and mean saturation | low (uniform straw, desaturated) | high (multi-band brown to grey) |
+| `edge_sharpness` | ค่าเฉลี่ย Sobel gradient magnitude ในแถบตามขอบรอยโรค | ต่ำ (ขอบกระจาย) | สูง (ขอบเข้มคมชัด) |
+| `ring_score` | จำนวนครั้งที่สัญญาณเปลี่ยนเครื่องหมาย / ความถี่เด่นของ radial intensity profile จากจุดศูนย์กลางรอยโรค | ต่ำ (ไม่มีวง) | สูง (วงซ้อนกัน) |
+| `acervuli_score` | bottom-hat morphology กับการหา blob กรองขนาด 2-8 px แล้วหาความหนาแน่นต่อพื้นที่รอยโรค | ต่ำ (ไม่มี) | สูง (จุดสร้างสปอร์สีดำ) |
+| `edge_affinity` | สัดส่วนพิกเซลของรอยโรคที่อยู่ห่างจากขอบใบไม่เกิน k px | สูง (ปลายใบ/ขอบใบที่หันรับแดด) | ต่ำ (กระจายทั่วแผ่นใบ) |
+| `colour_zonation` | จำนวนกลุ่ม hue/value ที่ต่างกันภายในรอยโรค (k-means, inertia drop) และค่า saturation เฉลี่ย | ต่ำ (สีฟางสม่ำเสมอและจาง) | สูง (หลายเฉดจากน้ำตาลถึงเทา) |
 
-Each feature is normalised by percentiles measured on the training corpus, then
-combined as a weighted logistic score into `burn_likelihood` in the range 0 to
-1. Above a configured threshold (initially 0.6) the result is overridden to
-`physical_burn`, the disease confidence is reported as suppressed, and the
-expert system returns burn advice (adjust shade, review spray concentration,
-irrigate — explicitly **no fungicide**).
+ปรับแต่ละคุณลักษณะตาม percentile ที่วัดจาก training corpus แล้วรวมเป็น weighted logistic score ชื่อ `burn_likelihood` อยู่ระหว่าง 0 ถึง 1 หากสูงกว่า threshold ใน config (ค่าเริ่มต้น 0.6) ให้เปลี่ยนผลเป็น `physical_burn` ระบุว่าระงับ confidence ของโรค และให้ระบบผู้เชี่ยวชาญส่งคำแนะนำสำหรับใบไหม้ (ปรับร่มเงา ตรวจความเข้มข้นของสารพ่น ให้น้ำ — ระบุชัดเจนว่า **ห้ามใช้สารฆ่าเชื้อรา**)
 
-**Honest evaluation.** With no real burn photographs, the claim is not "we
-detect burns with X% accuracy". We measure and report two things:
+**ประเมินอย่างตรงไปตรงมา** เมื่อไม่มีภาพใบไหม้จริง ห้ามอ้างว่า “ตรวจใบไหม้ได้แม่น X%” ให้วัดและรายงานสองรายการนี้:
 
-- **Specificity:** the rate at which confirmed-disease test images are wrongly
-  flagged as burn. Target below 5%. This is measurable on real data and is the
-  metric that matters, because the feature exists to cut false positives.
-- **Sensitivity on synthetic burns:** burn-like lesions rendered onto healthy
-  leaves (soft-edged tan gradient blotches seeded at leaf margins, no
-  micro-dots, no rings). Reported as indicative only, clearly labelled as
-  synthetic.
+- **Specificity:** อัตราที่ภาพทดสอบซึ่งยืนยันว่าเป็นโรคถูกระบุผิดว่าเป็นใบไหม้ เป้าหมายต่ำกว่า 5% วัดได้จากข้อมูลจริงและเป็นตัวชี้วัดสำคัญ เพราะคุณสมบัตินี้มีไว้ลด false positive
+- **Sensitivity บนใบไหม้สังเคราะห์:** สร้างรอยคล้ายใบไหม้บนใบสุขภาพดี (ปื้นไล่สีแทน ขอบนุ่ม อยู่ริมใบ ไม่มีจุดเล็กหรือวง) รายงานเพื่อใช้อ้างอิงเท่านั้นและต้องระบุชัดว่าเป็นข้อมูลสังเคราะห์
 
-Weights and thresholds live in config so they can be tuned without code changes.
+น้ำหนักและ threshold อยู่ใน config เพื่อปรับค่าได้โดยไม่ต้องแก้โค้ด
 
-### Stage 5 — Severity (`services/severity.py`)
+### ขั้นที่ 5 — ความรุนแรง (`services/severity.py`)
 
-`affected_pct = lesion_area / leaf_area`, mapped to mild (below 5%), moderate
-(5-20%), severe (above 20%). Bounding boxes from `mendeley_mz598` are used to
-sanity-check that the lesion mask overlaps the annotated lesions (IoU report in
-`docs/EVIDENCE.md`).
+คำนวณ `affected_pct = lesion_area / leaf_area` แล้วจัดเป็น mild (ต่ำกว่า 5%), moderate (5-20%) หรือ severe (มากกว่า 20%) ใช้ bounding box จาก `mendeley_mz598` ตรวจคร่าว ๆ ว่า lesion mask ซ้อนกับรอยโรคที่ทำ annotation ไว้หรือไม่ (รายงาน IoU ใน `docs/EVIDENCE.md`)
 
-### Stage 6 — Expert system (`services/expert.py`)
+### ขั้นที่ 6 — ระบบผู้เชี่ยวชาญ (`services/expert.py`)
 
-A pure lookup from the resolved class into `kb/diseases.json`, returning the
-Thai advice fields verbatim. Severity selects the emphasis (severe escalates to
-the chemical treatment; mild leads with cultural control). The knowledge base is
-data, never code, and is served to the frontend so it can be cached for offline
-use.
+ค้น `kb/diseases.json` ด้วยคลาสที่สรุปแล้ว และส่งคืนช่องคำแนะนำภาษาไทยตามต้นฉบับ ระดับความรุนแรงเป็นตัวกำหนดจุดเน้น (ระดับ severe เน้นการรักษาด้วยสารเคมี ส่วน mild เริ่มจากวิธีดูแลแปลง) ฐานความรู้เป็นข้อมูล ไม่ใช่โค้ด และส่งให้ frontend เพื่อ cache ใช้ออฟไลน์ได้
 
-**Knowledge base schema** (per record): `class_id`, `canonical`,
-`class_name`, `disease_name_th`, `pathogen`, `symptoms`, `immediate_action`,
-`cultural_control`, `chemical_treatment`, `preventive_measures`. Records 0-3
-carry the four supplied advice texts verbatim; records 4 (`other_disease`) and 5
-(`physical_burn`) are added by this design and written in the same voice.
+**schema ของฐานความรู้** (ต่อหนึ่ง record): `class_id`, `canonical`, `class_name`, `disease_name_th`, `pathogen`, `symptoms`, `immediate_action`, `cultural_control`, `chemical_treatment`, `preventive_measures` ระเบียน 0-3 เก็บข้อความคำแนะนำสี่รายการที่ได้รับมาตามต้นฉบับ ส่วนระเบียน 4 (`other_disease`) และ 5 (`physical_burn`) เพิ่มโดยการออกแบบนี้และเขียนด้วยน้ำเสียงเดียวกัน
 
-`canonical` is the snake_case name from section 5 and is the key the lookup
-uses, because that is the name stage 3 emits and the name section 8 puts in the
-response. `class_name` remains the English display name.
+`canonical` คือชื่อ snake_case จากหัวข้อ 5 และเป็น key ที่ใช้ค้น เพราะเป็นชื่อที่ขั้น 3 ส่งออกและหัวข้อ 8 ระบุใน response ส่วน `class_name` ยังคงเป็นชื่อแสดงภาษาอังกฤษ
 
-## 8. API contract
+## 8. สัญญา API
 
-This section is the interface between the backend and the PWA. Neither side
-changes it alone: a change is written here first, noted in `docs/STATE.md`, and
-raised with the user.
+หัวข้อนี้เป็น interface ระหว่าง backend กับ PWA ห้ามฝ่ายใดเปลี่ยนตามลำพัง หากต้องแก้ ให้เขียนลงที่นี่ก่อน ระบุใน `docs/STATE.md` และแจ้งผู้ใช้
 
-| method | path | purpose |
+| method | path | จุดประสงค์ |
 |---|---|---|
-| `GET` | `/health` | liveness, model version |
-| `POST` | `/api/v1/scan` | one image, full result |
-| `GET` | `/api/v1/kb` | the knowledge base, for offline caching |
-| `GET` | `/api/v1/config` | the constants both sides need, for offline caching |
-| `POST` | `/api/v1/sync/batch` | replay scans queued while offline |
+| `GET` | `/health` | ตรวจ liveness และรุ่นโมเดล |
+| `POST` | `/api/v1/scan` | ภาพหนึ่งใบและผลวิเคราะห์เต็มรูปแบบ |
+| `GET` | `/api/v1/kb` | ฐานความรู้สำหรับ cache ใช้ออฟไลน์ |
+| `GET` | `/api/v1/config` | ค่าที่ทั้งสองฝั่งต้องใช้สำหรับ cache ใช้ออฟไลน์ |
+| `POST` | `/api/v1/sync/batch` | ส่ง scan ที่เข้าคิวระหว่างออฟไลน์กลับไปประมวลผล |
 
 ### 8.1 `POST /api/v1/scan`
 
 `Content-Type: multipart/form-data` with these parts:
 
-| part | required | type | notes |
+| part | จำเป็น | type | หมายเหตุ |
 |---|---|---|---|
-| `image` | yes | file | The field name is **`image`**. The declared content type and the filename are ignored; the format is decided by magic bytes. JPEG, PNG and WebP only. |
-| `scan_id` | no | text | A client-generated UUIDv4. Supply it: it is the idempotency key (8.3) and it is what ties a queued scan to its result. When absent the server generates one. |
-| `captured_at` | no | text | ISO 8601 with offset, from the device clock. Recorded, never trusted. |
+| `image` | ใช่ | file | ชื่อ field คือ **`image`** ไม่ใช้ content type ที่ประกาศหรือชื่อไฟล์ตัดสิน format แต่ตรวจจาก magic bytes รองรับเฉพาะ JPEG, PNG และ WebP |
+| `scan_id` | ไม่ | text | UUIDv4 ที่ client สร้าง แนะนำให้ส่งมา เพราะเป็น idempotency key (8.3) และใช้ผูก scan ที่เข้าคิวกับผลลัพธ์ หากไม่ส่ง server จะสร้างให้ |
+| `captured_at` | ไม่ | text | ISO 8601 ที่มี offset จากนาฬิกาอุปกรณ์ บันทึกไว้แต่ไม่เชื่อถือเป็นข้อมูลยืนยันเวลา |
 
-Limits, from `Settings`: `max_upload_bytes` 8388608 (8 MiB) and
-`max_image_pixels` 40000000. Over either one the request is refused before the
-image is decoded.
+ขีดจำกัดจาก `Settings`: `max_upload_bytes` 8388608 (8 MiB) และ `max_image_pixels` 40000000 หากเกินข้อใดข้อหนึ่ง จะปฏิเสธ request ก่อนถอดรหัสภาพ
 
 Responses:
 
-| status | when | body |
+| status | เงื่อนไข | body |
 |---|---|---|
 | `200` | analysed | the result object below |
 | `422` | the quality gate rejected the frame | `{"detail", "detail_th", "quality"}` |
@@ -328,10 +240,9 @@ Responses:
 | `413` | over the byte or pixel cap | `{"detail", "detail_th"}` |
 | `400` | truncated or undecodable | `{"detail", "detail_th"}` |
 
-Only `detail_th` is ever shown to a worker. `detail` is English, for logs.
+แสดงให้คนงานเห็นเฉพาะ `detail_th` ส่วน `detail` เป็นภาษาอังกฤษสำหรับ log
 
-A `422` is not an error page: it carries the Thai instruction that tells the
-worker what to change, and the UI offers an immediate retake.
+`422` ไม่ใช่หน้า error แต่มีคำแนะนำภาษาไทยบอกคนงานว่าควรแก้อะไร และ UI ให้ถ่ายใหม่ได้ทันที
 
 ```json
 {
@@ -380,36 +291,26 @@ worker what to change, and the UI offers an immediate retake.
 }
 ```
 
-`verdict` is `"disease"` or `"physical_burn"`. `level` is `"mild"`,
-`"moderate"` or `"severe"`. `analysis_mode` is `"full"` or
-`"classifier_only"`, and the result card states which: a worker must never be
-left thinking an on-device answer was a complete analysis.
+`verdict` เป็น `"disease"` หรือ `"physical_burn"`; `level` เป็น `"mild"`, `"moderate"` หรือ `"severe"`; `analysis_mode` เป็น `"full"` หรือ `"classifier_only"` การ์ดผลลัพธ์ต้องระบุโหมดที่ใช้เสมอ เพื่อไม่ให้คนงานเข้าใจว่าผลจากอุปกรณ์เป็นการวิเคราะห์ครบทุกขั้น
 
-When `verdict` is `"physical_burn"`, `advice` comes from knowledge-base record 5
-and prescribes no fungicide. The UI shows that distinction prominently; it is
-the feature the product exists for.
+เมื่อ `verdict` เป็น `"physical_burn"` ค่า `advice` มาจากระเบียน 5 ของฐานความรู้และห้ามแนะนำสารฆ่าเชื้อรา UI ต้องแสดงความแตกต่างนี้อย่างเด่นชัด เพราะเป็นคุณสมบัติหลักของผลิตภัณฑ์
 
 ### 8.2 `POST /api/v1/sync/batch`
 
-Replays scans the browser queued while offline, each of which already has a
-local classifier-only result. The server redoes them in full.
+ส่ง scan ที่เบราว์เซอร์เข้าคิวไว้ระหว่างออฟไลน์ โดยแต่ละรายการมีผล classifier-only จากเครื่องอยู่แล้ว server จะวิเคราะห์ใหม่แบบเต็มขั้น
 
 `Content-Type: multipart/form-data`:
 
-| part | required | notes |
+| part | จำเป็น | หมายเหตุ |
 |---|---|---|
-| `items` | yes | a JSON array, one object per queued scan: `{"scan_id", "captured_at", "local_prediction": {"class_name", "confidence"}}`. `local_prediction` is optional and is recorded for comparison, never used as an answer. |
-| `images` | yes | one file part per item, repeated. **Each part's filename must be its `scan_id`.** |
+| `items` | ใช่ | JSON array มีหนึ่ง object ต่อ scan ที่เข้าคิว: `{"scan_id", "captured_at", "local_prediction": {"class_name", "confidence"}}` `local_prediction` ไม่บังคับ ใช้บันทึกเพื่อเปรียบเทียบเท่านั้น ห้ามใช้เป็นคำตอบ |
+| `images` | ใช่ | มี file part ต่อรายการและส่งซ้ำได้ **ชื่อไฟล์ของแต่ละ part ต้องเป็น `scan_id` ของรายการนั้น** |
 
-Items and files are matched by `scan_id`, not by position: an off-by-one would
-attach a diagnosis to the wrong photograph, and a worker would treat the wrong
-plot. A `scan_id` in `items` with no matching file, or a file with no matching
-item, is a `422` for the whole request.
+จับคู่รายการกับไฟล์ด้วย `scan_id` ไม่ใช่ตำแหน่ง เพราะการเลื่อนเพียงหนึ่งรายการอาจผูกผลวินิจฉัยกับภาพผิดใบและทำให้คนงานดูแลผิดแปลง หากมี `scan_id` ใน `items` แต่ไม่มีไฟล์คู่กัน หรือมีไฟล์ที่ไม่มีรายการคู่กัน ให้ตอบ `422` สำหรับทั้ง request
 
-Limits, from `Settings`: `max_batch_items` 20 and `max_batch_bytes` 33554432
-(32 MiB). A longer queue is sent as several requests; the client chunks it.
+ขีดจำกัดจาก `Settings`: `max_batch_items` 20 และ `max_batch_bytes` 33554432 (32 MiB) หากคิวยาวกว่านี้ client จะแบ่งส่งเป็นหลาย request
 
-`200` with a per-item outcome, so one unusable frame does not fail the batch:
+ตอบ `200` พร้อมผลแยกแต่ละรายการ เพื่อให้ภาพเสียหนึ่งใบไม่ทำให้ทั้ง batch ล้มเหลว:
 
 ```json
 {
@@ -425,80 +326,46 @@ Limits, from `Settings`: `max_batch_items` 20 and `max_batch_bytes` 33554432
 }
 ```
 
-Every `scan_id` sent appears in exactly one of the two arrays. `422` is returned
-for the envelope only: a malformed `items`, a mismatch, or over the limits.
+`scan_id` ที่ส่งมาต้องปรากฏใน array ใด array หนึ่งเพียงครั้งเดียวเท่านั้น `422` ใช้กับ request ทั้งชุดในกรณี `items` ผิดรูปแบบ จับคู่ไม่ตรงกัน หรือเกินขีดจำกัด
 
-### 8.3 Idempotency
+### 8.3 การป้องกันการประมวลผลซ้ำ (Idempotency)
 
-`scan_id` is the idempotency key for both endpoints. A dropped connection on a
-mountain plot means retries are normal, and a retry must not produce a second
-diagnosis or a second history entry.
+`scan_id` เป็น idempotency key ของทั้งสอง endpoint เมื่อสัญญาณหลุดในแปลงบนภูเขา การ retry เป็นเรื่องปกติและต้องไม่สร้างผลวินิจฉัยหรือรายการประวัติซ้ำ
 
-- The client generates a UUIDv4 at capture time, stores it with the queued
-  image, and sends it on every attempt including retries.
-- The server keeps a bounded in-memory map of recently completed `scan_id`s to
-  their results (`Settings.idempotency_cache_size`, 512). A repeat returns the
-  stored result with `200` and `"replayed": true` on the result object.
-- **This cache does not survive a restart, and that is deliberate for Phase 1:**
-  there is no database (section 2). The client is the durable record and must
-  dedupe locally by `scan_id` as well. The server-side cache only covers the
-  common case of a retry seconds later.
+- client สร้าง UUIDv4 ตอนถ่ายภาพ เก็บไว้กับภาพที่เข้าคิว และส่งไปทุกครั้งรวมทั้งการ retry
+- server เก็บ map ในหน่วยความจำที่จำกัดขนาด โดยจับคู่ `scan_id` ที่เพิ่งประมวลผลกับผลลัพธ์ (`Settings.idempotency_cache_size`, 512) หากส่งซ้ำ จะคืนผลเดิมพร้อมสถานะ `200` และ `"replayed": true` ใน result object
+- **cache นี้ไม่อยู่ต่อหลัง restart และตั้งใจให้เป็นเช่นนั้นในระยะที่ 1:** ไม่มีฐานข้อมูล (หัวข้อ 2) client เป็นบันทึกถาวร จึงต้องลบรายการซ้ำด้วย `scan_id` ในเครื่องด้วย cache ฝั่ง server ครอบคลุมเพียงกรณีทั่วไปที่ retry หลังจากนั้นไม่กี่วินาที
 
-### 8.4 ONNX model contract
+### 8.4 สัญญาโมเดล ONNX
 
-The browser and the server must agree on preprocessing or their answers diverge
-for reasons nobody can see. Both sides implement exactly this:
+เบราว์เซอร์กับ server ต้อง preprocess เหมือนกัน มิฉะนั้นผลจะต่างกันโดยไม่มีใครรู้สาเหตุ ทั้งสองฝั่งต้องทำตามขั้นตอนนี้ตรงกัน:
 
 1. decode to RGB `uint8`
-2. resize to **224x224, bilinear, aspect ratio not preserved**
+2. ปรับขนาดเป็น **224x224 ด้วย bilinear โดยไม่รักษา aspect ratio**
 3. divide by 255 into `[0, 1]`
-4. normalise per channel, ImageNet statistics: mean `(0.485, 0.456, 0.406)`,
-   std `(0.229, 0.224, 0.225)`
-5. transpose to NCHW, `float32`, batch 1
+4. normalize แยกแต่ละ channel ด้วยค่าสถิติ ImageNet: mean `(0.485, 0.456, 0.406)`, std `(0.229, 0.224, 0.225)`
+5. transpose เป็น NCHW, `float32`, batch 1
 
 | | |
 |---|---|
-| file | `frontend/public/models/teasmart-v1.onnx` — **fp32** |
+| ไฟล์ | `frontend/public/models/teasmart-v1.onnx` — **fp32** |
 | input | `input`, `float32[1, 3, 224, 224]`, NCHW |
-| output | `logits`, `float32[1, 5]` — **raw logits, not probabilities** |
-| class order | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
+| output | `logits`, `float32[1, 5]` — **raw logits ไม่ใช่ probabilities** |
+| ลำดับคลาส | `grey_blight`, `brown_blight`, `algal_spot`, `healthy`, `other_disease` |
 
-Softmax is applied by the caller. `low_confidence` is set when the top
-probability falls below `min_confidence`, and the result is then reported as
-`other_disease` with the flag set. **Read that floor from
-`GET /api/v1/config`; do not hard-code it.** It is provisional until D3
-measures it, and a copy in TypeScript would drift the moment it is retuned -
-silently, because neither codebase can see the other.
+ผู้เรียกเป็นผู้คำนวณ Softmax หาก probability สูงสุดต่ำกว่า `min_confidence` ให้ตั้ง `low_confidence` และรายงานคลาสเป็น `other_disease` พร้อม flag ดังกล่าว **อ่านเกณฑ์นี้จาก `GET /api/v1/config`; ห้าม hard-code** ค่าเป็นค่าชั่วคราวจนกว่า D3 จะวัด และหากคัดลอกไว้ใน TypeScript ค่าจะคลาดทันทีที่ปรับใหม่โดยไม่มีใครสังเกต เพราะ codebase ทั้งสองมองไม่เห็นกัน
 
-**The browser does not segment.** Stage 2 exists only in Python, so an
-on-device run preprocesses the whole frame while the server preprocesses the
-segmented crop. The two therefore disagree on some images, which is part of why
-an on-device result is labelled `classifier_only` rather than presented as
-equivalent. The quality gate is duplicated in JavaScript because it is cheap;
-nothing else is.
+**เบราว์เซอร์ไม่แยกใบออกจากพื้นหลัง** ขั้นที่ 2 มีเฉพาะใน Python ดังนั้นการรันบนอุปกรณ์ preprocess ทั้งภาพ ขณะที่ server preprocess เฉพาะ crop ที่แยกใบแล้ว ผลจึงต่างกันในบางภาพ และเป็นเหตุผลหนึ่งที่ต้องระบุผลจากอุปกรณ์ว่า `classifier_only` แทนการนำเสนอว่าเทียบเท่ากัน มีเพียง quality gate ที่ทำซ้ำใน JavaScript เพราะมีต้นทุนต่ำ
 
-**Parity test**, required before D7 is called done: over a fixed set of 50
-manifest images, the browser and Python pipelines must agree on top-1 for every
-image, and no class probability may differ by more than 0.05.
+**Parity test** ซึ่งต้องผ่านก่อนถือว่า D7 เสร็จ: ใช้ภาพ 50 ภาพชุดเดิมจาก manifest แล้ว pipeline ของเบราว์เซอร์กับ Python ต้องเลือก top-1 ตรงกันทุกภาพ และ probability ของทุกคลาสต้องต่างกันไม่เกิน 0.05
 
-**Int8 failed that bound and is not shipped** (2026-10-19). Statically
-calibrated int8 agreed on top-1 for all 50 images but moved a probability by
-**0.248**. Top-1 agreement alone is not the acceptance test, because the
-product thresholds on the probability: a shift that size moves predictions
-across `min_confidence` in both directions, and neither side can see the
-disagreement. The file to load is `teasmart-v1.onnx`, fp32, 16.8 MB.
-Measurements in `docs/EVIDENCE.md` section 2.5.
+**Int8 ไม่ผ่านเกณฑ์ดังกล่าวและไม่ได้ส่งมอบ** (2026-10-19) int8 ที่ calibrate แบบคงที่เลือก top-1 ตรงกันทั้ง 50 ภาพ แต่ทำให้ probability ขยับได้ถึง **0.248** การเลือก top-1 ตรงกันอย่างเดียวไม่ใช่เกณฑ์ผ่าน เพราะผลิตภัณฑ์ใช้ threshold กับ probability การขยับขนาดนี้อาจทำให้ผลข้าม `min_confidence` ได้ทั้งสองทิศทางโดยไม่มีฝั่งใดเห็นความไม่ตรงกัน ไฟล์ที่ต้องโหลดคือ `teasmart-v1.onnx`, fp32, 16.8 MB ดูผลวัดใน `docs/EVIDENCE.md` หัวข้อ 2.5
 
 ### 8.5 `GET /api/v1/config`
 
-Everything the PWA needs that also exists in the backend, in one cacheable
-document. The browser fetches it alongside the knowledge base and keeps both in
-the service-worker cache.
+รวมค่าทุกอย่างที่ PWA ต้องใช้และมีอยู่ใน backend ไว้ในเอกสารเดียวที่ cache ได้ เบราว์เซอร์ดึงมาพร้อมฐานความรู้และเก็บทั้งคู่ใน service-worker cache
 
-It exists because two things are necessarily implemented twice - the quality
-gate, because it is cheap and must work offline, and the classifier
-preprocessing, because onnxruntime-web runs the model in the browser - and a
-second copy of each constant in TypeScript drifts the first time one is retuned.
+endpoint นี้มีขึ้นเพราะจำเป็นต้อง implement สองส่วนซ้ำ: quality gate เพราะทำได้ต้นทุนต่ำและต้องใช้ตอนออฟไลน์ และ preprocessing ของ classifier เพราะ `onnxruntime-web` รันโมเดลในเบราว์เซอร์ หากมีสำเนาค่าคงที่ใน TypeScript ค่าเหล่านั้นจะคลาดทันทีที่มีการปรับ
 
 ```json
 {
@@ -530,144 +397,81 @@ second copy of each constant in TypeScript drifts the first time one is retuned.
 }
 ```
 
-`class_order` is derived from the knowledge base in `class_id` order, with
-`physical_burn` excluded because the classifier never emits it. It is derived
-rather than listed a second time, so it cannot disagree with the records the
-advice is looked up by.
+สร้าง `class_order` จากฐานความรู้ตามลำดับ `class_id` โดยตัด `physical_burn` ออกเพราะ classifier ไม่ส่งคลาสนี้ สร้างจากแหล่งเดียวแทนการเขียนซ้ำ จึงไม่ขัดกับ record ที่ใช้ค้นคำแนะนำ
 
-`min_confidence` is **0.60, measured** on 2026-10-19 and no longer
-provisional. The criterion D3 was given - the smallest floor reaching 0.90
-accuracy among accepted predictions - returns 0.20 against a model already at
-0.987, which switches the `other_disease` safety net off. The operative
-criterion is **0.99 accuracy among accepted**, which asks for 0.55 on the
-validation split and 0.63 on the test split. At 0.60 the held-out split gives
-0.9895 accuracy and declines 0.72% of photographs.
+`min_confidence` คือ **0.60 ซึ่งวัดแล้ว** เมื่อ 2026-10-19 และไม่ใช่ค่าชั่วคราวอีกต่อไป เกณฑ์ที่ D3 ได้รับคือเลือก threshold ต่ำสุดที่ทำ accuracy ได้ 0.90 ในรายการที่ยอมรับ เกณฑ์นี้ให้ค่า 0.20 ทั้งที่โมเดลมี accuracy 0.987 อยู่แล้ว จึงปิด safety net ของ `other_disease` เกณฑ์ที่ใช้จริงคือ **accuracy 0.99 ในรายการที่ยอมรับ** ซึ่งต้องใช้ค่า 0.55 บน validation split และ 0.63 บน test split เมื่อใช้ 0.60 ชุด held-out ได้ accuracy 0.9895 และปฏิเสธภาพ 0.72%
 
-The floor does not catch every confident error: one test image is wrong at
-0.983. No UI may imply that a result above the floor is certain.
+เกณฑ์นี้จับข้อผิดพลาดที่มั่นใจสูงไม่ได้ทั้งหมด: ภาพทดสอบหนึ่งภาพทำนายผิดที่ 0.983 ห้าม UI สื่อว่าผลที่สูงกว่าเกณฑ์นี้ถูกต้องแน่นอน
 
-## 9. Frontend and offline behaviour
+## 9. Frontend และการทำงานออฟไลน์
 
-- **Online:** the image is posted to the backend and the full six-stage pipeline
-  runs server-side.
-- **Offline:** `onnxruntime-web` runs the int8 model in the browser, giving the
-  class and confidence immediately; the quality gate also runs client-side in
-  JavaScript (it is cheap). The image plus its local result is queued in
-  IndexedDB and replayed through `/api/v1/sync/batch` when connectivity returns,
-  at which point the full lesion analysis and severity are filled in.
-- The result card states plainly which mode produced it, so a field worker is
-  never misled about how complete the analysis is.
-- A service worker precaches the shell, the ONNX model, and the knowledge base.
-- Routes: `/scan`, `/result/:id`, `/history`, `/kb`.
+- **ออนไลน์:** ส่งภาพไป backend และรัน pipeline ครบหกขั้นบน server
+- **ออฟไลน์:** `onnxruntime-web` รันโมเดล int8 ในเบราว์เซอร์เพื่อให้ผลคลาสและ confidence ทันที quality gate ก็รันฝั่ง client ด้วย JavaScript เพราะมีต้นทุนต่ำ ภาพและผลจากเครื่องเข้าคิวใน IndexedDB เมื่อเครือข่ายกลับมา จะส่งผ่าน `/api/v1/sync/batch` เพื่อเติมผลวิเคราะห์รอยโรคและความรุนแรงแบบเต็ม
+- การ์ดผลลัพธ์ระบุชัดเจนว่าใช้โหมดใด เพื่อไม่ให้คนทำงานในไร่เข้าใจผิดว่าผลสมบูรณ์แค่ไหน
+- service worker precache shell, ONNX model และฐานความรู้
+- Routes: `/scan`, `/result/:id`, `/history`, `/kb`
 
-The duplication is deliberate and bounded: only the classifier and the quality
-gate exist twice. The lesion analyser, severity and expert system have exactly
-one implementation, in Python.
+การทำซ้ำนี้ตั้งใจและจำกัดขอบเขตไว้ เฉพาะ classifier กับ quality gate ที่มีสองชุด ส่วนตัววิเคราะห์รอยโรค การประเมินความรุนแรง และระบบผู้เชี่ยวชาญมี implementation เดียวใน Python
 
-## 10. Security (OWASP-aligned)
+## 10. ความปลอดภัย (สอดคล้องกับ OWASP)
 
-- Accept uploads by **magic-byte sniffing**, never by file extension.
-- Hard request-size cap; reject early.
-- Decode through Pillow with `MAX_IMAGE_PIXELS` set, guarding decompression
-  bombs, then **re-encode** to strip EXIF and any embedded payload before the
-  image touches any other code.
-- Stored filenames are server-generated UUIDs; no user-supplied path component
-  ever reaches the filesystem.
-- Strict Pydantic models on every request and response.
-- CORS restricted to an explicit allowlist; rate limiting on `/api/v1/scan`.
-- Configuration via `.env` with a committed `.env.example`; no secrets in the
-  repository. `data/` and model weights are gitignored.
-- The knowledge base is read-only at runtime and loaded once at startup.
+- ตรวจไฟล์อัปโหลดด้วย **magic byte** ห้ามใช้ file extension ตัดสิน
+- จำกัดขนาด request อย่างเคร่งครัดและปฏิเสธก่อนประมวลผล
+- ถอดรหัสด้วย Pillow ที่ตั้ง `MAX_IMAGE_PIXELS` เพื่อป้องกัน decompression bomb แล้ว **เข้ารหัสภาพใหม่** เพื่อลบ EXIF และ payload ที่ฝังอยู่ก่อนส่งภาพไปยังโค้ดส่วนอื่น
+- ชื่อไฟล์ที่บันทึกใช้ UUID ที่ server สร้างเอง ไม่มีส่วนใดของ path ที่ผู้ใช้ส่งไปถึง filesystem
+- ใช้ Pydantic model ที่เข้มงวดกับทุก request และ response
+- จำกัด CORS ด้วย allowlist ที่ระบุชัด และจำกัดอัตราการเรียก `/api/v1/scan`
+- ตั้งค่าผ่าน `.env` พร้อม commit `.env.example`; ห้ามมี secret ใน repository `data/` และ model weights ถูก gitignore
+- ฐานความรู้เป็น read-only ขณะ runtime และโหลดครั้งเดียวตอนเริ่มระบบ
 
-## 11. Testing strategy
+## 11. กลยุทธ์การทดสอบ
 
-- **ml:** pytest over the label mapping, dedup behaviour, split stratification,
-  and manifest integrity. A tiny fixture corpus keeps these fast.
-- **backend:** pytest per stage. The lesion analyser is tested against
-  **synthetic fixtures** generated by code — disease-like lesions (sharp margin,
-  concentric rings, micro-dots) and burn-like lesions (soft tan gradient at the
-  leaf margin) — so the discriminator has deterministic, reviewable tests rather
-  than depending on hand-picked photographs. Security tests cover a polyglot
-  file, an oversized upload, and a decompression bomb.
-- **frontend:** vitest over the offline queue and the ONNX pre/post-processing,
-  asserting that the browser pipeline and the Python pipeline agree on the same
-  input within tolerance.
-- **model:** `docs/EVIDENCE.md` holds the confusion matrix, per-class precision /
-  recall / F1, and the burn-specificity figure. No accuracy claim is made in the
-  README or the pitch without a committed report behind it.
+- **ml:** ใช้ pytest ตรวจการจับคู่ label พฤติกรรม dedup การแบ่งชุดแบบ stratified และความสมบูรณ์ของ manifest ใช้ fixture corpus ขนาดเล็กเพื่อให้ test ทำงานเร็ว
+- **backend:** ใช้ pytest แยกตามขั้น ทดสอบตัววิเคราะห์รอยโรคด้วย **fixture สังเคราะห์** ที่สร้างจากโค้ด — รอยคล้ายโรค (ขอบคม วงซ้อน จุดเล็ก) และรอยคล้ายใบไหม้ (ไล่สีแทนนุ่ม ๆ บริเวณขอบใบ) ทำให้ test ตรวจซ้ำได้และทบทวนง่าย โดยไม่ต้องพึ่งภาพที่เลือกด้วยมือ ส่วน security test ครอบคลุมไฟล์ polyglot, upload ที่ใหญ่เกินไป และ decompression bomb
+- **frontend:** ใช้ vitest ตรวจคิวออฟไลน์และ ONNX pre/post-processing โดยยืนยันว่า pipeline ของเบราว์เซอร์กับ Python ให้ผลใน tolerance เมื่อใช้ input เดียวกัน
+- **โมเดล:** `docs/EVIDENCE.md` เก็บ confusion matrix, precision/recall/F1 รายคลาส และตัวเลข burn-specificity ห้ามกล่าวอ้าง accuracy ใน README หรือ pitch หากไม่มีรายงานที่ commit ไว้รองรับ
 
-## 12. Assumptions
+## 12. สมมติฐาน
 
-1. Two knowledge-base records are added beyond the four supplied
-   (`other_disease`, `physical_burn`); the four given records are used verbatim.
-2. Yield forecasting is Phase 2 and absent from this spec.
-3. Kaggle and gated-HuggingFace sources stay disabled until credentials are
-   provided; `sources.py` is written so enabling them is a configuration change.
-4. The repository is private, matching the project default.
+1. เพิ่มระเบียนฐานความรู้สองรายการจากสี่รายการที่ได้รับ (`other_disease`, `physical_burn`); ใช้ข้อความสี่รายการเดิมตามต้นฉบับ
+2. การพยากรณ์ผลผลิตอยู่ในระยะที่ 2 และไม่อยู่ใน spec นี้
+3. ปิดแหล่ง Kaggle และ Hugging Face ที่จำกัดสิทธิ์ไว้จนกว่าจะมี credential; เขียน `sources.py` ให้เปิดใช้ได้ด้วยการเปลี่ยน config
+4. Repository เป็น private ตามค่าเริ่มต้นของโครงการ
 
-## 13. Decisions that are easy to reverse by accident
+## 13. การตัดสินใจที่เผลอเปลี่ยนกลับได้ง่าย
 
-Each of these cost a measurement to establish. Reverting one looks harmless and
-is not.
+แต่ละข้อใช้การวัดผลเพื่อยืนยัน การเปลี่ยนกลับอาจดูเหมือนไม่มีผล แต่จริง ๆ แล้วมีผล
 
-**A duplicate is defined by pixels, not by a perceptual hash.** 32x32 greyscale
-mean absolute error at or below 8.0, compared over every pair, with a 4x4
-block-mean lower bound to make that tractable. The hash is an audit column only.
-Using the hash to generate candidate pairs capped recall: 127 cross-split pairs
-had a pixel MAE inside the threshold and a Hamming distance between 6 and 30, so
-83 images - 3.24% of the evaluation set - had a near-twin in training. The
-verification that missed it was circular, because it only examined pairs the
-hash had already called close. `EVIDENCE.md` has the numbers.
+**นิยามภาพซ้ำจากพิกเซล ไม่ใช่ perceptual hash** ใช้ mean absolute error ของภาพย่อขาวดำ 32x32 ไม่เกิน 8.0 เปรียบเทียบทุกคู่ และใช้ขอบเขตล่างจากค่าเฉลี่ยบล็อก 4x4 เพื่อให้คำนวณได้จริง เก็บ hash ไว้ตรวจสอบเท่านั้น การใช้ hash สร้าง candidate pairs จำกัด recall: มีคู่ข้ามชุด 127 คู่ที่ pixel MAE ต่ำกว่าเกณฑ์ แต่ Hamming distance อยู่ระหว่าง 6 ถึง 30 จึงมีภาพ 83 ภาพ (3.24% ของชุดประเมิน) ที่มีภาพคล้ายกันมากอยู่ในชุด train การตรวจเดิมพลาดเพราะตรวจเฉพาะคู่ที่ hash บอกว่าใกล้กัน ทำให้เป็นการตรวจแบบวนกลับมายืนยันวิธีของตัวเอง ดูตัวเลขใน `EVIDENCE.md`
 
-**Duplicate grouping is leader-based, not single-linkage.** Transitive closure
-chained near-misses into one group of 866 images.
+**จัดกลุ่มภาพซ้ำโดยยึดภาพ leader ไม่ใช่ single-linkage** เพราะ transitive closure เคยต่อภาพที่เกือบเหมือนกันเข้าด้วยกันจนเป็นกลุ่มใหญ่ 866 ภาพ
 
-**Exposure is judged before blur.** A dark frame has a low Laplacian variance
-and would otherwise be reported as blurry, which tells the worker to hold the
-camera steadier when the real problem is that there is no light. Measured: the
-dark fixture scores 4.39 against a blur threshold of 80.
+**ตรวจ exposure ก่อน blur** ภาพมืดมี Laplacian variance ต่ำ หากตรวจ blur ก่อนจะรายงานว่าเบลอและบอกให้คนงานถือกล้องให้นิ่งขึ้น ทั้งที่ปัญหาจริงคือแสงไม่พอ วัดแล้ว: dark fixture ได้ 4.39 เทียบกับ blur threshold 80
 
-**Clipping is measured per channel, split low and high.** A frame can sit inside
-the mean exposure band with a blown-out channel: the 4x-brightened fixture has a
-grey mean of 201.6, inside the band, and 0.322 of one channel clipped.
+**วัด clipping แยกแต่ละ channel ทั้งค่าต่ำและสูง** ภาพหนึ่งอาจมีค่า exposure เฉลี่ยอยู่ในช่วง แต่ channel หนึ่งสว่างจนล้น: fixture ที่เพิ่มความสว่าง 4 เท่ามีค่าเฉลี่ยสีเทา 201.6 ซึ่งอยู่ในช่วง แต่มี channel หนึ่งถูก clip 0.322
 
-**`other_disease` is a deliberate fifth class.** It lets the model decline to
-name a disease it was never shown, rather than confidently calling a red leaf
-spot grey blight.
+**ตั้งใจเพิ่ม `other_disease` เป็นคลาสที่ห้า** เพื่อให้โมเดลไม่ระบุชื่อโรคที่ไม่เคยเห็น แทนการเรียก red leaf spot ว่า grey blight ด้วยความมั่นใจสูง
 
-**The ONNX graph is fp32, not int8.** Int8 agreed on top-1 for all 50 parity
-images and moved a probability by 0.248 against a bound of 0.05. Top-1
-agreement is not the acceptance test because the product thresholds on the
-probability.
+**ONNX graph ใช้ fp32 ไม่ใช่ int8** int8 ให้ top-1 ตรงกันในภาพ parity ทั้ง 50 ใบ แต่ทำให้ probability ต่าง 0.248 เทียบกับขอบเขต 0.05 การตรงกันของ top-1 ไม่ใช่เกณฑ์ยอมรับ เพราะผลิตภัณฑ์ใช้ probability เป็น threshold
 
-**PIL is the definition of the resize.** The classifier was trained on PIL
-output, so the browser matches PIL and not the reverse. Fixtures in
-`frontend/src/test/fixtures/preprocess/`.
+**ใช้ PIL เป็นข้อกำหนดของการ resize** classifier train จาก output ของ PIL เบราว์เซอร์จึงต้องทำให้ตรงกับ PIL ไม่ใช่เปลี่ยน PIL ให้ตรงกับเบราว์เซอร์ fixture อยู่ใน `frontend/src/test/fixtures/preprocess/`
 
-**`data/interim/` needs its `.teasmart-interim` marker** before the pipeline
-clears anything inside it. The guard exists because the pipeline deletes.
+**`data/interim/` ต้องมี marker `.teasmart-interim`** ก่อน pipeline จะลบสิ่งใดข้างใน marker guard มีไว้เพราะ pipeline ทำการลบ
 
-**32 photographs are labelled differently by two sources and are dropped**
-rather than adjudicated by guesswork.
+**ภาพ 32 ใบมีป้ายกำกับจากสองแหล่งไม่ตรงกัน จึงตัดออก** แทนการตัดสินด้วยการเดา
 
-## 14. Who owns what
+## 14. ใครรับผิดชอบส่วนใด
 
-Two agents work in this repository in parallel. The split is by directory so
-neither waits on the other.
+มี agent สองตัวทำงานใน repository นี้พร้อมกัน แบ่งตามไดเรกทอรีเพื่อไม่ต้องรอกัน
 
-| agent | owns | meets the other at |
+| agent | รับผิดชอบ | ประสานกันที่ |
 |---|---|---|
-| Claude Code | `ml/`, `backend/` — model, pipeline stages, API | the contract in section 8 |
-| Codex | `frontend/` — PWA, camera, Thai result cards | the same contract |
+| Claude Code | `ml/`, `backend/` — โมเดล ขั้น pipeline และ API | สัญญาในหัวข้อ 8 |
+| Codex | `frontend/` — PWA กล้อง และการ์ดผลภาษาไทย | สัญญาเดียวกัน |
 
-- One branch per slice. Never two agents on one branch.
-- Check `docs/STATE.md` before starting; if your slice is taken, take the next
-  independent one.
-- Whoever finishes a slice updates `docs/STATE.md` in the same push.
-- Generate TypeScript types from section 8, rather than hand-writing them from
-  a summary of it.
-- **Do not hard-code a constant the backend also has.** `GET /api/v1/config`
-  serves the confidence floor, the class order, the ONNX preprocessing and the
-  quality thresholds. Fetch it once, cache it in the service worker next to the
-  knowledge base, and read from it.
-- Every string a worker sees is in Thai. Code, comments and commits in English.
+- หนึ่ง branch ต่อหนึ่งสไลซ์ ห้าม agent สองตัวใช้ branch เดียวกัน
+- ตรวจ `docs/STATE.md` ก่อนเริ่ม หากสไลซ์ของคุณมีคนทำแล้ว ให้เลือกงานถัดไปที่แยกทำได้
+- ผู้ที่ปิดสไลซ์ต้องอัปเดต `docs/STATE.md` ใน push เดียวกัน
+- สร้าง TypeScript types จากหัวข้อ 8 แทนการเขียนเองจากสรุป
+- **ห้าม hard-code ค่าที่ backend มีอยู่แล้ว** `GET /api/v1/config` ส่ง confidence floor, class order, ONNX preprocessing และ quality thresholds ให้ดึงครั้งเดียว cache ใน service worker ไว้ข้างฐานความรู้ แล้วอ่านจาก cache
+- ข้อความทั้งหมดที่คนงานเห็นเป็นภาษาไทย โค้ด คอมเมนต์ และ commit ใช้ภาษาอังกฤษ
