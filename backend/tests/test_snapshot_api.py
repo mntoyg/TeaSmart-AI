@@ -108,3 +108,24 @@ def test_fetch_refuses_to_invent_a_snapshot(snapshot_api) -> None:
     """A snapshot taken from nothing would deploy a broken site silently."""
     with pytest.raises(RuntimeError, match="could not reach"):
         snapshot_api.fetch("http://127.0.0.1:9", "config", timeout=2.0)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "file:///C:/Windows/win.ini",
+        "file:///etc/passwd",
+        "ftp://example.com",
+        "data:text/plain,hello",
+    ],
+)
+def test_fetch_opens_nothing_but_http(snapshot_api, base_url: str) -> None:
+    """`--base-url` decides what gets opened, and it is an argument.
+
+    `urlopen` honours file: and other schemes, so without this check a crafted
+    `--base-url` makes this script read a local file and write its contents into
+    frontend/public/, where the next build publishes it to the open web. The
+    scheme is checked before anything is opened, not after.
+    """
+    with pytest.raises(ValueError, match="http"):
+        snapshot_api.fetch(base_url, "config", timeout=2.0)

@@ -95,3 +95,43 @@ def test_refuses_a_private_key_served_as_the_certificate(
 def test_content_type_makes_ios_offer_to_install_it(serve_ca) -> None:
     """Safari installs a certificate only when it is told what it is."""
     assert serve_ca.CONTENT_TYPE == "application/x-x509-ca-cert"
+
+
+def test_mkcert_is_resolved_to_a_full_path_before_running_it(
+    serve_ca, monkeypatch, tmp_path: Path
+) -> None:
+    """Running `mkcert` by bare name runs whatever PATH points at first.
+
+    PATH is per-user and writable, so a file named mkcert.exe earlier on it
+    would be executed instead. Resolving the name first makes what runs
+    explicit, and makes "not installed" a different answer from "ran something".
+    """
+    fake = tmp_path / "mkcert.exe"
+    fake.write_text("", encoding="utf-8")
+    seen: list[list[str]] = []
+
+    monkeypatch.setattr(serve_ca.shutil, "which", lambda name: str(fake))
+
+    def record(argv, **kwargs):
+        seen.append(argv)
+        raise OSError("not actually running it")
+
+    monkeypatch.setattr(serve_ca.subprocess, "run", record)
+    serve_ca.mkcert_caroot()
+
+    assert seen, "mkcert was never invoked"
+    assert seen[0][0] == str(fake), seen[0]
+    assert Path(seen[0][0]).is_absolute(), seen[0]
+
+
+def test_missing_mkcert_is_reported_rather_than_guessed(
+    serve_ca, monkeypatch
+) -> None:
+    monkeypatch.setattr(serve_ca.shutil, "which", lambda name: None)
+    assert serve_ca.mkcert_caroot() is None
+
+
+def test_the_default_bind_is_one_interface_not_all_of_them(serve_ca) -> None:
+    """The handset needs to reach it; the VPN and every other adapter do not."""
+    assert serve_ca.DEFAULT_BIND != "0.0.0.0"
+    assert serve_ca.DEFAULT_BIND not in {"::", ""}

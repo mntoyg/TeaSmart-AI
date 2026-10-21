@@ -23,6 +23,7 @@ over yet. Only the public certificate crosses the wire.
 from __future__ import annotations
 
 import argparse
+import shutil
 import socket
 import subprocess
 import sys
@@ -38,6 +39,13 @@ KEY_NAME = "rootCA-key.pem"
 CONTENT_TYPE = "application/x-x509-ca-cert"
 
 DEFAULT_PORT = 8081
+
+# Resolved at run time to this machine's address on the network the default
+# route uses. Listening on that one interface is enough for the handset, and
+# avoids offering the certificate on every other adapter at once - VPN,
+# VirtualBox, Docker - which binding to 0.0.0.0 would do. Pass --bind 0.0.0.0
+# deliberately if that is really what is wanted.
+DEFAULT_BIND = "lan"
 
 
 def read_root_certificate(caroot: Path) -> bytes:
@@ -102,10 +110,19 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def mkcert_caroot() -> Path | None:
-    """Ask mkcert where its CA lives, or None if mkcert is not on PATH."""
+    """Ask mkcert where its CA lives, or None if mkcert cannot be found.
+
+    The name is resolved to a full path first. Running `mkcert` by bare name
+    runs whatever the user's PATH points at first, and PATH is per-user and
+    writable; resolving makes what runs explicit, and separates "not installed"
+    from "ran something else".
+    """
+    executable = shutil.which("mkcert")
+    if executable is None:
+        return None
     try:
         done = subprocess.run(
-            ["mkcert", "-CAROOT"],
+            [executable, "-CAROOT"],
             capture_output=True,
             text=True,
             timeout=15,
@@ -138,11 +155,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--bind",
-        default="0.0.0.0",  # noqa: S104 - the handset has to reach it
-        help="interface to listen on; the default is every interface, because "
-        "the point is to be reachable from the handset",
+        default=DEFAULT_BIND,
+        help="interface to listen on; the default is this machine's LAN "
+        "address, which is the one the handset uses",
     )
     args = parser.parse_args(argv)
+    bind = lan_address() if args.bind == DEFAULT_BIND else args.bind
 
     caroot = args.caroot or mkcert_caroot()
     if caroot is None:
@@ -155,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"open this on the handset:  http://{lan_address()}:{args.port}/")
     print("every request returns the certificate; stop this once it is installed")
 
-    with ThreadingHTTPServer((args.bind, args.port), _Handler) as httpd:
+    with ThreadingHTTPServer((bind, args.port), _Handler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

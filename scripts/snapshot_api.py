@@ -33,6 +33,7 @@ import json
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
@@ -47,6 +48,16 @@ SNAPSHOTS = ("config", "kb")
 
 def fetch(base_url: str, name: str, timeout: float = 15.0) -> Any:
     url = f"{base_url.rstrip('/')}/api/v1/{name}"
+    # `--base-url` is an argument, and urlopen honours file: and other schemes.
+    # Without this the script would happily read a local file and write its
+    # contents into frontend/public/, where the next build publishes it. The
+    # scheme is checked before anything is opened.
+    scheme = urlsplit(url).scheme
+    if scheme not in {"http", "https"}:
+        raise ValueError(
+            f"{url!r} is not an http or https URL (scheme {scheme!r}). "
+            "This reads a running backend, nothing else."
+        )
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
             if response.status != 200:
