@@ -41,12 +41,12 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
   function choose(file?: File) {
     if (!file) return;
     setError('');
+    stopCamera(); setCamera(false);
     if (file.size > transportLimits.max_upload_bytes) {
       const limitMegabytes = Math.ceil(transportLimits.max_upload_bytes / (1024 * 1024));
       setError(`ภาพมีขนาดเกิน ${limitMegabytes.toLocaleString('th-TH')} เมกะไบต์ กรุณาเลือกภาพที่เล็กลง`);
       return;
     }
-    stopCamera(); setCamera(false);
     setCapture({ file, id: crypto.randomUUID(), at: new Date().toISOString() });
   }
   async function openCamera() {
@@ -120,7 +120,8 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
         <label className={`button ${busy ? 'disabled' : ''}`}>
           เลือกภาพใบชา<input aria-label="เลือกภาพใบชา" type="file" accept="image/jpeg,image/png,image/webp"
             disabled={busy || opening} onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ''; }} /></label>
-        {camera ? <button onClick={takePhoto} disabled={busy}>ถ่ายภาพ</button>
+        {camera ? <><button onClick={takePhoto} disabled={busy}>ถ่ายภาพ</button>
+          <button className="secondary" onClick={() => { stopCamera(); setCamera(false); }} disabled={busy}>ปิดกล้อง</button></>
           : <button className="secondary" onClick={openCamera} disabled={busy || opening}>{opening ? 'กำลังเปิดกล้อง…' : 'เปิดกล้อง'}</button>}
       </div>
       {error && <p role="alert" className="notice">{error}</p>}
