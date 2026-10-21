@@ -399,6 +399,49 @@ SW ใหม่ activate ไม่ควรทำคืนก่อนเดโ�
 และยืนยันไม่ได้เลยถ้าไม่ deploy จริงแล้วลองบนมือถือจริง ซึ่งคือสิ่งที่กำลังจัดลำดับกันอยู่
 **เป็นของ `frontend/` = สไลซ์ Codex**
 
+## 2026-10-21 — pipeline เต็มรันได้วันนี้ ยิงของจริงแล้ว
+
+ก่อนหน้านี้ "ทดสอบสดครบวง" ถูกบันทึกไว้ตอน PR #8 **ไม่มีใครยืนยันว่ายังรันได้วันนี้**
+ยิงจริงผ่าน `POST /api/v1/scan` สามภาพจาก `demo/`:
+
+```
+/health  {"status":"ok","app":"TeaSmart AI","model_version":"teasmart-v1"}
+
+01-brown-blight-severe   HTTP 200
+  prediction    brown_blight 0.9623
+  BURN VERDICT  disease   likelihood 0.046
+  SEVERITY      severe    28.2 percent
+  advice TH     โรคใบไหม้น้ำตาล
+  mode / ms     full / 98
+
+04-healthy               HTTP 200
+  prediction    healthy 0.9496
+  BURN VERDICT  disease   likelihood 0.0
+  SEVERITY      mild      0.1 percent
+  advice TH     ใบปกติ / สุขภาพดี
+  mode / ms     full / 31
+
+06-blurry                HTTP 422
+  detail_th     ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น
+  blur_score    11.720447423284186   (threshold 15.0)
+```
+
+**ตรงกับ `docs/DEMO.md` ทุกค่า** รวมถึง 98 ms และ 31 ms และ blur 11.7
+ด่าน 1-6 ครบ `analysis_mode: full` คำตัดสินโรค-กับ-ใบไหม้และความรุนแรงมีจริง
+**นี่คือเส้นทางที่สาธิตจากโน้ตบุ๊กบนเวที และมันทำงาน**
+
+ไฟล์ที่เดโมต้องใช้มีอยู่บนดิสก์ครบ: `demo/` ทั้ง 6 ภาพ,
+`frontend/public/models/teasmart-v1.onnx` 16,823,747 ไบต์,
+`data/artifacts/teasmart-v1.pt`, `backend/app/kb/diseases.json`
+
+**เซิร์ฟเวอร์บนพอร์ต 8000 ไม่ใช่ตัวที่ agent สตาร์ท** ตัวที่สั่งชนพอร์ตแล้วตาย
+(exit 1) แต่ `/health` ตอบอยู่ก่อนแล้ว แปลว่ามี uvicorn ค้างอยู่จากเซสชันก่อน
+**เรื่องนี้สำคัญเพราะแคช idempotency อยู่ในหน่วยความจำ** รีสตาร์ตเครื่องแล้ว
+ต้องสตาร์ต backend ใหม่เอง และคิวที่เคยส่งจะไม่ถูกจำ
+
+**ยังไม่ได้ยืนยัน:** การสแกนผ่าน UI จริงที่คุยกับ backend (โหมด `full` บนหน้าจอ)
+หยุดเพราะเพดาน 5 ชั่วโมงอยู่ที่ 92% **ไม่ใช่เพราะวัดแล้วผ่าน**
+
 ## เรื่องที่รอผู้ใช้ตัดสินใจ
 
 1. **`max_image_pixels` เป็น 40,000,000** ไฟล์ JPEG 738 KB ถอดรหัสออกเป็น 7000×5600
