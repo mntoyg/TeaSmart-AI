@@ -989,3 +989,19 @@ backend 198 tests, ML 120 tests, frontend 89 tests และ production build
 
 หลัง PR merge ยังต้อง deploy ใหม่ตาม `docs/DEPLOY-TH.md` และติดตั้ง PWA ใหม่บน
 โทรศัพท์ที่ใช้สาธิต เพื่อรับ service worker รุ่นล่าสุด
+
+## 2026-10-22 — แก้ข้อ G ทางออกจากหน้าผลและประวัติว่าง
+
+บน branch `fix/ui-dead-end-links` เพิ่ม `className="button"` ให้ลิงก์ไป `/scan`
+เมื่อไม่พบผลตรวจและเมื่อประวัติยังว่าง เพิ่ม regression tests ที่ render ทั้งสอง
+สถานะและตรวจทั้ง href กับ class ของลิงก์
+
+เขียน test ก่อนและยืนยันว่าแดงทั้งคู่เพราะไม่มี class `button`; หลังแก้
+`npm test -- --run src/App.test.tsx` ผ่าน 6 tests และ `./scripts/test.ps1`
+ผ่าน lint backend/ML/scripts, backend 199 tests, ML 120, frontend 90 tests
+และ production build จบด้วย `All green.`
+
+โควตา Codex วันที่ 2026-10-22 ตามเวลา `Asia/Bangkok`: baseline ก่อนงาน G
+weekly **5%**, หน้าต่าง 5 ชั่วโมง **0%**; ค่าล่าสุด weekly **5%**, หน้าต่าง
+5 ชั่วโมง **4%** เครื่องมือไม่มีตัวนับรายวัน จึงนับ weekly ทั้งหมด 5 จุด
+เปอร์เซ็นต์เป็นขอบเขตบนแบบระมัดระวังของวันนี้ ต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์
