@@ -82,6 +82,12 @@ def _quantile(values: list[float], fraction: float) -> float:
 
 
 def report(measured: list[dict[str, str | float]]) -> float:
+    # `--limit` takes rows off the top of the manifest, which is sorted by
+    # class, so a small limit can select one class and leave `diseased` empty.
+    # `min()` of nothing raises, and a measurement script that dies on its own
+    # smoke run is worse than one that says it has nothing to report.
+    if not measured:
+        raise SystemExit("no images measured: check the manifest and --limit")
     fractions = [float(row["fraction"]) for row in measured]
     print(f"\n{len(measured)} images measured\n")
     print(f"{'class':<16}{'n':>6}{'min':>9}{'p0.1':>9}{'p1':>9}{'p5':>9}{'median':>9}")
@@ -100,7 +106,8 @@ def report(measured: list[dict[str, str | float]]) -> float:
 
     diseased = [float(r["fraction"]) for r in measured if r["canonical"] in DISEASED]
     print(f"\nlowest fraction on a labelled leaf:          {min(fractions):.4f}")
-    print(f"lowest on a diseased leaf ({len(diseased)} images):  {min(diseased):.4f}")
+    lowest_ill = f"{min(diseased):.4f}" if diseased else "no diseased leaf in this selection"
+    print(f"lowest on a diseased leaf ({len(diseased)} images):  {lowest_ill}")
 
     stage2 = [float(row["stage2_fraction"]) for row in measured]
     zeros = sum(1 for value in stage2 if value == 0.0)
@@ -125,6 +132,7 @@ def report(measured: list[dict[str, str | float]]) -> float:
         refused = sum(1 for value in fractions if value < floor)
         refused_ill = sum(1 for value in diseased if value < floor)
         print(f"{floor:>8.3f}{refused:>10}{refused / len(fractions):>11.2%}{refused_ill:>10}")
+    # `fractions` is non-empty, checked at the top.
     return min(fractions)
 
 
