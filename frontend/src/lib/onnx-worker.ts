@@ -37,5 +37,8 @@ self.onmessage = async (event: MessageEvent<{ id: number; config: ClientConfig; 
     const prediction = classifyLogits(logits.data as Float32Array, config);
     Object.values(outputs).forEach((tensor) => tensor.dispose());
     self.postMessage({ id, quality, prediction });
-  } catch { self.postMessage({ id, error: 'โมเดลออฟไลน์ยังไม่พร้อม กรุณาเชื่อมต่อแล้วเตรียมใช้งานออฟไลน์อีกครั้ง' }); }
+  } catch (failure) {
+    const detail = failure instanceof Error ? failure.message : typeof failure === 'string' ? failure : '';
+    self.postMessage({ id, error: detail || 'โมเดลออฟไลน์ยังไม่พร้อม กรุณาเชื่อมต่อแล้วเตรียมใช้งานออฟไลน์อีกครั้ง' });
+  }
 };
