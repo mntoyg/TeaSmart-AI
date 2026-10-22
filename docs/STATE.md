@@ -1104,9 +1104,15 @@ weekly **5%**, หน้าต่าง 5 ชั่วโมง **0%**; ค่�
 การกลบทุกกรณีเป็นข้อความว่าโมเดลออฟไลน์ยังไม่พร้อม เพิ่ม regression test ที่จำลอง
 `InferenceSession.create()` ล้มเหลวและยืนยันข้อความที่ส่งผ่าน worker
 
-ข้อ C ยังเปิดอยู่: คิว sync ต้องนับ transport exception เป็นความพยายาม และต้องนับ
-ผล `classifier_only` จาก server เป็นรายการที่ยังไม่สำเร็จ ไม่ปล่อยให้ค้างโดยไม่มี
-attempt บันทึกการทำข้อ C จะเพิ่มหลังส่งและตรวจครบ
+ข้อ C: คิว sync นับ transport exception เป็นความพยายามแบบ 503 และนับผล
+`classifier_only` จาก server เป็นรายการที่ยังไม่สำเร็จ จึงเพิ่ม attempt และหยุด
+retry หลังครบ 3 ครั้งตามเพดานเดียวกับ per-item failure หน้าจออ่านจำนวน pending
+ใหม่หลัง sync ล้มเหลวเพื่อไม่แสดงจำนวนเก่าค้างไว้ เพิ่ม regression tests สำหรับ
+classifier-only response, network retry ครบ 3 ครั้ง และการอัปเดตตัวนับบนหน้าจอ
+
+รอบตรวจเต็มหลังข้อ C: `./scripts/test.ps1` ผ่าน lint backend/ML/scripts,
+backend 200 tests, ML 120 tests, frontend 95 tests และ production build จบด้วย
+`All green.`
 
 โควตา Codex วันที่ 2026-10-22: baseline ที่อ่านได้ก่อนงานวันนี้ weekly **5%**;
 ค่าล่าสุดระหว่างทำข้อ I weekly **6%**, หน้าต่าง 5 ชั่วโมง **7%**. ไม่มีตัวนับ
