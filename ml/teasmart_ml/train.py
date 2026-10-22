@@ -1,7 +1,7 @@
 """Train the five-class leaf classifier.
 
 Every choice here is dictated by one constraint: the only GPU available is a
-4 GB RTX 3050 laptop card, and the demo is on 2026-10-22. MobileNetV3-Large at
+4 GB RTX 3050 laptop card, and the demo is on 2026-11-21. MobileNetV3-Large at
 224x224 with batch 32 and mixed precision fits in that memory with room for the
 augmentation pipeline; anything heavier trains overnight or not at all. The same
 architecture is what has to run in a browser on a phone afterwards, so the

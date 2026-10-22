@@ -79,7 +79,7 @@ cd frontend && npm run build
 2. เมนูซ้าย **Workers & Pages** → **Create** → แท็บ **Pages**
    → **Upload assets** (เลือกแบบอัปโหลดตรง ไม่ต้องต่อ GitHub เพราะ repo เป็น private)
 3. ตั้งชื่อโปรเจกต์ เช่น `teasmart` แล้วลากโฟลเดอร์ **`frontend/dist`** ทั้งโฟลเดอร์ลงไป
-4. กด **Deploy site** รอจนขึ้น URL รูปแบบ `https://teasmart.pages.dev`
+4. กด **Deploy site** รอจนขึ้น URL รูปแบบ `https://teasmart-ai.pages.dev`
 
 ทางเลือกอื่นที่อ่าน `_redirects` เหมือนกันคือ Netlify (ลาก `dist` ลงหน้า
 https://app.netlify.com/drop) ใช้ได้เท่ากัน
@@ -90,7 +90,7 @@ https://app.netlify.com/drop) ใช้ได้เท่ากัน
 **5. สร้าง QR ตัวจริง**
 
 ```bash
-python scripts/make_qr.py https://teasmart.pages.dev/
+python scripts/make_qr.py https://teasmart-ai.pages.dev/
 ```
 
 **ชี้ไป root ไม่ใช่ `/scan`** เพราะ `App.tsx` ส่ง route `*` ไป `/scan` อยู่แล้ว
