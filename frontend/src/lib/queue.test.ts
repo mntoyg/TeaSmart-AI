@@ -67,6 +67,23 @@ it('applies complete results and keeps classifier-only results queued', async ()
   expect(await repository.queueStatus(partial)).toMatchObject({ attempts: 1, status: 503, state: 'pending' });
   await repository.close();
 });
+it('preserves queue state and the static-demo message after repeated 404 responses', async () => {
+  const repository = createStore(`queue-${crypto.randomUUID()}`);
+  await repository.enqueue(new Blob(['image']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await expect(syncQueue(repository)).rejects.toMatchObject({
+      name: 'SyncUnavailableError',
+      message: 'ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ',
+    });
+  }
+
+  expect(await repository.queueStatus(id)).toMatchObject({ state: 'pending', attempts: 0 });
+  expect(await repository.pending()).toHaveLength(1);
+  expect((await repository.get(id))?.analysis_mode).toBe('classifier_only');
+  await repository.close();
+});
 it('caps repeated transient server failures and records a Thai terminal message', async () => {
   const repository = createStore(`queue-${crypto.randomUUID()}`);
   const maxAttempts = 3;

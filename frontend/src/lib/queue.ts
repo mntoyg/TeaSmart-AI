@@ -1,4 +1,4 @@
-import { parseScan, request } from './api';
+import { parseScan, request, SyncUnavailableError } from './api';
 import { transportLimits, type ScanResponse } from './scan-contract';
 import type { createStore, QueueEntry } from './storage';
 export function chunkQueue(entries: QueueEntry[]) {
@@ -28,6 +28,7 @@ export async function syncQueue(repository: ReturnType<typeof createStore>) {
     try {
       response = await request('/api/v1/sync/batch', { method: 'POST', body: form });
     } catch (failure) {
+      if (failure instanceof SyncUnavailableError) throw failure;
       const detail_th = failure instanceof Error ? failure.message : 'เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่';
       await repository.applyBatch([], batch.map((entry) => ({ scan_id: entry.scan_id, status: 503, detail_th })));
       throw failure;
