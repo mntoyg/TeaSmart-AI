@@ -1,0 +1,125 @@
+{
+  "generated_by": "scripts/make_leaf_fixtures.py",
+  "settings": {
+    "veg_index_min": 0.05
+  },
+  "cases": [
+    {
+      "name": "sunlit leaf",
+      "why": "an ordinary leaf pixel; index 0.562",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        54,
+        122,
+        58
+      ],
+      "fraction": 1.0
+    },
+    {
+      "name": "dark leaf on lilac",
+      "why": "measured from a Mendeley photograph. Index 0.152, so it counts - while stage 2's absolute rule scores this same real labelled leaf at zero. This case is why the gate normalises and why a floor could be set above zero at all",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        31,
+        40,
+        33
+      ],
+      "fraction": 1.0
+    },
+    {
+      "name": "lilac backdrop",
+      "why": "what those leaves are photographed on; index -0.130",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        199,
+        176,
+        232
+      ],
+      "fraction": 0.0
+    },
+    {
+      "name": "bare soil",
+      "why": "index -0.026",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        92,
+        74,
+        62
+      ],
+      "fraction": 0.0
+    },
+    {
+      "name": "human skin",
+      "why": "a hand in frame, the commonest non-leaf photograph; index -0.038",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        198,
+        152,
+        124
+      ],
+      "fraction": 0.0
+    },
+    {
+      "name": "white paper",
+      "why": "index 0.0055: faintly green and nowhere near the floor. A leaf photographed on paper counts for the leaf, not for the paper",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        244,
+        244,
+        240
+      ],
+      "fraction": 0.0
+    },
+    {
+      "name": "index just under the floor",
+      "why": "0.049931, and the test is strict",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        234,
+        252,
+        234
+      ],
+      "fraction": 0.0
+    },
+    {
+      "name": "index just over the floor",
+      "why": "0.051389",
+      "width": 1,
+      "height": 1,
+      "rgb": [
+        233,
+        252,
+        234
+      ],
+      "fraction": 1.0
+    },
+    {
+      "name": "one passing pixel in four",
+      "why": "the ratio itself, not the index",
+      "width": 2,
+      "height": 2,
+      "rgb": [
+        54,
+        122,
+        58,
+        92,
+        74,
+        62,
+        92,
+        74,
+        62,
+        92,
+        74,
+        62
+      ],
+      "fraction": 0.25
+    }
+  ]
+}

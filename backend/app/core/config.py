@@ -74,6 +74,25 @@ class Settings(BaseSettings):
     excess_green_min: int = 18
     leaf_saturation_min: int = 40
     leaf_min_area_frac: float = 0.02
+
+    # The browser's own gate, which is not stage 2; see
+    # app/services/segment.py vegetation_fraction for why it shares no code
+    # with it. The index floor separates a dark leaf (0.154) from white paper
+    # (0.006) and from anything that is not green at all, which is negative.
+    veg_index_min: float = 0.05
+    # Measured over all 8,316 corpus images on 2026-10-22, not chosen:
+    # docs/EVIDENCE.md section 7. Five real labelled leaves score essentially
+    # zero and the next one up scores 0.00284, so 0.002 sits inside a gap the
+    # corpus leaves empty. It costs those five, 0.06% of the corpus, and all
+    # five are `other_disease` - the worst of them a leaf that is necrotic
+    # edge to edge on white paper, with no green pixel anywhere on it.
+    #
+    # That leaf is also the limit of what this gate can ever do. It is
+    # indistinguishable, by this measurement, from a photograph of a hand, so
+    # the floor cannot be raised to catch hands without refusing dead leaves.
+    # This is a floor on "nothing green in frame at all", not a leaf detector,
+    # and open-set rejection is the thing that replaces it.
+    leaf_min_fraction: float = 0.002
     # The hull, so that damage at the leaf margin is inside the leaf. Without
     # it a straw-coloured burn at the edge is neither green nor an enclosed
     # hole, so it is not in the mask at all and the burn verdict is
