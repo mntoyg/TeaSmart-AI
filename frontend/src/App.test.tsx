@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { App } from './App';
@@ -52,9 +52,21 @@ it('replays a newly queued scan when connectivity returned before inference comp
 it('offers a scan link when a result ID is absent', async () => {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
   render(<MemoryRouter initialEntries={['/result/missing']}><App /></MemoryRouter>);
-  expect(await screen.findByText('ไม่พบผลตรวจนี้ในอุปกรณ์')).toBeInTheDocument();
-  expect(screen.getAllByRole('link', { name: 'ตรวจใบชา' })[0]).toHaveAttribute('href', '/scan');
+  const message = await screen.findByText('ไม่พบผลตรวจนี้ในอุปกรณ์');
+  const link = within(message.closest('section')!).getByRole('link', { name: 'ตรวจใบชา' });
+  expect(link).toHaveAttribute('href', '/scan');
+  expect(link).toHaveClass('button');
   vi.unstubAllGlobals();
+});
+
+it('offers a button-styled scan link when history is empty', async () => {
+  const list = vi.spyOn(store, 'list').mockResolvedValue([]);
+  render(<MemoryRouter initialEntries={['/history']}><App /></MemoryRouter>);
+  const message = await screen.findByText('ยังไม่มีประวัติการตรวจใบชา');
+  const link = within(message.closest('section')!).getByRole('link', { name: 'ตรวจใบชา' });
+  expect(link).toHaveAttribute('href', '/scan');
+  expect(link).toHaveClass('button');
+  list.mockRestore();
 });
 
 it('keeps the local queue visible without offering a pointless retry on the static demo', async () => {

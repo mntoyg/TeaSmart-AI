@@ -27,7 +27,7 @@ function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
     return () => { active = false; };
   }, [id]);
   if (!loaded) return <p role="status">กำลังอ่านผลตรวจ…</p>;
-  if (!result) return <section className="card"><h1>{error || 'ไม่พบผลตรวจนี้ในอุปกรณ์'}</h1><Link to="/scan">ตรวจใบชา</Link></section>;
+  if (!result) return <section className="card"><h1>{error || 'ไม่พบผลตรวจนี้ในอุปกรณ์'}</h1><Link className="button" to="/scan">ตรวจใบชา</Link></section>;
   return <>{queueError && <p role="alert" className="notice">{queueError.detail_th}
     {[400, 413, 415, 422].includes(queueError.status ?? 0) && ' · กรุณาถ่ายใหม่'}</p>}<ResultCard result={result} knowledge={knowledge.find((record) => record.canonical === (
     isFull(result) && result.burn_analysis.verdict === 'physical_burn' ? 'physical_burn' : result.prediction.class_name))} />
@@ -50,7 +50,7 @@ function HistoryPage() {
         <strong>{isFull(result) ? result.burn_analysis.verdict === 'physical_burn' ? 'อาการไหม้ทางกายภาพ' : result.advice.disease_name_th : 'ผลประเมินเบื้องต้น'}</strong>
         <span>{new Date(result.captured_at).toLocaleString('th-TH')}</span>
         <span>{result.analysis_mode === 'full' ? 'วิเคราะห์ครบขั้นตอน' : 'ประเมินเบื้องต้นบนอุปกรณ์'}</span></Link></li>)}</ul>
-      : <section className="card"><p>ยังไม่มีประวัติการตรวจใบชา</p><Link to="/scan">ตรวจใบชา</Link></section>}
+      : <section className="card"><p>ยังไม่มีประวัติการตรวจใบชา</p><Link className="button" to="/scan">ตรวจใบชา</Link></section>}
   </>;
 }
 function KnowledgePage({ records, loading, error }: { records: KnowledgeRecord[]; loading: boolean; error: string }) {
