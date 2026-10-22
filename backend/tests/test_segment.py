@@ -12,7 +12,7 @@ matters is the one with a brown blotch in the middle.
 import numpy as np
 
 from app.core.config import get_settings
-from app.services.segment import segment_leaf
+from app.services.segment import segment_leaf, vegetation_fraction
 
 LEAF_GREEN = (54, 122, 58)
 BROWN = (120, 86, 44)
@@ -92,3 +92,64 @@ def test_a_leaf_filling_the_frame_is_not_treated_as_a_failure() -> None:
 
     assert leaf.fallback is False
     assert leaf.area_px > 256 * 256 * 0.9
+
+
+# The vegetation fraction, which is a different question from stage 2 and has
+# its own test for the reason it exists: the corpus contains real leaves that
+# stage 2's absolute rule scores at zero.
+
+DARK_LEAF = (31, 40, 33)  # measured from a Mendeley photograph
+LILAC = (199, 176, 232)  # the backdrop those photographs are taken on
+SKIN = (198, 152, 124)
+
+
+def _solid(colour, size: int = 64) -> np.ndarray:
+    return np.full((size, size, 3), colour, dtype=np.uint8)
+
+
+def test_a_sunlit_leaf_is_all_vegetation() -> None:
+    assert vegetation_fraction(_solid(LEAF_GREEN), get_settings()) == 1.0
+
+
+def test_a_dark_leaf_is_vegetation_even_though_stage_two_cannot_see_it() -> None:
+    """The case the whole function exists for.
+
+    A third of the corpus is dark leaves on a lilac backdrop. Stage 2's
+    absolute excess-green floor scores them at zero, so a threshold built on
+    that rule would refuse real labelled leaves. Normalising by intensity is
+    what makes a floor above zero possible at all.
+    """
+    settings = get_settings()
+
+    assert vegetation_fraction(_solid(DARK_LEAF), settings) == 1.0
+    assert plant_fraction_of(_solid(DARK_LEAF), settings) == 0.0
+
+
+def plant_fraction_of(rgb: np.ndarray, settings) -> float:
+    """Stage 2's rule as a bare ratio, for the contrast above only."""
+    from app.services.segment import _green_mask
+
+    return float(_green_mask(rgb, settings).mean())
+
+
+def test_neither_the_backdrop_nor_a_hand_counts_as_vegetation() -> None:
+    settings = get_settings()
+
+    assert vegetation_fraction(_solid(LILAC), settings) == 0.0
+    assert vegetation_fraction(_solid(SKIN), settings) == 0.0
+    assert vegetation_fraction(_solid(SOIL), settings) == 0.0
+
+
+def test_the_fraction_is_measured_against_the_whole_frame() -> None:
+    frame = _solid(SOIL, size=64)
+    frame[:32, :, :] = LEAF_GREEN
+
+    assert vegetation_fraction(frame, get_settings()) == 0.5
+
+
+def test_the_index_floor_comes_from_settings() -> None:
+    """Served to the browser, so it cannot be a literal in either copy."""
+    settings = get_settings()
+    strict = settings.model_copy(update={"veg_index_min": 0.9})
+
+    assert vegetation_fraction(_solid(LEAF_GREEN), strict) == 0.0

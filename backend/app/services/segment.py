@@ -56,6 +56,35 @@ def _green_mask(rgb: np.ndarray, settings: Settings) -> np.ndarray:
     ).astype(np.uint8)
 
 
+def vegetation_fraction(rgb: np.ndarray, settings: Settings) -> float:
+    """How much of the frame is plant at all, for a client with no OpenCV.
+
+    This is not stage 2 and deliberately shares no code with it. Stage 2 asks
+    where the leaf is, needs contours and morphology, and is allowed to be
+    expensive. This asks only whether there is a plant in the photograph, so
+    that a closed five-class softmax is not handed a hand, a wall or a computer
+    screen - a laptop screen measured 76.8% `brown_blight`, and nothing in the
+    pipeline was in a position to disagree.
+
+    The index is excess green divided by total intensity. The division is the
+    whole point and is why stage 2's absolute `2G - R - B > 18` is not reused:
+    measured over 240 corpus images, the absolute rule scores **0.0000** on
+    real labelled leaves, because the Mendeley photographs are of dark leaves
+    on a lilac backdrop and a dark green pixel has a small absolute channel
+    spread. A rule that cannot see a third of the corpus cannot be given a
+    floor above zero. Normalised, the same images bottom out at 0.0054.
+
+    There is no hue test and no HSV conversion, on purpose. The browser would
+    have to reproduce OpenCV's 0-179 packing to agree with us, and two
+    implementations of one rule are exactly how the quality gates diverged.
+    What is left is two numbers and arithmetic that cannot be ported wrongly.
+    """
+    channels = rgb.astype(np.int32)
+    excess_green = 2 * channels[:, :, 1] - channels[:, :, 0] - channels[:, :, 2]
+    intensity = channels.sum(axis=2) + 1
+    return float((excess_green / intensity > settings.veg_index_min).mean())
+
+
 def segment_leaf(rgb: np.ndarray, settings: Settings) -> Leaf:
     """The largest leaf in the frame, or the whole frame if there is none."""
     height, width = rgb.shape[:2]
