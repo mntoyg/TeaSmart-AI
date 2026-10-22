@@ -141,3 +141,39 @@ it('stops every camera track on unmount', async () => {
   unmount();
   expect(stop).toHaveBeenCalledOnce();
 });
+
+it('lets the user close the camera and stops every camera track', async () => {
+  const stops = [vi.fn(), vi.fn()];
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+    getUserMedia: vi.fn().mockResolvedValue({
+      getTracks: () => stops.map((stop) => ({ stop })),
+    }),
+  } });
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  render(<ScanPage onResult={vi.fn()} />);
+
+  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'ปิดกล้อง' }));
+
+  expect(stops.every((stop) => stop.mock.calls.length === 1)).toBe(true);
+  expect(screen.getByRole('button', { name: 'เปิดกล้อง' })).toBeInTheDocument();
+});
+
+it('closes the camera when a captured image exceeds the upload limit', async () => {
+  const stop = vi.fn();
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+    getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }),
+  } });
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  render(<ScanPage onResult={vi.fn()} />);
+
+  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'ถ่ายภาพ' })).toBeInTheDocument());
+  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), { target: { files: [
+    new File([new Uint8Array(transportLimits.max_upload_bytes + 1)], 'large.jpg', { type: 'image/jpeg' }),
+  ] } });
+
+  expect(stop).toHaveBeenCalledOnce();
+  expect(screen.getByRole('alert')).toHaveTextContent('ภาพมีขนาดเกิน 8 เมกะไบต์');
+  expect(screen.getByRole('button', { name: 'เปิดกล้อง' })).toBeInTheDocument();
+});
