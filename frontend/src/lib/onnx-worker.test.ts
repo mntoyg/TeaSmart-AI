@@ -15,15 +15,35 @@ beforeEach(() => {
   vi.stubGlobal('self', { location: { origin: 'http://localhost' }, postMessage: vi.fn() });
 });
 
-it('forwards the model loading error through the worker response', async () => {
+it('turns an ONNX graph loading failure into offline preparation guidance', async () => {
   const postMessage = self.postMessage as unknown as ReturnType<typeof vi.fn>;
-  const loadError = 'โมเดลไม่ตรงกับการตั้งค่า';
-  createSession.mockRejectedValue(new Error(loadError));
+  createSession.mockRejectedValue(new Error('no available backend found. ERR: [wasm] RuntimeError: Aborted'));
 
   await import('./onnx-worker');
   const handler = (self as unknown as { onmessage: (event: MessageEvent) => Promise<void> }).onmessage;
   await handler({ data: { id: 4, config: configShape } } as MessageEvent);
 
   expect(createSession).toHaveBeenCalledOnce();
-  expect(postMessage).toHaveBeenCalledWith({ id: 4, error: loadError });
+  expect(postMessage).toHaveBeenCalledWith({
+    id: 4, error: 'โมเดลออฟไลน์ยังไม่พร้อม กรุณาเชื่อมต่อแล้วเตรียมใช้งานออฟไลน์อีกครั้ง',
+  });
+});
+
+it('turns an ONNX inference failure into actionable Thai guidance', async () => {
+  const postMessage = self.postMessage as unknown as ReturnType<typeof vi.fn>;
+  const config = { ...configShape, quality: { ...configShape.quality,
+    blur_threshold: 0, exposure_min_mean: 0, exposure_max_mean: 255, clip_max_pct: 1 } };
+  createSession.mockResolvedValue({
+    inputNames: [config.onnx.input], outputNames: [config.onnx.output],
+    run: vi.fn().mockRejectedValue(new Error('no available backend found. ERR: [wasm] RuntimeError: Aborted')),
+  });
+
+  await import('./onnx-worker');
+  const handler = (self as unknown as { onmessage: (event: MessageEvent) => Promise<void> }).onmessage;
+  await handler({ data: { id: 5, config, rgb: new Uint8Array(224 * 224 * 3).fill(100), width: 224, height: 224 } } as MessageEvent);
+
+  expect(createSession).toHaveBeenCalledOnce();
+  expect(postMessage).toHaveBeenCalledWith({
+    id: 5, error: 'วิเคราะห์ภาพบนอุปกรณ์ไม่ได้ กรุณาเชื่อมต่อแล้วลองใหม่',
+  });
 });
