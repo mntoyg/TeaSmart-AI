@@ -86,3 +86,22 @@ it('keeps the local queue visible without offering a pointless retry on the stat
   expect(screen.queryByRole('button', { name: 'ส่งคิวอีกครั้ง' })).not.toBeInTheDocument();
   vi.unstubAllGlobals();
 });
+
+it('renders offline preparation and queued scan status in separate panels', async () => {
+  await store.saveConfig(configShape);
+  const id = crypto.randomUUID();
+  await store.enqueue(new Blob(['leaf']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+    if (url === '/api/v1/sync/batch') return new Response('{}', { status: 404 });
+    throw new TypeError('Unavailable');
+  }));
+
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const offlineStatus = await screen.findByText('ยังไม่ได้เตรียมใช้งานออฟไลน์');
+  const queuedStatus = await screen.findByText(/เก็บไว้ในอุปกรณ์แล้ว \d+ ภาพ/);
+  expect(offlineStatus.closest('.offline-panel')).toBeInTheDocument();
+  expect(queuedStatus.closest('.queue-panel')).toBeInTheDocument();
+  expect(offlineStatus.closest('.offline-panel')).not.toBe(queuedStatus.closest('.queue-panel'));
+  vi.unstubAllGlobals();
+});

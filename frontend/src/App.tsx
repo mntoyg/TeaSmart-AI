@@ -159,6 +159,7 @@ export function App() {
       <span className="connection" role="status">{online ? 'เชื่อมต่อเครือข่าย' : 'ไม่มีเครือข่าย'}</span></div>
     <main><aside className="offline-panel"><p role="status">{offlineMessage}</p>
       <button className="secondary" disabled={preparing || !online} onClick={prepare}>เตรียมใช้งานออฟไลน์</button>
+    </aside><aside className="queue-panel">
       {pendingCount > 0 && <p>เก็บไว้ในอุปกรณ์แล้ว {pendingCount.toLocaleString('th-TH')} ภาพ</p>}
       {syncMessage && pendingCount > 0 && <p role="status">{syncMessage}</p>}
       {pendingCount > 0 && !syncUnavailable && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
