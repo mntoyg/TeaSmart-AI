@@ -86,3 +86,22 @@ it('keeps the local queue visible without offering a pointless retry on the stat
   expect(screen.queryByRole('button', { name: 'ส่งคิวอีกครั้ง' })).not.toBeInTheDocument();
   vi.unstubAllGlobals();
 });
+
+it('refreshes the visible queue after repeated transport failures exhaust retries', async () => {
+  await store.saveConfig(configShape);
+  const id = crypto.randomUUID();
+  await store.enqueue(new Blob(['leaf']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  await waitFor(async () => expect(await store.queueStatus(id)).toMatchObject({ attempts: 1, state: 'pending' }));
+  for (const attempts of [2, 3]) {
+    const retry = await screen.findByRole('button', { name: 'ส่งคิวอีกครั้ง' });
+    await waitFor(() => expect(retry).toBeEnabled());
+    await userEvent.click(retry);
+    await waitFor(async () => expect(await store.queueStatus(id)).toMatchObject({ attempts,
+      state: attempts === 3 ? 'failed' : 'pending' }));
+  }
+  await waitFor(() => expect(screen.queryByText(/เก็บไว้ในอุปกรณ์แล้ว/)).not.toBeInTheDocument());
+  vi.unstubAllGlobals();
+});
