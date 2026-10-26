@@ -110,7 +110,11 @@ def report(measured: list[dict[str, str | float]]) -> float:
     print(f"lowest on a diseased leaf ({len(diseased)} images):  {lowest_ill}")
 
     stage2 = [float(row["stage2_fraction"]) for row in measured]
-    zeros = sum(1 for value in stage2 if value == 0.0)
+    # stage2_fraction is the mean of a boolean mask, so it lives in [0, 1] and
+    # reaches zero only when no pixel passed the rule at all. Asking for "not
+    # above zero" counts exactly the same images as an equality test would,
+    # without comparing a float for equality.
+    zeros = sum(1 for value in stage2 if value <= 0.0)
     print(
         f"\nstage 2's absolute rule on the same images: min {min(stage2):.4f} "
         f"median {statistics.median(stage2):.4f}, {zeros} of {len(stage2)} at exactly zero"
