@@ -40,5 +40,9 @@
   "exposure_min_mean": 40.0,
   "exposure_max_mean": 235.0,
   "clip_max_pct": 0.1
+ },
+ "leaf": {
+  "veg_index_min": 0.05,
+  "min_fraction": 0.002
  }
 }

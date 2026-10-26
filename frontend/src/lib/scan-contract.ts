@@ -126,6 +126,10 @@ export type ClientConfig = {
     "exposure_max_mean": number;
     "clip_max_pct": number;
   };
+  "leaf": {
+    "veg_index_min": number;
+    "min_fraction": number;
+  };
 };
 export const configShape = {
   "model_version": "teasmart-v1",
@@ -169,6 +173,10 @@ export const configShape = {
     "exposure_min_mean": 40,
     "exposure_max_mean": 235,
     "clip_max_pct": 0.1
+  },
+  "leaf": {
+    "veg_index_min": 0.05,
+    "min_fraction": 0.002
   }
 };
 export const transportLimits = {

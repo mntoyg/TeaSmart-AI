@@ -63,6 +63,20 @@ class QualityThresholds(BaseModel):
     clip_max_pct: float
 
 
+class LeafGate(BaseModel):
+    """The browser's own check that there is a plant in the photograph.
+
+    Two numbers and no colour-space conversion, so a TypeScript port has
+    nothing to get wrong. `frontend/src/test/fixtures/leaf-fraction.json`
+    pins both against this implementation.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    veg_index_min: float
+    min_fraction: float
+
+
 class ClientConfig(BaseModel):
     model_config = ConfigDict(frozen=True, protected_namespaces=())
 
@@ -72,6 +86,7 @@ class ClientConfig(BaseModel):
     preprocessing: Preprocessing
     onnx: OnnxContract
     quality: QualityThresholds
+    leaf: LeafGate
 
 
 def class_order(settings: Settings) -> list[str]:
@@ -98,5 +113,9 @@ def read_config() -> ClientConfig:
             exposure_min_mean=settings.exposure_min_mean,
             exposure_max_mean=settings.exposure_max_mean,
             clip_max_pct=settings.clip_max_pct,
+        ),
+        leaf=LeafGate(
+            veg_index_min=settings.veg_index_min,
+            min_fraction=settings.leaf_min_fraction,
         ),
     )
