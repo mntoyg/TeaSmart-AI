@@ -64,6 +64,24 @@ it('applies complete results and keeps classifier-only results queued', async ()
   expect((await repository.get(second))?.analysis_mode).toBe('full');
   expect((await repository.get(partial))?.analysis_mode).toBe('classifier_only');
   expect((await repository.pending()).map((entry) => entry.scan_id)).toEqual([partial]);
+  expect(await repository.queueStatus(partial)).toMatchObject({ attempts: 1, status: 503, state: 'pending' });
+  await repository.close();
+});
+it('preserves queue state and the static-demo message after repeated 404 responses', async () => {
+  const repository = createStore(`queue-${crypto.randomUUID()}`);
+  await repository.enqueue(new Blob(['image']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 404 })));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await expect(syncQueue(repository)).rejects.toMatchObject({
+      name: 'SyncUnavailableError',
+      message: 'ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ',
+    });
+  }
+
+  expect(await repository.queueStatus(id)).toMatchObject({ state: 'pending', attempts: 0 });
+  expect(await repository.pending()).toHaveLength(1);
+  expect((await repository.get(id))?.analysis_mode).toBe('classifier_only');
   await repository.close();
 });
 it('caps repeated transient server failures and records a Thai terminal message', async () => {
@@ -96,6 +114,22 @@ it.each(['network', 'missing', 'duplicate', 'foreign'])('keeps queued scans inta
     : vi.fn().mockResolvedValue(new Response(JSON.stringify({ results, failed: [] }))));
   await expect(syncQueue(repository)).rejects.toThrow();
   expect(await repository.pending()).toHaveLength(1);
+  expect((await repository.get(id))?.analysis_mode).toBe('classifier_only');
+  await repository.close();
+});
+
+it('counts transport failures and stops retrying after the shared attempt limit', async () => {
+  const repository = createStore(`queue-${crypto.randomUUID()}`);
+  await repository.enqueue(new Blob(['image']), localFixture(id));
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await expect(syncQueue(repository)).rejects.toThrow();
+    const status = await repository.queueStatus(id);
+    expect(status?.attempts).toBe(attempt);
+    expect(status?.state).toBe(attempt < 3 ? 'pending' : 'failed');
+  }
+  expect(await repository.pending()).toHaveLength(0);
   expect((await repository.get(id))?.analysis_mode).toBe('classifier_only');
   await repository.close();
 });

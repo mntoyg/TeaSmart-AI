@@ -80,3 +80,13 @@ frontend/public/parity/
 # mkcert; the private key must never be committed. Anchored so it cannot match
 # a directory of the same name deeper in the tree.
 /.certs/
+
+# Kept from the root files added in 81652d5, so that commit's tooling stays
+# ignored after the project's own rules were restored on top of it.
+.vercel
+*.local
+
+# The frontend folder a teammate handed over by hand because he could not push.
+# It carries its own .git, node_modules and dist, and it is raw material for the
+# merge, not something this repository tracks.
+/TeaSmart frontend/

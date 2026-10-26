@@ -134,6 +134,7 @@ export function App() {
     } catch (failure) {
       if (failure instanceof SyncUnavailableError) setSyncUnavailable(true);
       setSyncMessage(failure instanceof Error ? failure.message : 'ส่งคิวไม่ได้ กรุณาลองใหม่');
+      setRevision((value) => value + 1);
     }
     finally { setSyncing(false); }
   }

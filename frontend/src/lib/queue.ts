@@ -1,4 +1,4 @@
-import { parseScan, request } from './api';
+import { parseScan, request, SyncUnavailableError } from './api';
 import { transportLimits, type ScanResponse } from './scan-contract';
 import type { createStore, QueueEntry } from './storage';
 export function chunkQueue(entries: QueueEntry[]) {
@@ -24,11 +24,24 @@ export async function syncQueue(repository: ReturnType<typeof createStore>) {
         class_name: entry.result.prediction.class_name, confidence: entry.result.prediction.confidence,
       } }))));
     for (const entry of batch) form.append('images', entry.image, entry.scan_id);
-    const response = await request('/api/v1/sync/batch', { method: 'POST', body: form });
+    let response: unknown;
+    try {
+      response = await request('/api/v1/sync/batch', { method: 'POST', body: form });
+    } catch (failure) {
+      if (failure instanceof SyncUnavailableError) throw failure;
+      const detail_th = failure instanceof Error ? failure.message : 'เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่';
+      await repository.applyBatch([], batch.map((entry) => ({ scan_id: entry.scan_id, status: 503, detail_th })));
+      throw failure;
+    }
     if (!response || typeof response !== 'object' || !('results' in response) || !('failed' in response)
       || !Array.isArray(response.results) || !Array.isArray(response.failed)) throw new Error('ผลการส่งคิวไม่ครบถ้วน');
     const parsedResults: ScanResponse[] = response.results.map((result: unknown) => parseScan(result, config?.class_order));
     const results = parsedResults.filter((result) => result.analysis_mode === 'full');
+    const incomplete = parsedResults.filter((result) => result.analysis_mode === 'classifier_only').map((result) => ({
+      scan_id: result.scan_id,
+      status: 503,
+      detail_th: 'เซิร์ฟเวอร์ยังวิเคราะห์ภาพนี้ได้ไม่ครบ ภาพยังอยู่ในคิวเพื่อลองส่งใหม่',
+    }));
     const failed = response.failed.map((entry: unknown) => {
       if (!entry || typeof entry !== 'object' || !('scan_id' in entry) || typeof entry.scan_id !== 'string'
         || !('status' in entry) || typeof entry.status !== 'number' || !Number.isInteger(entry.status)
@@ -42,6 +55,6 @@ export async function syncQueue(repository: ReturnType<typeof createStore>) {
     if (returned.length !== batch.length || new Set(returned).size !== returned.length || returned.some((id) => !sent.has(id))) {
       throw new Error('ผลการส่งคิวไม่ตรงกับภาพ กรุณาลองใหม่');
     }
-    await repository.applyBatch(results, failed);
+    await repository.applyBatch(results, [...failed, ...incomplete]);
   }
 }

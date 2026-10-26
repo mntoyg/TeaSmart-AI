@@ -46,6 +46,14 @@ def test_settings_match_transport_and_quality_values_in_the_api_spec():
     section = document.split("### 8.5", 1)[1].split("## 9.", 1)[0]
     sample = re.search(r"```json\s*([\s\S]*?)```", section)
     assert sample is not None, "config JSON sample is missing from section 8.5"
-    quality = json.loads(sample.group(1))["quality"]
+    published = json.loads(sample.group(1))
+    quality = published["quality"]
     for field in ("blur_threshold", "exposure_min_mean", "exposure_max_mean", "clip_max_pct"):
         assert getattr(settings, field) == quality[field], field
+
+    # The leaf gate, for the same reason: the browser reads these two numbers
+    # and `min_fraction` was measured over the whole corpus. A value that
+    # drifts from the document is a value nobody re-measured.
+    leaf = published["leaf"]
+    assert settings.veg_index_min == leaf["veg_index_min"]
+    assert settings.leaf_min_fraction == leaf["min_fraction"]
