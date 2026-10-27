@@ -8,6 +8,8 @@ type Props = {
   error: string | null
   qualityWarning: string | null
   demoMode: boolean
+  /** From `transportLimits.max_upload_bytes`, the cap the backend enforces. */
+  maxUploadMegabytes: number
   onSelectFile: (file: File | null) => void
   onAnalyze: () => void
 }
@@ -19,6 +21,7 @@ export default function ScanPanel({
   error,
   qualityWarning,
   demoMode,
+  maxUploadMegabytes,
   onSelectFile,
   onAnalyze,
 }: Props) {
@@ -70,6 +73,7 @@ export default function ScanPanel({
         >
           <input
             ref={inputRef}
+            aria-label="เลือกรูปภาพ"
             className="visually-hidden"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/*"
@@ -80,6 +84,7 @@ export default function ScanPanel({
           />
           <input
             ref={cameraRef}
+            aria-label="ถ่ายจากกล้อง"
             className="visually-hidden"
             type="file"
             accept="image/*"
@@ -115,7 +120,9 @@ export default function ScanPanel({
                   <Camera size={17} /> ถ่ายจากกล้อง
                 </button>
               </div>
-              <span className="file-note">รองรับ JPG, PNG, WEBP · ขนาดไม่เกิน 10 MB</span>
+              <span className="file-note">
+                รองรับ JPG, PNG, WEBP · ขนาดไม่เกิน {maxUploadMegabytes.toLocaleString('th-TH')} MB
+              </span>
             </>
           )}
         </div>

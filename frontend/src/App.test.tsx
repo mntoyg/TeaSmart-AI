@@ -43,9 +43,12 @@ it('replays a newly queued scan when connectivity returned before inference comp
   const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
   const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
   render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), { target: { files: [new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' })] } });
-  await waitFor(() => expect(screen.getByRole('button', { name: 'ประเมินบนอุปกรณ์' })).toBeEnabled());
-  await userEvent.click(screen.getByRole('button', { name: 'ประเมินบนอุปกรณ์' }));
+  fireEvent.change(screen.getByLabelText('เลือกรูปภาพ'), { target: { files: [new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' })] } });
+  // There is no on-device button to press any more: the scan POST above throws,
+  // which is what an estate with no route out looks like, and the page falls
+  // through to the device model on its own.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' })).toBeEnabled());
+  await userEvent.click(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' }));
   await waitFor(() => expect(requests.mock.calls.some(([url]) => url === '/api/v1/sync/batch')).toBe(true));
   createUrl.mockRestore(); revokeUrl.mockRestore(); vi.unstubAllGlobals();
 });
