@@ -2,19 +2,22 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { adviceFields, readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
-import type { ClientConfig } from './lib/scan-contract';
+import { configShape, type ClientConfig } from './lib/scan-contract';
 import { isFull, type StoredResult } from './lib/local-result';
 import { prepareOffline, isOfflineReady } from './lib/offline';
 import { syncQueue } from './lib/queue';
-import { ResultCard } from './components/ResultCard';
+import DiagnosisResult from './components/DiagnosisResult';
+import { buildResultView } from './lib/result-view';
 import { ScanPage } from './pages/ScanPage';
 
-function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
+function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [result, setResult] = useState<StoredResult>();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [queueError, setQueueError] = useState<{ detail_th: string; status?: number }>();
+  const [image, setImage] = useState('');
   useEffect(() => {
     let active = true;
     setLoaded(false); setError('');
@@ -26,11 +29,27 @@ function ResultPage({ knowledge }: { knowledge: KnowledgeRecord[] }) {
     }).catch(() => {});
     return () => { active = false; };
   }, [id]);
+  // Only a queued scan still has its photograph: a scan the server answered was
+  // never stored as bytes. The card shows the image when there is one.
+  useEffect(() => {
+    let url = '';
+    void store.queueStatus(id ?? '').then((entry) => {
+      if (!entry?.imageBytes) return;
+      url = URL.createObjectURL(new Blob([entry.imageBytes], { type: entry.imageType }));
+      setImage(url);
+    }).catch(() => {});
+    return () => { if (url) URL.revokeObjectURL(url); setImage(''); };
+  }, [id]);
   if (!loaded) return <p role="status">กำลังอ่านผลตรวจ…</p>;
   if (!result) return <section className="card"><h1>{error || 'ไม่พบผลตรวจนี้ในอุปกรณ์'}</h1><Link className="button" to="/scan">ตรวจใบชา</Link></section>;
+  const view = buildResultView(result, knowledge);
   return <>{queueError && <p role="alert" className="notice">{queueError.detail_th}
-    {[400, 413, 415, 422].includes(queueError.status ?? 0) && ' · กรุณาถ่ายใหม่'}</p>}<ResultCard result={result} knowledge={knowledge.find((record) => record.canonical === (
-    isFull(result) && result.burn_analysis.verdict === 'physical_burn' ? 'physical_burn' : result.prediction.class_name))} />
+    {[400, 413, 415, 422].includes(queueError.status ?? 0) && ' · กรุณาถ่ายใหม่'}</p>}
+    {view ? <DiagnosisResult result={view.prediction} imageUrl={image || undefined}
+      analysisMode={view.analysisMode} verdict={view.verdict} severity={view.severity}
+      confidenceMin={config?.min_confidence ?? configShape.min_confidence}
+      onScanAgain={() => navigate('/scan')} onOpenKnowledge={() => navigate('/kb')} />
+      : <p className="notice">รอคำแนะนำที่ตรงกับผลวิเคราะห์จากฐานความรู้</p>}
     <Link className="button" to="/scan">ตรวจใบถัดไป</Link></>;
 }
 function HistoryPage() {
@@ -165,7 +184,7 @@ export function App() {
       {pendingCount > 0 && !syncUnavailable && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
     </aside><Routes>
       <Route path="/scan" element={<ScanPage onResult={saveResult} config={config} />} />
-      <Route path="/result/:id" element={<ResultPage key={revision} knowledge={knowledge} />} />
+      <Route path="/result/:id" element={<ResultPage key={revision} knowledge={knowledge} config={config} />} />
       <Route path="/history" element={<HistoryPage key={revision} />} />
       <Route path="/kb" element={<KnowledgePage records={knowledge} loading={loading} error={error} />} />
       <Route path="*" element={<Navigate to="/scan" replace />} />

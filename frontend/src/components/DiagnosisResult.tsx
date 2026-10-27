@@ -14,12 +14,21 @@ import type { PredictionResult } from '../types'
 
 type Props = {
   result: PredictionResult
-  imageUrl: string
+  /** Absent for a server scan: only queued device scans keep the photograph. */
+  imageUrl?: string
   onScanAgain: () => void
   onOpenKnowledge: () => void
   /** min_confidence from GET /api/v1/config; never hard-coded here. */
   confidenceMin: number
+  /** Which pipeline produced this. docs/DESIGN.md 8.1 requires it on screen. */
+  analysisMode: 'full' | 'classifier_only'
+  /** Stage 4's reading. Absent on a device result, where no stage decided. */
+  verdict?: 'disease' | 'physical_burn'
+  /** Stage 5's reading, absent for the same reason. */
+  severity?: { level: 'mild' | 'moderate' | 'severe'; affectedPct: number }
 }
+
+const severityLabels = { mild: 'เล็กน้อย', moderate: 'ปานกลาง', severe: 'รุนแรง' }
 
 export default function DiagnosisResult({
   result,
@@ -27,10 +36,15 @@ export default function DiagnosisResult({
   onScanAgain,
   onOpenKnowledge,
   confidenceMin,
+  analysisMode,
+  verdict,
+  severity,
 }: Props) {
   const { disease, confidence, isDemo, status } = result
   const isHealthy = disease.classId === 3
+  const isBurn = verdict === 'physical_burn'
   const isBlight = disease.classId === 0 || disease.classId === 1
+  const onDevice = analysisMode !== 'full'
   const showCare = status !== 'uncertain'
   const confidencePercent = confidence === null ? null : Math.round(confidence * 100)
   const [copied, setCopied] = useState(false)
@@ -75,6 +89,17 @@ export default function DiagnosisResult({
             <span className="eyebrow-line" /> SCAN SUMMARY
           </div>
           <h2>ผลการวิเคราะห์</h2>
+          <p className="result-chips">
+            <span className="history-chip">
+              {onDevice ? 'ประเมินเบื้องต้นบนอุปกรณ์ · จำแนกโรคเท่านั้น' : 'วิเคราะห์ครบขั้นตอนจากเซิร์ฟเวอร์'}
+            </span>
+            {severity && (
+              <span className="history-chip">
+                ความรุนแรง {severityLabels[severity.level]} · พื้นที่เสียหาย{' '}
+                {(severity.affectedPct * 100).toLocaleString('th-TH', { maximumFractionDigits: 1 })}%
+              </span>
+            )}
+          </p>
           <p>
             {status === 'demo'
               ? 'ผลนี้สุ่มขึ้นเพื่อดูหน้าตาของระบบ ไม่ได้มาจากภาพของคุณ'
@@ -105,6 +130,25 @@ export default function DiagnosisResult({
           )}
         </span>
       </div>
+
+      {isBurn && (
+        <div className="blight-note" role="status">
+          <ShieldAlert size={18} />
+          <p>
+            <strong>ผลนี้ตัดสินว่าเป็นรอยไหม้ทางกายภาพ ไม่ใช่โรคจากเชื้อ</strong>{' '}
+            ไม่ต้องฉีดพ่นสารป้องกันกำจัดโรคพืชจากผลนี้ ให้ตรวจการให้น้ำ ร่มเงา และสารที่พ่นครั้งล่าสุดก่อน
+          </p>
+        </div>
+      )}
+      {onDevice && (
+        <div className="blight-note" role="status">
+          <ShieldAlert size={18} />
+          <p>
+            <strong>ยังแยกโรคกับแผลไหม้ไม่ได้</strong> ผลนี้มาจากตัวจำแนกบนอุปกรณ์เท่านั้น
+            ยังไม่ได้ผ่านขั้นวิเคราะห์รอยโรคและความรุนแรง รอเชื่อมต่อเพื่อวิเคราะห์เพิ่มเติม
+          </p>
+        </div>
+      )}
 
       {status === 'demo' && (
         <div className="demo-notice">
@@ -156,13 +200,15 @@ export default function DiagnosisResult({
 
       {showCare && (
         <>
-          <div className="ts-result-card">
-            <div className="result-image-wrap">
-              <img src={imageUrl} alt="ภาพใบชาที่ส่งวิเคราะห์" className="result-image" />
-              <span className="image-label">
-                <Leaf size={13} /> ภาพที่ส่งตรวจ
-              </span>
-            </div>
+          <div className={`ts-result-card ${imageUrl ? '' : 'no-image'}`}>
+            {imageUrl && (
+              <div className="result-image-wrap">
+                <img src={imageUrl} alt="ภาพใบชาที่ส่งวิเคราะห์" className="result-image" />
+                <span className="image-label">
+                  <Leaf size={13} /> ภาพที่ส่งตรวจ
+                </span>
+              </div>
+            )}
             <div className="result-content">
               <span className="result-kicker">{isDemo ? 'ตัวอย่างหน้าจอ' : 'ผลการจำแนกจากระบบ'}</span>
               <h3>{disease.nameTh}</h3>
@@ -181,24 +227,28 @@ export default function DiagnosisResult({
               ) : (
                 !isDemo && <div className="confidence-unavailable">API ไม่ได้ส่งค่าความมั่นใจกลับมา</div>
               )}
-              <div className="pathogen-row">
-                <FlaskConical size={16} />
-                <span>
-                  <b>เชื้อ/สาเหตุที่ระบุ:</b> {disease.pathogen}
-                </span>
-              </div>
+              {disease.pathogen && (
+                <div className="pathogen-row">
+                  <FlaskConical size={16} />
+                  <span>
+                    <b>เชื้อ/สาเหตุที่ระบุ:</b> {disease.pathogen}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="symptom-card">
-            <div className="mini-icon">
-              <ClipboardCheck size={19} />
+          {disease.symptoms && (
+            <div className="symptom-card">
+              <div className="mini-icon">
+                <ClipboardCheck size={19} />
+              </div>
+              <div>
+                <strong>ลักษณะอาการที่ควรตรวจสอบ</strong>
+                <p>{disease.symptoms}</p>
+              </div>
             </div>
-            <div>
-              <strong>ลักษณะอาการที่ควรตรวจสอบ</strong>
-              <p>{disease.symptoms}</p>
-            </div>
-          </div>
+          )}
 
           {isBlight && (
             <div className="blight-note">
@@ -272,7 +322,10 @@ export default function DiagnosisResult({
           {!isHealthy && (
             <details className="chem-details">
               <summary>ข้อมูลการใช้สาร · ปรึกษาเจ้าหน้าที่เกษตรก่อนใช้</summary>
-              <p>{disease.chemicalTreatment}</p>
+              {/* A device result has not been through stage 4, so it cannot tell
+                  a lesion from a scorch. Printing the record's spray advice here
+                  would answer a question no stage has asked yet. */}
+              <p>{onDevice ? 'รอการวิเคราะห์ครบขั้นตอนก่อนพิจารณาการใช้สารป้องกันกำจัด' : disease.chemicalTreatment}</p>
             </details>
           )}
         </>
