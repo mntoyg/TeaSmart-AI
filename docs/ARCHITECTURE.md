@@ -17,7 +17,7 @@ flowchart LR
   end
 
   subgraph OptionalServer["Backend เมื่อมีการตั้งค่า endpoint"]
-    API["FastAPI<br/>/health · /api/v1/scan · /kb · /config · /sync/batch"]
+    API["FastAPI<br/>/health · /api/v1/scan · /api/v1/kb · /api/v1/config · /api/v1/sync/batch"]
     Gate["ตรวจและ decode ภาพ"]
     Pipeline["quality → segmentation → classification<br/>lesion → severity → expert system"]
     KB["KB แบบ read-only"]
