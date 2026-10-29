@@ -44,6 +44,17 @@
 - **เพดานการใช้งานต่อวัน:** AI ทุกตัว ไม่เกิน 14% ของ weekly capacity ของตัวเองต่อวัน
   (2026-10-20 ผู้ใช้ยกเพดานเฉพาะวันนั้นเป็น 50% ไม่ใช่กฎใหม่)
 
+## 2026-10-29 — สไลซ์ ML grouped split (มอบหมาย SWE เฉพาะสไลซ์; กำลังตรวจ)
+
+ผู้ใช้มอบหมายสไลซ์นี้ให้ SWE โดยตรง แม้ `AGENTS.md` กำหนดเจ้าของปกติของ `ml/` เป็น Claude Code; การมอบหมายนี้ครอบคลุมเฉพาะ grouped split และไม่เปลี่ยนเจ้าของไดเรกทอรีสำหรับงานอื่น. เริ่มจาก `origin/main` SHA `54a107741c0888458bebe41c1e820b3abaec5c50` หลังยืนยัน PR #35 และ #36 merged, `docs/ARCHITECTURE.md` และบันทึก STATE ทั้งสองอยู่บน main; ตรวจไม่พบ open PR หรือ branch ชื่อ `codex/ml-grouped-split`.
+
+สถานะเริ่มต้น: branch `codex/ml-grouped-split` ถูกสร้างจาก main แล้ว; ยังไม่ได้แก้ code, manifest, split หรือข้อมูล. กำลังตรวจว่ามี capture-session metadata ที่ยืนยันได้และชุดข้อมูล local พร้อมประเมินหรือไม่; ยังไม่มีผล split/metric ใหม่.
+
+ตรวจเอกสารหลังบันทึก assignment: `tests/test_docs_links.py` — `20 passed in 0.41s`; `git diff --check` ผ่าน. พบ interim directory และ marker ใน primary checkout แต่ไม่มีใน worktree ใหม่; จะประมวลผลจากข้อมูล local เดิมโดยตรง ไม่คัดลอกหรือ commit ชุดข้อมูล.
+
+หลักฐานโควตา (Asia/Bangkok): baseline weekly วันนี้ 22%, ค่าล่าสุด 27%, ผลต่างวันนี้ +5 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่าง weekly กับ baseline เป็นขอบเขตบน ซึ่งยังต่ำกว่าเพดาน 14 จุด. หน้าต่าง 5 ชั่วโมง 31% ไม่ใช่ตัวนับรายวันและไม่นำมาคำนวณผลต่าง.
+
+ข้อกำกับวิธีวัด: `AI-ROADMAP.md` เสนอ Hamming distance ของ perceptual hash สำหรับ grouping แต่ `DESIGN.md` หัวข้อ 6 ระบุชัดว่าไม่ใช้ pHash ตัดสินภาพซ้ำ และให้ยืนยันคู่ภาพจาก pixel MAE แบบ exhaustive พร้อมขอบเขตล่าง exact; จึงเก็บ pHash เป็นข้อมูลตรวจสอบเท่านั้น. จะจัดกลุ่มตาม capture session เฉพาะเมื่อ metadata ในข้อมูลต้นทางยืนยันได้ ไม่อนุมานจาก class/source หรือชื่อไฟล์.
 ## 2026-10-29 — ผลตรวจ backend/ML สำหรับ frontend integration
 
 ตรวจโควตาในเวลา Asia/Bangkok ก่อนงาน: baseline weekly ของวันนี้ 22%, ค่าล่าสุดที่อ่านได้ 26%, ผลต่างวันนี้ +4 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่างระหว่าง weekly กับ baseline เป็นขอบเขตบนตามกฎใน `AGENTS.md` (ยังต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์) ส่วนหน้าต่าง 5 ชั่วโมงอ่านได้ 25% และไม่ใช้แทนยอดรายวัน
