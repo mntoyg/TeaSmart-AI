@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { adviceFields, readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
 import { configShape, type ClientConfig } from './lib/scan-contract';
@@ -9,6 +9,10 @@ import { syncQueue } from './lib/queue';
 import DiagnosisResult from './components/DiagnosisResult';
 import { buildResultView } from './lib/result-view';
 import { ScanPage } from './pages/ScanPage';
+import AppHeader, { type AppTab } from './components/AppHeader';
+import TodayPlanCard from './components/TodayPlanCard';
+import ReadinessPanel from './components/ReadinessPanel';
+import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/readiness';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
   const { id } = useParams();
@@ -90,6 +94,7 @@ const offlinePrepared = 'เตรียมออฟไลน์แล้ว · 
 
 export function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [knowledge, setKnowledge] = useState<KnowledgeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -102,6 +107,14 @@ export function App() {
   const [syncUnavailable, setSyncUnavailable] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [today, setToday] = useState(() => loadToday());
+  const activeTab: AppTab = location.pathname === '/readiness' ? 'readiness'
+    : location.pathname === '/history' ? 'history'
+      : location.pathname === '/kb' ? 'knowledge' : 'scan';
+  const changeTab = (tab: AppTab) => {
+    const paths: Record<AppTab, string> = { scan: '/scan', readiness: '/readiness', knowledge: '/kb', history: '/history' };
+    navigate(paths[tab]);
+  };
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update); window.addEventListener('offline', update);
@@ -141,6 +154,16 @@ export function App() {
     setRevision((value) => value + 1);
   }
   useEffect(() => { void store.pending().then((entries) => setPendingCount(entries.length)).catch(() => setSyncMessage('อ่านคิวไม่ได้')); }, [revision, online]);
+  useEffect(() => {
+    let active = true;
+    void store.list().then((results) => {
+      if (!active) return;
+      const day = bangkokDay();
+      const scanCount = results.filter((result) => bangkokDay(new Date(result.captured_at)) === day).length;
+      setToday((current) => ({ ...current, day, scanCount }));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [revision]);
   async function replay() {
     if (syncing) return;
     setSyncUnavailable(false);
@@ -174,21 +197,28 @@ export function App() {
     } catch (failure) { setOfflineMessage(failure instanceof Error ? failure.message : 'เตรียมออฟไลน์ไม่ได้ กรุณาลองใหม่'); }
     finally { setPreparing(false); }
   }
+  function saveReadiness(readiness: TodayReadiness) {
+    const next = { ...today, day: bangkokDay(), readiness };
+    saveToday(next);
+    setToday(next);
+  }
   return <div className="app-shell">
-    <div className="topbar"><Link to="/scan" className="brand">ใบชา · ผู้ช่วยดูแลสวน</Link>
-      <span className="connection" role="status">{online ? 'เชื่อมต่อเครือข่าย' : 'ไม่มีเครือข่าย'}</span></div>
-    <main><aside className="offline-panel"><p role="status">{offlineMessage}</p>
+    <div id="top" />
+    <AppHeader activeTab={activeTab} online={online} onTabChange={changeTab} />
+    <main className="app-main"><aside className="offline-panel"><p role="status">{offlineMessage}</p>
       <button className="secondary" disabled={preparing || !online} onClick={prepare}>เตรียมใช้งานออฟไลน์</button>
       {pendingCount > 0 && <p>เก็บไว้ในอุปกรณ์แล้ว {pendingCount.toLocaleString('th-TH')} ภาพ</p>}
       {syncMessage && pendingCount > 0 && <p role="status">{syncMessage}</p>}
       {pendingCount > 0 && !syncUnavailable && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
     </aside><Routes>
-      <Route path="/scan" element={<ScanPage onResult={saveResult} config={config} />} />
+      <Route path="/scan" element={<><ScanPage onResult={saveResult} config={config} />
+        <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
+          onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
+      <Route path="/readiness" element={<ReadinessPanel today={today.readiness} onSave={saveReadiness} onScan={() => navigate('/scan')} />} />
       <Route path="/result/:id" element={<ResultPage key={revision} knowledge={knowledge} config={config} />} />
       <Route path="/history" element={<HistoryPage key={revision} />} />
       <Route path="/kb" element={<KnowledgePage records={knowledge} loading={loading} error={error} />} />
       <Route path="*" element={<Navigate to="/scan" replace />} />
     </Routes></main>
-    <nav aria-label="เมนูหลัก"><NavLink to="/scan">ตรวจใบชา</NavLink><NavLink to="/history">ประวัติ</NavLink><NavLink to="/kb">ความรู้</NavLink></nav>
   </div>;
 }

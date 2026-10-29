@@ -72,6 +72,35 @@ it('offers a button-styled scan link when history is empty', async () => {
   list.mockRestore();
 });
 
+it('opens the before-reading checklist and persists today\'s plan across app reloads', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  const user = userEvent.setup();
+  const firstRender = render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const beforeReadingTabs = await screen.findAllByRole('button', { name: 'ก่อนอ่าน' });
+  await user.click(beforeReadingTabs[0]);
+  expect(await screen.findByRole('heading', { name: 'เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  await user.click(screen.getByLabelText('แสงธรรมชาติ มองสีแผลชัด'));
+  await user.click(screen.getByLabelText('มีหลายใบและเห็นแผลชัด'));
+  await user.click(screen.getByLabelText('มากกว่า 20 นาที'));
+  await user.click(screen.getByLabelText('แยกได้ และจะเปิดคลังความรู้เทียบถ้าสงสัย'));
+  await user.click(screen.getByRole('button', { name: 'บันทึกแผนวันนี้' }));
+  expect(await screen.findByText(/บันทึกวันนี้แล้ว/)).toBeInTheDocument();
+
+  firstRender.unmount();
+  render(<MemoryRouter initialEntries={['/readiness']}><App /></MemoryRouter>);
+  expect(await screen.findByText(/บันทึกวันนี้แล้ว/)).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
+it('shows the today plan card on the scan page', async () => {
+  localStorage.clear();
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'วันนี้ยังไม่ได้เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
 it('keeps the local queue visible without offering a pointless retry on the static demo', async () => {
   await store.saveConfig(configShape);
   const id = crypto.randomUUID();
