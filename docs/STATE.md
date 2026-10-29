@@ -54,9 +54,9 @@
 
 Blocker ที่ต้องปลด: ต้องมี authoritative capture-session mapping/metadata ที่ผูกกับภาพใน local corpus หรือผู้ใช้ยืนยันนโยบาย grouping ทางเลือกอย่างชัดเจนก่อน. ยังไม่มี grouped-split metrics ใหม่; ไม่แก้ `docs/EVIDENCE.md`, ไม่แตะ `data/` และไม่สร้างตัวเลขแทนผลจริง.
 
-ตรวจเอกสารหลังบันทึก assignment: `tests/test_docs_links.py` — `20 passed in 0.41s`; `git diff --check` ผ่าน. พบ interim directory และ marker ใน primary checkout แต่ไม่มีใน worktree ใหม่; จะประมวลผลจากข้อมูล local เดิมโดยตรง ไม่คัดลอกหรือ commit ชุดข้อมูล.
+ตรวจเอกสารหลังบันทึก assignment: `tests/test_docs_links.py` — `20 passed in 0.15s`; `git diff --check` ผ่าน. พบ interim directory และ marker ใน primary checkout แต่ไม่มีใน worktree ใหม่; จะประมวลผลจากข้อมูล local เดิมโดยตรง ไม่คัดลอกหรือ commit ชุดข้อมูล.
 
-หลักฐานโควตา (Asia/Bangkok): baseline weekly วันนี้ 22%, ค่าล่าสุด 27%, ผลต่างวันนี้ +5 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่าง weekly กับ baseline เป็นขอบเขตบน ซึ่งยังต่ำกว่าเพดาน 14 จุด. หน้าต่าง 5 ชั่วโมง 33% ไม่ใช่ตัวนับรายวันและไม่นำมาคำนวณผลต่าง.
+หลักฐานโควตา (Asia/Bangkok): baseline weekly วันนี้ 22%, ค่าล่าสุด 28%, ผลต่างวันนี้ +6 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่าง weekly กับ baseline เป็นขอบเขตบน ซึ่งยังต่ำกว่าเพดาน 14 จุด. หน้าต่าง 5 ชั่วโมง 34% ไม่ใช่ตัวนับรายวันและไม่นำมาคำนวณผลต่าง.
 
 ข้อกำกับวิธีวัด: `AI-ROADMAP.md` เสนอ Hamming distance ของ perceptual hash สำหรับ grouping แต่ `DESIGN.md` หัวข้อ 6 ระบุชัดว่าไม่ใช้ pHash ตัดสินภาพซ้ำ และให้ยืนยันคู่ภาพจาก pixel MAE แบบ exhaustive พร้อมขอบเขตล่าง exact; จึงเก็บ pHash เป็นข้อมูลตรวจสอบเท่านั้น. จะจัดกลุ่มตาม capture session เฉพาะเมื่อ metadata ในข้อมูลต้นทางยืนยันได้ ไม่อนุมานจาก class/source หรือชื่อไฟล์.
 ## 2026-10-29 — ผลตรวจ backend/ML สำหรับ frontend integration
