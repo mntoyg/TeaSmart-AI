@@ -101,6 +101,19 @@ it('shows the today plan card on the scan page', async () => {
   vi.unstubAllGlobals();
 });
 
+it('keeps offline status visible while omitting the queue area when no images are pending', async () => {
+  const pending = vi.spyOn(store, 'pending').mockResolvedValue([]);
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const panel = await screen.findByRole('region', { name: 'สถานะออฟไลน์และคิว' });
+  expect(within(panel).getByRole('status')).toHaveTextContent('ยังไม่ได้เตรียมใช้งานออฟไลน์');
+  expect(within(panel).queryByRole('group', { name: 'ภาพที่รอส่ง' })).not.toBeInTheDocument();
+
+  pending.mockRestore();
+  vi.unstubAllGlobals();
+});
+
 it('keeps the local queue visible without offering a pointless retry on the static demo', async () => {
   await store.saveConfig(configShape);
   const id = crypto.randomUUID();
@@ -115,6 +128,7 @@ it('keeps the local queue visible without offering a pointless retry on the stat
   expect(await screen.findByText(/ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ/))
     .toBeInTheDocument();
   expect(screen.getByText(/เก็บไว้ในอุปกรณ์แล้ว 1 ภาพ/)).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'ภาพที่รอส่ง' })).toHaveTextContent('เก็บไว้ในอุปกรณ์แล้ว 1 ภาพ');
   expect(screen.queryByRole('button', { name: 'ส่งคิวอีกครั้ง' })).not.toBeInTheDocument();
   vi.unstubAllGlobals();
 });

@@ -12,6 +12,7 @@ import { ScanPage } from './pages/ScanPage';
 import AppHeader, { type AppTab } from './components/AppHeader';
 import TodayPlanCard from './components/TodayPlanCard';
 import ReadinessPanel from './components/ReadinessPanel';
+import OfflinePanel from './components/OfflinePanel';
 import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/readiness';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
@@ -205,12 +206,10 @@ export function App() {
   return <div className="app-shell">
     <div id="top" />
     <AppHeader activeTab={activeTab} online={online} onTabChange={changeTab} />
-    <main className="app-main"><aside className="offline-panel"><p role="status">{offlineMessage}</p>
-      <button className="secondary" disabled={preparing || !online} onClick={prepare}>เตรียมใช้งานออฟไลน์</button>
-      {pendingCount > 0 && <p>เก็บไว้ในอุปกรณ์แล้ว {pendingCount.toLocaleString('th-TH')} ภาพ</p>}
-      {syncMessage && pendingCount > 0 && <p role="status">{syncMessage}</p>}
-      {pendingCount > 0 && !syncUnavailable && <button className="secondary" disabled={!online || syncing} onClick={replay}>ส่งคิวอีกครั้ง</button>}
-    </aside><Routes>
+    <main className="app-main"><OfflinePanel online={online} message={offlineMessage}
+      preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
+      syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
+      <Routes>
       <Route path="/scan" element={<><ScanPage onResult={saveResult} config={config} />
         <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
           onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
