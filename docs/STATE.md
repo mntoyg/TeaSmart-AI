@@ -44,6 +44,21 @@
 - **เพดานการใช้งานต่อวัน:** AI ทุกตัว ไม่เกิน 14% ของ weekly capacity ของตัวเองต่อวัน
   (2026-10-20 ผู้ใช้ยกเพดานเฉพาะวันนั้นเป็น 50% ไม่ใช่กฎใหม่)
 
+## 2026-10-29 — สไลซ์ ML grouped split (มอบหมาย SWE เฉพาะสไลซ์; กำลังตรวจ)
+
+ผู้ใช้มอบหมายสไลซ์นี้ให้ SWE โดยตรง แม้ `AGENTS.md` กำหนดเจ้าของปกติของ `ml/` เป็น Claude Code; การมอบหมายนี้ครอบคลุมเฉพาะ grouped split และไม่เปลี่ยนเจ้าของไดเรกทอรีสำหรับงานอื่น. เริ่มจาก `origin/main` SHA `54a107741c0888458bebe41c1e820b3abaec5c50` หลังยืนยัน PR #35 และ #36 merged, `docs/ARCHITECTURE.md` และบันทึก STATE ทั้งสองอยู่บน main; ตรวจไม่พบ open PR หรือ branch ชื่อ `codex/ml-grouped-split`.
+
+สถานะปัจจุบัน: branch `codex/ml-grouped-split` เริ่มจาก main ที่ยืนยันแล้ว; ไม่มีการแก้ source, manifest, split หรือข้อมูล. หยุดก่อนเขียน regression test/แก้โค้ด/ประเมินผล เพราะข้อมูล local ไม่มี capture-session identifier ที่ยืนยันได้ จึงไม่สามารถทดสอบหรือรับรองข้อกำหนดว่าภาพจาก session เดียวกันต้องอยู่ split เดียวกัน.
+
+หลักฐานจาก metadata local: มี Parquet 5 ไฟล์ 6,752 แถว; schema ของ `image` คือ `struct<bytes: binary, path: string>`, มี path ครบ 6,752 แถว แต่ทุก path มี depth 1 และมี parent path เดียว; พบชื่อ path ที่มีรูปแบบคล้ายเวลา 2,030 รายการแต่ไม่มี schema/เอกสารยืนยันว่าเป็น session ID. `ingest_parquet_source` อ่าน `image` และ `label`, แล้วสร้างชื่อไฟล์ตาม source/index โดยไม่เก็บ `image.path`; ingestion ของ YOLO ZIP ก็สร้างชื่อ source/index และไม่เก็บเส้นทางเดิม. จึงห้ามอนุมาน session จาก timestamp, ชื่อไฟล์, class หรือ source. pHash ใช้แทน session ไม่ได้ และ `DESIGN.md` ห้ามใช้ pHash ตัดสินภาพซ้ำ.
+
+Blocker ที่ต้องปลด: ต้องมี authoritative capture-session mapping/metadata ที่ผูกกับภาพใน local corpus หรือผู้ใช้ยืนยันนโยบาย grouping ทางเลือกอย่างชัดเจนก่อน. ยังไม่มี grouped-split metrics ใหม่; ไม่แก้ `docs/EVIDENCE.md`, ไม่แตะ `data/` และไม่สร้างตัวเลขแทนผลจริง.
+
+ตรวจเอกสารหลังบันทึก assignment: `tests/test_docs_links.py` — `20 passed in 0.15s`; `git diff --check` ผ่าน. พบ interim directory และ marker ใน primary checkout แต่ไม่มีใน worktree ใหม่; จะประมวลผลจากข้อมูล local เดิมโดยตรง ไม่คัดลอกหรือ commit ชุดข้อมูล.
+
+หลักฐานโควตา (Asia/Bangkok): baseline weekly วันนี้ 22%, ค่าล่าสุด 28%, ผลต่างวันนี้ +6 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่าง weekly กับ baseline เป็นขอบเขตบน ซึ่งยังต่ำกว่าเพดาน 14 จุด. หน้าต่าง 5 ชั่วโมง 34% ไม่ใช่ตัวนับรายวันและไม่นำมาคำนวณผลต่าง.
+
+ข้อกำกับวิธีวัด: `AI-ROADMAP.md` เสนอ Hamming distance ของ perceptual hash สำหรับ grouping แต่ `DESIGN.md` หัวข้อ 6 ระบุชัดว่าไม่ใช้ pHash ตัดสินภาพซ้ำ และให้ยืนยันคู่ภาพจาก pixel MAE แบบ exhaustive พร้อมขอบเขตล่าง exact; จึงเก็บ pHash เป็นข้อมูลตรวจสอบเท่านั้น. จะจัดกลุ่มตาม capture session เฉพาะเมื่อ metadata ในข้อมูลต้นทางยืนยันได้ ไม่อนุมานจาก class/source หรือชื่อไฟล์.
 ## 2026-10-29 — ผลตรวจ backend/ML สำหรับ frontend integration
 
 ตรวจโควตาในเวลา Asia/Bangkok ก่อนงาน: baseline weekly ของวันนี้ 22%, ค่าล่าสุดที่อ่านได้ 26%, ผลต่างวันนี้ +4 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่างระหว่าง weekly กับ baseline เป็นขอบเขตบนตามกฎใน `AGENTS.md` (ยังต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์) ส่วนหน้าต่าง 5 ชั่วโมงอ่านได้ 25% และไม่ใช้แทนยอดรายวัน
