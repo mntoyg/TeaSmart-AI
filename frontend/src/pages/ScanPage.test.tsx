@@ -19,69 +19,87 @@ afterEach(() => {
 });
 
 function pickALeaf() {
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), {
+  fireEvent.change(screen.getByLabelText('เลือกรูปภาพ'), {
     target: { files: [new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' })] },
   });
 }
-it('keeps file fallback available after camera permission denial', async () => {
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-    getUserMedia: vi.fn().mockRejectedValue(new DOMException('Denied', 'NotAllowedError')),
-  } });
-  render(<ScanPage onResult={vi.fn()} />);
-  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('เลือกภาพ');
-  expect(screen.getByLabelText('เลือกภาพใบชา')).toBeInTheDocument();
+
+it('reaches the camera through a capture input, so there is no video stream to leak', () => {
+  // The merged design asks the operating system for a photograph instead of
+  // holding a getUserMedia stream open. A phone camera app focuses and exposes
+  // better than a video element, needs no in-page permission, and leaves no
+  // track to stop - so the page no longer touches navigator.mediaDevices.
+  const getUserMedia = vi.fn();
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+
+  const { container } = render(<ScanPage onResult={vi.fn()} />);
+
+  expect(screen.getByLabelText('ถ่ายจากกล้อง')).toHaveAttribute('capture', 'environment');
+  expect(container.querySelector('video')).toBeNull();
+  expect(getUserMedia).not.toHaveBeenCalled();
 });
-it('shows 422 feedback without leaving the scan page, ready to retake', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-    detail: 'blur', detail_th: 'ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น',
-  }), { status: 422 })));
-  vi.stubGlobal('URL', { createObjectURL: () => 'blob:test', revokeObjectURL: vi.fn() });
-  render(<ScanPage onResult={vi.fn()} multipartField="image" />);
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), { target: { files: [
-    new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' }),
-  ] } });
-  await userEvent.click(screen.getByRole('button', { name: 'วิเคราะห์ใบชา' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น');
-  await waitFor(() => expect(screen.getByRole('button', { name: 'ถ่ายใหม่' })).toBeEnabled());
-});
+
 it('offers the photo picker before the camera, and says why', () => {
   // The corpus is open-source datasets and every image in it is a close-up of a
   // single leaf (docs/EVIDENCE.md). A phone held up to a leaf indoors, at an
   // angle, with a cluttered background, is outside that distribution - so the
-  // path most likely to produce a confidently wrong answer is the one the old
-  // layout put first. Picking an existing photograph stays nearer the input the
-  // 0.987 figure was measured on, so it leads.
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-    getUserMedia: vi.fn(),
-  } });
+  // path most likely to produce a confidently wrong answer is not the one that
+  // leads. Picking an existing photograph stays nearer the input the 0.987
+  // figure was measured on.
   render(<ScanPage onResult={vi.fn()} />);
 
-  const picker = screen.getByLabelText('เลือกภาพใบชา').closest('label');
-  const camera = screen.getByRole('button', { name: 'เปิดกล้อง' });
-  expect(picker).not.toBeNull();
+  const picker = screen.getByRole('button', { name: 'เลือกรูปภาพ' });
+  const camera = screen.getByRole('button', { name: 'ถ่ายจากกล้อง' });
 
   // DOCUMENT_POSITION_FOLLOWING: the camera comes after the picker.
-  expect(picker!.compareDocumentPosition(camera) & Node.DOCUMENT_POSITION_FOLLOWING)
-    .toBeTruthy();
-  expect(camera.className).toContain('secondary');
-  expect(picker!.className).not.toContain('secondary');
+  expect(picker.compareDocumentPosition(camera) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it('states the input the model was measured on', () => {
   render(<ScanPage onResult={vi.fn()} />);
   // Not a style note: a judge photographing a whole bush gets an answer the
   // held-out numbers do not cover, and nothing on screen would say so.
-  expect(screen.getByText(/โคลสอัพ/)).toBeInTheDocument();
+  expect(screen.getByText('ถ่ายใบเดียวให้ใกล้แผล อ่านผลได้ชัดกว่าภาพที่กำใบหลายใบในมือ')).toBeInTheDocument();
+  expect(screen.getByText('ถ่ายไกลจนเห็นทั้งพุ่ม')).toBeInTheDocument();
 });
 
 it('shows the upload limit from the shared transport contract', () => {
   transportLimits.max_upload_bytes = 3 * 1024 * 1024;
   render(<ScanPage onResult={vi.fn()} />);
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), {
+
+  // The lifted design advertised 10 MB, a number that belongs to no contract.
+  expect(screen.getByText(/ขนาดไม่เกิน 3 MB/)).toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText('เลือกรูปภาพ'), {
     target: { files: [new File([new Uint8Array(3 * 1024 * 1024 + 1)], 'large.jpg', { type: 'image/jpeg' })] },
   });
   expect(screen.getByRole('alert')).toHaveTextContent('ภาพมีขนาดเกิน 3 เมกะไบต์');
+});
+
+it('shows 422 feedback without leaving the scan page, ready to retake', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    detail: 'blur', detail_th: 'ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น',
+  }), { status: 422 })));
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:test', revokeObjectURL: vi.fn() });
+  render(<ScanPage onResult={vi.fn()} multipartField="image" />);
+  pickALeaf();
+
+  await userEvent.click(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'นำภาพออก' })).toBeEnabled());
+});
+
+it('drops the photograph, and the analysis it would allow, when the user removes it', async () => {
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:test', revokeObjectURL: vi.fn() });
+  render(<ScanPage onResult={vi.fn()} />);
+  pickALeaf();
+  expect(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole('button', { name: 'นำภาพออก' }));
+
+  expect(screen.queryByAltText('ภาพใบชาที่เลือกสำหรับวิเคราะห์')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' })).toBeDisabled();
 });
 
 it('runs the model on the device when the server cannot be reached', async () => {
@@ -100,7 +118,7 @@ it('runs the model on the device when the server cannot be reached', async () =>
 
   render(<ScanPage onResult={onResult} multipartField="image" />);
   pickALeaf();
-  await userEvent.click(screen.getByRole('button', { name: 'วิเคราะห์ใบชา' }));
+  await userEvent.click(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' }));
 
   await waitFor(() => expect(onResult).toHaveBeenCalledOnce());
   expect(inferOffline).toHaveBeenCalledOnce();
@@ -121,7 +139,7 @@ it('does not run the device model when the server refuses the photograph', async
 
   render(<ScanPage onResult={onResult} multipartField="image" />);
   pickALeaf();
-  await userEvent.click(screen.getByRole('button', { name: 'วิเคราะห์ใบชา' }));
+  await userEvent.click(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' }));
 
   expect(await screen.findByRole('alert')).toHaveTextContent('ภาพเบลอ กรุณาถ่ายใหม่ให้ชัดขึ้น');
   expect(inferOffline).not.toHaveBeenCalled();
@@ -129,51 +147,10 @@ it('does not run the device model when the server refuses the photograph', async
   expect(onResult).not.toHaveBeenCalled();
 });
 
-it('stops every camera track on unmount', async () => {
-  const stop = vi.fn();
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-    getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }),
-  } });
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
-  const { unmount } = render(<ScanPage onResult={vi.fn()} />);
-  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'ถ่ายภาพ' })).toBeInTheDocument());
-  unmount();
-  expect(stop).toHaveBeenCalledOnce();
-});
-
-it('lets the user close the camera and stops every camera track', async () => {
-  const stops = [vi.fn(), vi.fn()];
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-    getUserMedia: vi.fn().mockResolvedValue({
-      getTracks: () => stops.map((stop) => ({ stop })),
-    }),
-  } });
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+it('keeps the three steps of the journey on screen, with scanning current', () => {
   render(<ScanPage onResult={vi.fn()} />);
-
-  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
-  await userEvent.click(await screen.findByRole('button', { name: 'ปิดกล้อง' }));
-
-  expect(stops.every((stop) => stop.mock.calls.length === 1)).toBe(true);
-  expect(screen.getByRole('button', { name: 'เปิดกล้อง' })).toBeInTheDocument();
-});
-
-it('closes the camera when a captured image exceeds the upload limit', async () => {
-  const stop = vi.fn();
-  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-    getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }),
-  } });
-  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
-  render(<ScanPage onResult={vi.fn()} />);
-
-  await userEvent.click(screen.getByRole('button', { name: 'เปิดกล้อง' }));
-  await waitFor(() => expect(screen.getByRole('button', { name: 'ถ่ายภาพ' })).toBeInTheDocument());
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), { target: { files: [
-    new File([new Uint8Array(transportLimits.max_upload_bytes + 1)], 'large.jpg', { type: 'image/jpeg' }),
-  ] } });
-
-  expect(stop).toHaveBeenCalledOnce();
-  expect(screen.getByRole('alert')).toHaveTextContent('ภาพมีขนาดเกิน 8 เมกะไบต์');
-  expect(screen.getByRole('button', { name: 'เปิดกล้อง' })).toBeInTheDocument();
+  const steps = screen.getByRole('list', { name: 'ขั้นตอนการใช้งาน' });
+  expect(steps).toHaveTextContent('สแกนใบชา');
+  expect(steps).toHaveTextContent('ดูผลโรค');
+  expect(steps).toHaveTextContent('วิธีแก้ไข');
 });
