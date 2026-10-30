@@ -206,11 +206,14 @@ export function App() {
   return <div className="app-shell">
     <div id="top" />
     <AppHeader activeTab={activeTab} online={online} onTabChange={changeTab} />
-    <main className="app-main"><OfflinePanel online={online} message={offlineMessage}
-      preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
-      syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
+    <main className="app-main">
       <Routes>
-      <Route path="/scan" element={<><ScanPage onResult={saveResult} config={config} />
+      {/* The panel belongs to the scan page: the queue it drains is filled there.
+          Draining itself stays in App, where the effects run on every route. */}
+      <Route path="/scan" element={<><OfflinePanel online={online} message={offlineMessage}
+        preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
+        syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
+        <ScanPage onResult={saveResult} config={config} />
         <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
           onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
       <Route path="/readiness" element={<ReadinessPanel today={today.readiness} onSave={saveReadiness} onScan={() => navigate('/scan')} />} />

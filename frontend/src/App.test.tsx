@@ -151,3 +151,29 @@ it('refreshes the visible queue after repeated transport failures exhaust retrie
   await waitFor(() => expect(screen.queryByText(/เก็บไว้ในอุปกรณ์แล้ว/)).not.toBeInTheDocument());
   vi.unstubAllGlobals();
 });
+
+it('shows the offline and queue panel on the scan page only', async () => {
+  const panel = 'สถานะออฟไลน์และคิว';
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+
+  const scan = render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('region', { name: panel })).toBeInTheDocument();
+  scan.unmount();
+
+  const knowledge = render(<MemoryRouter initialEntries={['/kb']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'ความรู้เรื่องใบชา' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  knowledge.unmount();
+
+  const history = render(<MemoryRouter initialEntries={['/history']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'ประวัติการตรวจ' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  history.unmount();
+
+  const readiness = render(<MemoryRouter initialEntries={['/readiness']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  readiness.unmount();
+
+  vi.unstubAllGlobals();
+});
