@@ -3,6 +3,22 @@
 **อ่านไฟล์นี้ก่อนอย่างอื่น** ไฟล์นี้บอกว่างานอยู่ตรงไหน ไม่ได้บอกว่ามาถึงจุดนี้ได้อย่างไร
 ใครปิดสไลซ์ได้ อัปเดตไฟล์นี้ใน push เดียวกันกับงานนั้น
 
+## 2026-10-30 — รวม flow “ก่อนอ่าน” เข้ากับ PWA
+
+ทำงานบน branch `codex/frontend-consolidation` ที่แยกจาก `main` (`54a1077`); working tree หลักเริ่มต้นสะอาด ส่วน `TeaSmart frontend/TeaSmart` เป็น nested Git repository branch `main` ไม่มี remote ไม่มี tracked file และมี source untracked 29 ไฟล์ จึงไม่สามารถอ้าง history ของต้นฉบับได้ มีรายการ ignored 6,055 รายการ: `node_modules` 6,050, `dist` 4 และ `.vercel/project.json` 1
+
+ย้าย `TodayPlanCard.tsx`, `ReadinessPanel.tsx` และ `lib/readiness.ts` มาไว้ใน `frontend/`; เพิ่ม route `/readiness`, แท็บ “ก่อนอ่าน”, การ์ดแผนวันนี้, ตัวนับการสแกนรายวันใน localStorage, ไอคอน SVG ในเครื่อง และ CSS เฉพาะส่วน ข้อความ readiness/แผนคงจากต้นฉบับโดยไม่เรียบเรียงใหม่; ไม่เปลี่ยน API, KB, ข้อความคำแนะนำใน backend, IndexedDB, offline queue หรือ flow ผลตรวจที่มีอยู่
+
+ไม่ได้ยก `App.tsx`, `KnowledgePanel`, `HistoryPanel`, `ScanPanel`, `DiagnosisResult`, `src/data/diseases.ts`, `index.html`, `vite.config.ts`, package lock หรือ README ของต้นฉบับ เพราะเป็น demo ที่มีประวัติใน memory, ผลสุ่ม และ README ระบุ API `POST /predict` กับ schema 4 คลาสซึ่งไม่ตรงกับ PWA/สัญญาปัจจุบัน; ใช้ routing, storage, API และ knowledge panel ของ PWA หลักต่อไป ไม่เพิ่ม dependency จากต้นฉบับ การติดตั้ง dependency แบบ offline ถูกปฏิเสธโดย environment (`EALLOWREMOTE`) จึงไม่มีการแก้ package manifest/lock
+
+Inventory พบ `.vercel/project.json` เป็น deployment binding ที่ไม่ตรวจเนื้อหาและไม่นำเข้าโปรเจกต์หลัก โฟลเดอร์ `TeaSmart frontend/` ยังไม่ถูกลบ เพื่อรักษา binding ไว้จนกว่าจะยืนยันว่าจะเก็บที่ใด/จะลบทิ้งได้หรือไม่ ไฟล์ `node_modules` และ `dist` ไม่ได้ย้าย
+
+หลักฐาน: regression test ก่อนแก้ล้มด้วย `Unable to find role="link" and name "ก่อนอ่าน"`; หลังแก้ `npm test -- --testTimeout=10000` ผ่าน 15 files / 98 tests, `npm run test:contract` ผ่าน 1 test, `tsc -b --pretty false` exit 0 และ `npm run build` ผ่านเมื่อรันนอก sandbox (PWA precache 12 entries) โดยยังแสดงคำเตือน VitePWA เรื่อง `inlineDynamicImports` deprecated. `npm test` ด้วย timeout ปกติมี HTTPS test timeout 1 รายการ; รันทดสอบไฟล์นั้นซ้ำที่ 10 วินาทีผ่าน 5/5. `scripts/test.ps1 -Quick` ผ่าน lint backend/ML/scripts แต่ `test backend` แสดง error marker ระหว่างทำงานและไม่มี output เพิ่มเกิน 12 นาที จึงหยุด process ก่อนสรุป; ยังไม่มีผลครบของ backend/ML จากคำสั่งนี้
+
+ค่าจาก usage tool ล่าสุดตามเวลา Asia/Bangkok: weekly **29%**, หน้าต่าง 5 ชั่วโมง **5%**; ไม่มี daily counter และไม่มี baseline วันนี้ จึงไม่คำนวณ daily delta. ผู้ใช้รายงานค่า weekly ที่ต่างจากตัวอ่าน แต่บันทึกเฉพาะค่าจากเครื่องมือ
+
+PR #37 ยังเปิดเป็น draft และไม่ merge; เป็น blocker grouped-split บน `codex/ml-grouped-split` แยกจากสไลซ์นี้ ไม่แตะต้อง PR/branch ดังกล่าว สไลซ์นี้ยังต้องยืนยันการจัดการ Vercel binding ก่อนลบโฟลเดอร์ต้นฉบับ จากนั้นตรวจ references และปิดงาน/เปิด PR
+
 ## 2026-10-29 — สรุปสถาปัตยกรรม
 
 เพิ่ม [ARCHITECTURE.md](ARCHITECTURE.md) เพื่อสรุป frontend/PWA, backend API, ML workflow, data flow, ขอบเขตข้อมูล, การ deploy และช่องว่างก่อนเปิดให้ผู้ใช้จำนวนมาก โดยแยกสิ่งที่พบใน source ออกจากสถานะที่เอกสาร readiness บันทึกไว้ ไม่เปลี่ยนโค้ด, สัญญา API หรือเนื้อหา KB; follow-up PR #35 ปรับ path ในแผนภาพให้ตรงกับหัวข้อ 8 และ router implementation

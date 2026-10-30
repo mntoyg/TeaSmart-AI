@@ -105,3 +105,31 @@ it('refreshes the visible queue after repeated transport failures exhaust retrie
   await waitFor(() => expect(screen.queryByText(/เก็บไว้ในอุปกรณ์แล้ว/)).not.toBeInTheDocument());
   vi.unstubAllGlobals();
 });
+
+it('offers the before-reading check and daily plan from the PWA routes', async () => {
+  localStorage.clear();
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const readinessLink = await screen.findByRole('link', { name: 'ก่อนอ่าน' });
+  expect(readinessLink).toHaveAttribute('href', '/readiness');
+  await userEvent.click(readinessLink);
+  expect(await screen.findByRole('heading', { name: 'เช็กก่อนอ่านผล' })).toBeInTheDocument();
+
+  for (const label of [
+    'แสงธรรมชาติ มองสีแผลชัด',
+    'มีหลายใบและเห็นแผลชัด',
+    'มากกว่า 20 นาที',
+    'แยกได้ และจะเปิดคลังความรู้เทียบถ้าสงสัย',
+  ]) {
+    await userEvent.click(screen.getByLabelText(label));
+  }
+  await userEvent.click(screen.getByRole('button', { name: 'บันทึกแผนวันนี้' }));
+  expect(await screen.findByText(/บันทึกวันนี้แล้ว/)).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'ไปสแกนใบชา' }));
+  expect(await screen.findByRole('heading', { name: 'แผนวันนี้' })).toBeInTheDocument();
+  expect(screen.getByText('ใบที่สแกนวันนี้เทียบกับแผน')).toBeInTheDocument();
+  vi.unstubAllGlobals();
+  localStorage.clear();
+});

@@ -1,0 +1,187 @@
+.page-section {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.page-intro {
+  margin: 20px 0 24px;
+}
+
+.page-intro h1 {
+  margin: 0 0 8px;
+}
+
+.page-intro p {
+  max-width: 650px;
+  color: #5e745f;
+  line-height: 1.7;
+}
+
+.eyebrow-line {
+  display: inline-block;
+  width: 23px;
+  height: 2px;
+  margin: 0 8px 4px 0;
+  background: #5e745f;
+  border-radius: 4px;
+}
+
+.plan-card {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #d9e4d6;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 28px #15392c06;
+}
+
+.plan-card-invite {
+  background: linear-gradient(135deg, #eaf0e7, #fff);
+}
+
+.plan-card h2 {
+  margin: 0;
+  color: #174e36;
+  font-size: 1.2rem;
+}
+
+.plan-card p {
+  margin: 12px 0 0;
+  color: #5e745f;
+  line-height: 1.65;
+}
+
+.plan-card-head,
+.confidence-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-card-head span {
+  color: #5e745f;
+  font-size: .9rem;
+}
+
+.confidence {
+  margin-top: 18px;
+}
+
+.confidence-top strong {
+  white-space: nowrap;
+}
+
+.progress-track {
+  height: 9px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #eaf0e7;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4e805c;
+  transition: width .2s ease;
+}
+
+.plan-note {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #eaf0e7;
+  color: #174e36;
+  line-height: 1.6;
+}
+
+.plan-note-saved {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.readiness-form {
+  display: grid;
+  gap: 16px;
+}
+
+.readiness-question {
+  min-width: 0;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid #d9e4d6;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.readiness-question legend {
+  padding: 0 4px;
+  color: #174e36;
+  font-weight: 700;
+}
+
+.choice-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #d9e4d6;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.choice.selected {
+  border-color: #7fa083;
+  background: #eaf0e7;
+  color: #174e36;
+}
+
+.choice input {
+  width: 18px;
+  height: 18px;
+  accent-color: #174e36;
+}
+
+.readiness-form .plan-actions,
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.readiness-form .button-primary,
+.plan-card .button-primary {
+  background: #174e36;
+  color: #fff;
+}
+
+.readiness-form .button-secondary,
+.plan-card .button-secondary {
+  border: 1px solid #d9e4d6;
+  background: #eaf0e7;
+  color: #174e36;
+}
+
+.alert-error {
+  padding: 12px 14px;
+  border: 1px solid #f0c5bc;
+  border-radius: 12px;
+  background: #fff0ed;
+  color: #8f3023;
+}
+
+@media (max-width: 420px) {
+  .plan-card { padding: 16px; }
+  .readiness-question { padding: 14px; }
+}
