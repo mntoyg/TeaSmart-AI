@@ -12,7 +12,7 @@ export type ResultView = {
 type Advice = Pick<KnowledgeRecord,
   'immediate_action' | 'cultural_control' | 'chemical_treatment' | 'preventive_measures'>;
 
-function toDisease(record: KnowledgeRecord, advice: Advice): Disease {
+export function toDisease(record: KnowledgeRecord, advice: Advice): Disease {
   return {
     classId: record.class_id,
     className: record.class_name,

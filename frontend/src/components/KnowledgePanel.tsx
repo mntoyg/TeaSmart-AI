@@ -25,10 +25,12 @@ export default function KnowledgePanel({ diseases }: Props) {
           <BookOpen size={23} />
         </div>
         <div>
-          <strong>4 คลาสสำหรับต้นแบบ</strong>
-          <p>โรคใบชา 3 คลาส และใบสุขภาพดี 1 คลาส</p>
+          {/* The design was drawn against four classes. This knowledge base
+              serves six records, and one of them is not a disease at all. */}
+          <strong>{`${diseases.length} ระเบียนในคลังความรู้`}</strong>
+          <p>โรคหลักสามชนิด · ใบปกติ · ความผิดปกติที่ไม่ใช่สามชนิดนั้น · และรอยไหม้ทางกายภาพซึ่งเป็นคำตัดสิน ไม่ใช่โรค</p>
         </div>
-        <span className="knowledge-summary-count">04</span>
+        <span className="knowledge-summary-count">{String(diseases.length).padStart(2, '0')}</span>
       </div>
 
       <div className="blight-note">

@@ -8,6 +8,7 @@ import { store } from './lib/storage';
 import { scanFixture } from './test/fixtures';
 import { configShape } from './lib/scan-contract';
 import { localFixture } from './test/local-fixture';
+import { knowledgeFixture } from './test/kb-fixture';
 import { inferOffline, isOfflineReady } from './lib/offline';
 vi.mock('./lib/offline', () => ({ inferOffline: vi.fn(), prepareOffline: vi.fn(), isOfflineReady: vi.fn(async () => false) }));
 
@@ -161,7 +162,7 @@ it('shows the offline and queue panel on the scan page only', async () => {
   scan.unmount();
 
   const knowledge = render(<MemoryRouter initialEntries={['/kb']}><App /></MemoryRouter>);
-  expect(await screen.findByRole('heading', { name: 'ความรู้เรื่องใบชา' })).toBeInTheDocument();
+  expect(await screen.findByText(/ยังไม่มีฐานความรู้ในอุปกรณ์/)).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
   knowledge.unmount();
 
@@ -175,5 +176,22 @@ it('shows the offline and queue panel on the scan page only', async () => {
   expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
   readiness.unmount();
 
+  vi.unstubAllGlobals();
+});
+
+it('builds the knowledge library at /kb out of the records the backend served', async () => {
+  const records = knowledgeFixture();
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+    if (url === '/api/v1/kb') return new Response(JSON.stringify(records));
+    if (url === '/api/v1/config') return new Response(JSON.stringify(configShape));
+    throw new TypeError('Offline');
+  }));
+
+  render(<MemoryRouter initialEntries={['/kb']}><App /></MemoryRouter>);
+
+  expect(await screen.findByText('6 ระเบียนในคลังความรู้')).toBeInTheDocument();
+  for (const record of records) {
+    expect(screen.getByText(record.disease_name_th)).toBeInTheDocument();
+  }
   vi.unstubAllGlobals();
 });

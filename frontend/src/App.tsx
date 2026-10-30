@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { adviceFields, readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
+import { readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
 import { configShape, type ClientConfig } from './lib/scan-contract';
 import { isFull, type StoredResult } from './lib/local-result';
 import { prepareOffline, isOfflineReady } from './lib/offline';
 import { syncQueue } from './lib/queue';
 import DiagnosisResult from './components/DiagnosisResult';
-import { buildResultView } from './lib/result-view';
+import { buildResultView, toDisease } from './lib/result-view';
 import { ScanPage } from './pages/ScanPage';
 import AppHeader, { type AppTab } from './components/AppHeader';
 import TodayPlanCard from './components/TodayPlanCard';
 import ReadinessPanel from './components/ReadinessPanel';
 import OfflinePanel from './components/OfflinePanel';
+import KnowledgePanel from './components/KnowledgePanel';
 import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/readiness';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
@@ -78,16 +79,14 @@ function HistoryPage() {
   </>;
 }
 function KnowledgePage({ records, loading, error }: { records: KnowledgeRecord[]; loading: boolean; error: string }) {
-  return <><header className="page-heading"><p className="eyebrow">แนวทางดูแลสวนชา</p><h1>ความรู้เรื่องใบชา</h1></header>
+  // The records carry their own advice here, so each one is its own `advice`:
+  // nothing on this page is chosen for a single photograph.
+  return <>
     {loading && <p role="status">กำลังโหลดฐานความรู้…</p>}
     {error && <p role="status" className="notice">{error}</p>}
-    {records.map((record) => <details className="card knowledge" key={record.canonical}>
-      <summary>{record.disease_name_th}</summary>
-      <h2>อาการที่พบ</h2><p>{record.symptoms}</p>
-      {record.canonical === 'physical_burn' && <p className="verdict burn">ไม่แนะนำให้ฉีดพ่นสารป้องกันกำจัดโรคจากอาการไหม้ทางกายภาพ</p>}
-      {adviceFields.map(([field, label]) => <section key={field}><h2>{label}</h2><p>{record[field]}</p></section>)}
-    </details>)}
-    {!loading && !records.length && <p>ยังไม่มีฐานความรู้ในอุปกรณ์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p>}
+    {records.length
+      ? <KnowledgePanel diseases={records.map((record) => toDisease(record, record))} />
+      : !loading && <p>ยังไม่มีฐานความรู้ในอุปกรณ์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p>}
   </>;
 }
 const offlineNotPrepared = 'ยังไม่ได้เตรียมใช้งานออฟไลน์';
