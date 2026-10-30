@@ -415,14 +415,17 @@ a { color: inherit; text-decoration: none; }
   .candidate-list li { grid-template-columns: 1fr 48px; }
   .candidate-list .progress-track { grid-column: 1 / -1; order: 3; }
   .scan-main, .scan-aside { display: contents; }
-  .scan-kicker { order: 1; }
-  .scan-title { order: 2; }
-  .hero-description { order: 3; }
-  .demo-notice-inline { order: 4; }
+  /* On a phone the photo box comes first: the camera is what the page is for.
+     The heading and the paragraph that sells the app read below it. Only the
+     order changes — every colour, size, spacing and word stays as designed. */
+  .demo-notice-inline { order: 1; }
+  .upload-zone { order: 2; }
+  .scan-alert { order: 3; }
+  .scan-actions { order: 4; }
   .tips-card { order: 5; margin-top: 0; }
-  .upload-zone { order: 6; }
-  .scan-alert { order: 7; }
-  .scan-actions { order: 8; }
+  .scan-kicker { order: 6; }
+  .scan-title { order: 7; }
+  .hero-description { order: 8; }
   .info-strip { order: 9; }
   .scan-layout .scan-aside .aside-art { display: none; }
   .upload-buttons { flex-direction: column; align-items: stretch; }
