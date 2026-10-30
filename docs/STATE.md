@@ -3,6 +3,13 @@
 **อ่านไฟล์นี้ก่อนอย่างอื่น** ไฟล์นี้บอกว่างานอยู่ตรงไหน ไม่ได้บอกว่ามาถึงจุดนี้ได้อย่างไร
 ใครปิดสไลซ์ได้ อัปเดตไฟล์นี้ใน push เดียวกันกับงานนั้น
 
+## 2026-10-29 — สรุปสถาปัตยกรรม
+
+เพิ่ม [ARCHITECTURE.md](ARCHITECTURE.md) เพื่อสรุป frontend/PWA, backend API, ML workflow, data flow, ขอบเขตข้อมูล, การ deploy และช่องว่างก่อนเปิดให้ผู้ใช้จำนวนมาก โดยแยกสิ่งที่พบใน source ออกจากสถานะที่เอกสาร readiness บันทึกไว้ ไม่เปลี่ยนโค้ด, สัญญา API หรือเนื้อหา KB; follow-up PR #35 ปรับ path ในแผนภาพให้ตรงกับหัวข้อ 8 และ router implementation
+
+โควตา Codex ตามเวลา Asia/Bangkok: baseline วันนี้ที่อ่านได้คือ weekly **22%**; ค่าล่าสุดที่อ่านได้ระหว่างงานคือ weekly **25%** และหน้าต่าง 5 ชั่วโมง **18%** ไม่มีตัวนับรายวัน ผลต่าง weekly **+3 จุดเปอร์เซ็นต์** จึงต่ำกว่าเพดานรายวัน 14 จุดเปอร์เซ็นต์
+
+
 > **Codex เริ่มที่ [docs/HANDOFF-CODEX.md](HANDOFF-CODEX.md)** — ลำดับไฟล์ที่ต้องอ่าน
 > ปัญหาที่เหลือก่อนสาธิตพร้อมเจ้าของ และกับดักเรื่อง branch ที่จะทำให้เสียงานทั้งวัน
 
@@ -514,6 +521,24 @@ frontend ผ่าน **121 tests ใน 17 ไฟล์** และ `npx tsc -b
 การแก้ข้อ 1 คือลบหรือเขียนข้อความใหม่สองจุด ข้อ 2 คือเปลี่ยนโครง element
 ทั้งรายการ ซึ่งเกินคำว่า "ต่อสายข้อมูลแทนของปลอม" ที่สไลซ์ 1.1 วางกรอบไว้
 **จึงหยุดและรายงาน ไม่เดาแทนผู้ใช้** หน้าประวัติยังทำงานครบเหมือนเดิมระหว่างรอ
+## 2026-10-29 — ผลตรวจ backend/ML สำหรับ frontend integration
+
+ตรวจโควตาในเวลา Asia/Bangkok ก่อนงาน: baseline weekly ของวันนี้ 22%, ค่าล่าสุดที่อ่านได้ 26%, ผลต่างวันนี้ +4 จุดเปอร์เซ็นต์; ไม่มีตัวนับรายวันแยก จึงใช้ผลต่างระหว่าง weekly กับ baseline เป็นขอบเขตบนตามกฎใน `AGENTS.md` (ยังต่ำกว่าเพดาน 14 จุดเปอร์เซ็นต์) ส่วนหน้าต่าง 5 ชั่วโมงอ่านได้ 25% และไม่ใช้แทนยอดรายวัน
+
+ตรวจจาก branch `codex/backend-ml-audit` ที่แยกจาก `origin/main`; working tree เริ่มต้นสะอาด ไม่มีการแก้ source ใน `backend/`, `ml/`, สัญญา API หรือ KB. ขณะตรวจ GitHub พบ PR เปิด #35 ซึ่งเป็นเอกสารสถาปัตยกรรม และไม่พบ PR/branch backend หรือ ML ที่กำลังทำอยู่ในผลตรวจครั้งนี้ เจ้าของไดเรกทอรี `backend/` และ `ml/` ยังคงเป็น Claude Code ตาม `AGENTS.md`.
+
+### หลักฐานคำสั่ง
+
+- Backend: `ruff check app tests` — `All checks passed!`; `pytest -q` — `206 passed in 13.37s`.
+- ML: `ruff check teasmart_ml tests` — `All checks passed!`; `pytest -q` — `120 passed in 55.80s`.
+- Scripts: `ruff check scripts --line-length 100` จาก root — `All checks passed!`. การเรียกครั้งแรกจาก `ml/` หา `scripts` ไม่พบ (`E902`); รันซ้ำจาก root ด้วยคำสั่งที่ถูกต้องแล้วผ่าน.
+- โมเดลจริง `frontend/public/models/teasmart-v1.onnx`: 16,823,747 bytes, SHA256 `C1E6B27462D3B57FC8E4B4769991DA83EB57AC9840AE0EC13EAA428907AE8EE7`; `onnxruntime.InferenceSession` โหลดด้วย CPU ได้. รูปแบบ input `[1, 3, 224, 224]`, output `logits [1, 5]`, inference ได้ shape `(1, 5)`.
+- API local ที่ `127.0.0.1:8876` ใช้ backend จริงและโมเดล ONNX จริง: `/health`, `/api/v1/config`, `/api/v1/kb` ได้ 200; config ระบุ `teasmart-v1`, `teasmart-v1.onnx`, 5 คลาส; KB มี 6 records. `/api/v1/scan` ได้ 200 และ `analysis_mode=full`; retry ได้ `replayed=true` และผลเดิม. `/api/v1/sync/batch` ได้ 200, 1 result, 0 failures, `analysis_mode=full`; retry ได้ `replayed=true`. ภาพผิดรูปแบบได้ 415 และ filename/scan ID mismatch ได้ 422.
+- ภาพที่ใช้ตรวจ API เป็น fixture สังเคราะห์จาก `backend/tests/test_scan_api.py` ไม่ใช่ภาพไร่; ผลตัวอย่าง `other_disease` confidence `0.5109665393829346` ใช้ยืนยันการเชื่อม pipeline/schema เท่านั้น ไม่ใช่หลักฐานความแม่นยำหรือคำวินิจฉัย. ไม่พิมพ์ข้อความคำแนะนำจาก KB ใน log.
+
+### สถานะและข้อค้าง
+
+หลักฐาน local ยืนยันว่า health/config/KB, full scan, batch sync, schema ที่ตรวจ, retry/idempotency และ error response ทำงานร่วมกับโมเดลได้ จึงใช้เป็นฐานเชื่อม frontend ในเครื่องได้โดยไม่เปลี่ยนสัญญา API. ยังไม่ยืนยัน production readiness: เอกสาร production ระบุว่ายังไม่มี backend สาธารณะ และยังต้องจัดการ rate limit, storage/idempotency ที่ทนการ restart, load test และ monitoring. ผู้รับผิดชอบโค้ด backend/ML คือ Claude Code; ผู้รับผิดชอบ/การตัดสินใจเรื่อง host สาธารณะยังไม่ได้ระบุในเอกสารที่ตรวจ จึงอย่าให้ frontend สมมติว่ามี public endpoint.
 
 ## 2026-10-27 — เคลียร์ของค้าง และเจอว่า `main` ถูก push ทับจนการ์ดของ repo หายไปหมด
 
