@@ -90,3 +90,5 @@ frontend/public/parity/
 # It carries its own .git, node_modules and dist, and it is raw material for the
 # merge, not something this repository tracks.
 /TeaSmart frontend/
+
+.vercel

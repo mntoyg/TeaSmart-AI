@@ -15,7 +15,9 @@ Phase 1 MVP สาธิตแฮกกาธอน **2026-11-21**
 
 <img src="docs/img/app-qr.png" alt="QR code เปิดแอป" width="180">
 
-## **https://teasmart-ai.pages.dev**
+## **https://teasmart-ai.vercel.app**
+
+เปิดได้ตลอดโดยไม่ต้องรันเครื่องตัวเอง ลิงก์เดิมยังอยู่ที่ https://teasmart-ai.pages.dev
 
 **เป็นเว็บแอป ไม่ต้องติดตั้งอะไรทั้งสิ้น** ไม่มีใน App Store ไม่มีใน Play Store
 และไม่จำเป็นต้องมี กดลิงก์หรือสแกน QR จากมือถือเครื่องไหนก็ได้ แล้วใช้ได้ทันที
