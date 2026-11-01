@@ -415,3 +415,13 @@ a { color: inherit; text-decoration: none; }
   .button-camera { order: -1; background: var(--green-900); color: white; border-color: transparent; }
   .button { min-height: 46px; }
 }
+
+.status-dot.status-online { background: #66a877; box-shadow: 0 0 0 4px #e7f2e7; }
+.status-dot.status-offline { background: #c4604f; box-shadow: 0 0 0 4px #fbe6e1; }
+.status-dot.status-demo,
+.status-dot.status-checking { background: #d9a441; box-shadow: 0 0 0 4px #fbf0d4; }
+.brand-status { display: none; width: 8px; height: 8px; flex: none; }
+@media (max-width: 900px) {
+  .header-status { display: none; }
+  .brand-status { display: block; }
+}

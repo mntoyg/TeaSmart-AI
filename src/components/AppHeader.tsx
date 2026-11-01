@@ -1,20 +1,19 @@
 import { BookOpen, ClipboardCheck, History, Leaf, ScanLine } from 'lucide-react'
+import type { BackendStatus } from '../services/predictService'
 
 export type AppTab = 'scan' | 'readiness' | 'knowledge' | 'history'
 
-export type ConnectionState = 'demo' | 'checking' | 'up' | 'down'
-
 type Props = {
   activeTab: AppTab
-  connection: ConnectionState
+  status: BackendStatus
   onTabChange: (tab: AppTab) => void
 }
 
-const connectionLabel: Record<ConnectionState, string> = {
+const statusLabel: Record<BackendStatus, string> = {
   demo: 'โหมด Demo',
-  checking: 'กำลังตรวจสอบ',
-  up: 'เชื่อมโมเดลแล้ว',
-  down: 'เชื่อมต่อไม่ได้',
+  checking: 'กำลังตรวจสอบระบบ',
+  online: 'เชื่อมโมเดลแล้ว',
+  offline: 'เชื่อมต่อไม่ได้',
 }
 
 const navItems: { id: AppTab; label: string; icon: typeof ScanLine }[] = [
@@ -24,13 +23,14 @@ const navItems: { id: AppTab; label: string; icon: typeof ScanLine }[] = [
   { id: 'history', label: 'ประวัติ', icon: History },
 ]
 
-export default function AppHeader({ activeTab, connection, onTabChange }: Props) {
+export default function AppHeader({ activeTab, status, onTabChange }: Props) {
   return (
     <header className="app-header">
       <a className="brand" href="#top" onClick={() => onTabChange('scan')} aria-label="TeaSmart หน้าแรก">
         <span className="brand-mark">
           <Leaf size={23} strokeWidth={2.3} />
         </span>
+        <span className={`status-dot brand-status status-${status}`} aria-hidden="true" />
         <span className="brand-copy">
           <strong>TeaSmart</strong>
           <small>SMART TEA CARE</small>
@@ -52,8 +52,8 @@ export default function AppHeader({ activeTab, connection, onTabChange }: Props)
       </nav>
 
       <div className="header-status" role="status">
-        <span className={`status-dot status-${connection}`} />
-        <span>{connectionLabel[connection]}</span>
+        <span className={`status-dot status-${status}`} />
+        <span>{statusLabel[status]}</span>
       </div>
     </header>
   )

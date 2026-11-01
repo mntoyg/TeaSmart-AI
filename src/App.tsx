@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen, ClipboardCheck, History, Leaf, ScanLine } from 'lucide-react'
-import AppHeader, { type AppTab, type ConnectionState } from './components/AppHeader'
+import AppHeader, { type AppTab } from './components/AppHeader'
 import DiagnosisResult from './components/DiagnosisResult'
 import HistoryPanel from './components/HistoryPanel'
 import KnowledgePanel from './components/KnowledgePanel'
@@ -9,7 +9,13 @@ import ScanPanel from './components/ScanPanel'
 import StepIndicator from './components/StepIndicator'
 import TodayPlanCard from './components/TodayPlanCard'
 import { loadToday, saveToday, type TodayReadiness, type TodayState } from './lib/readiness'
-import { checkBackend, isDemoMode, predictTeaLeaf } from './services/predictService'
+import {
+  checkBackend,
+  isConnectionFailure,
+  isDemoMode,
+  predictTeaLeaf,
+  type BackendStatus,
+} from './services/predictService'
 import type { PredictionResult, ScanHistoryItem } from './types'
 import { inspectImageQuality } from './utils/imageQuality'
 import { validateImageFile } from './utils/imageValidation'
@@ -31,10 +37,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [qualityWarning, setQualityWarning] = useState<string | null>(null)
   const [todayState, setTodayState] = useState<TodayState>(() => loadToday())
-  const [backendUp, setBackendUp] = useState<boolean | null>(null)
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>(isDemoMode ? 'demo' : 'checking')
   const objectUrls = useRef<string[]>([])
-
-  const connection: ConnectionState = isDemoMode ? 'demo' : backendUp === null ? 'checking' : backendUp ? 'up' : 'down'
 
   const updateToday = (next: TodayState) => {
     setTodayState(next)
@@ -54,12 +58,16 @@ export default function App() {
 
   useEffect(() => {
     if (isDemoMode) return
-    let active = true
-    checkBackend().then((up) => {
-      if (active) setBackendUp(up)
-    })
+    let cancelled = false
+    const run = () =>
+      checkBackend().then((ok) => {
+        if (!cancelled) setBackendStatus(ok ? 'online' : 'offline')
+      })
+    run()
+    const timer = window.setInterval(run, 60_000)
     return () => {
-      active = false
+      cancelled = true
+      window.clearInterval(timer)
     }
   }, [])
 
@@ -119,6 +127,7 @@ export default function App() {
         document.getElementById('diagnosis-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     } catch (caught) {
+      if (isConnectionFailure(caught)) setBackendStatus('offline')
       setError(caught instanceof Error ? caught.message : 'เกิดข้อผิดพลาดระหว่างวิเคราะห์ กรุณาลองใหม่')
     } finally {
       setIsAnalyzing(false)
@@ -142,7 +151,7 @@ export default function App() {
 
   return (
     <div className="app-shell" id="top">
-      <AppHeader activeTab={activeTab} connection={connection} onTabChange={handleTabChange} />
+      <AppHeader activeTab={activeTab} status={backendStatus} onTabChange={handleTabChange} />
       <main className="app-main">
         {activeTab === 'scan' && (
           <>
@@ -163,7 +172,8 @@ export default function App() {
               isAnalyzing={isAnalyzing}
               error={error}
               qualityWarning={qualityWarning}
-              demoMode={isDemoMode}
+              demoMode={backendStatus === 'demo'}
+              offline={backendStatus === 'offline'}
               onSelectFile={handleSelectFile}
               onAnalyze={handleAnalyze}
             />

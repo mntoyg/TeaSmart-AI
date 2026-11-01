@@ -85,6 +85,8 @@ frontend/public/parity/
 # ignored after the project's own rules were restored on top of it.
 .vercel
 *.local
+backend/model/
+backend/.venv/
 
 # The frontend folder a teammate handed over by hand because he could not push.
 # It carries its own .git, node_modules and dist, and it is raw material for the

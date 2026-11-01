@@ -8,6 +8,7 @@ type Props = {
   error: string | null
   qualityWarning: string | null
   demoMode: boolean
+  offline: boolean
   onSelectFile: (file: File | null) => void
   onAnalyze: () => void
 }
@@ -19,6 +20,7 @@ export default function ScanPanel({
   error,
   qualityWarning,
   demoMode,
+  offline,
   onSelectFile,
   onAnalyze,
 }: Props) {
@@ -44,6 +46,12 @@ export default function ScanPanel({
         <p className="hero-description">
           ถ่ายใบเดียวให้ใกล้แผล แล้วอ่านชื่อโรคกับวิธีดูแลเบื้องต้นในหน้าเดียวกัน
         </p>
+
+        {offline && (
+          <div className="alert alert-warning scan-alert" role="status">
+            ตอนนี้ยังเชื่อมต่อระบบวิเคราะห์ไม่ได้ ลองกดวิเคราะห์อีกครั้งภายหลัง
+          </div>
+        )}
 
         {demoMode && (
           <div className="demo-notice demo-notice-inline">

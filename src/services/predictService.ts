@@ -6,6 +6,10 @@ const API_BASE_URL = typeof apiBase === 'string' ? apiBase.replace(/\/$/, '') : 
 
 export const isDemoMode = !API_BASE_URL
 export const CONFIDENCE_MIN = 0.7
+const PREDICT_TIMEOUT_MS = 30_000
+const HEALTH_TIMEOUT_MS = 4_000
+
+export type BackendStatus = 'demo' | 'checking' | 'online' | 'offline'
 
 function timeoutSignal(ms: number): AbortSignal {
   const timeout = (AbortSignal as { timeout?: (milliseconds: number) => AbortSignal }).timeout
@@ -19,15 +23,33 @@ function isTimeoutError(error: unknown) {
   return error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')
 }
 
-/** เช็กว่า backend ที่ตั้งใน env ตอบ /health ได้จริง ไม่ใช่แค่มี URL */
+/** เช็กว่า backend ตอบ /health และโหลดโมเดลแล้ว ไม่ใช่แค่มี URL */
 export async function checkBackend(): Promise<boolean> {
   if (!API_BASE_URL) return false
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, { signal: timeoutSignal(4000) })
-    return response.ok
+    const response = await fetch(`${API_BASE_URL}/health`, { signal: timeoutSignal(HEALTH_TIMEOUT_MS) })
+    if (!response.ok) return false
+    const body = (await response.json()) as { ok?: boolean; model_loaded?: boolean }
+    return body.ok === true && body.model_loaded !== false
   } catch {
     return false
   }
+}
+
+async function readApiError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { detail?: unknown }
+    if (typeof body.detail === 'string') return body.detail
+  } catch {
+    /* ไม่ใช่ JSON */
+  }
+  if (response.status === 413) return 'ไฟล์ใหญ่เกินที่ระบบรับได้'
+  if (response.status === 503) return 'ระบบโมเดลยังไม่พร้อม กรุณาลองใหม่ภายหลัง'
+  return `API ตอบกลับผิดพลาด (${response.status})`
+}
+
+export function isConnectionFailure(error: unknown) {
+  return error instanceof Error && error.message.startsWith('เชื่อมต่อระบบวิเคราะห์ไม่ได้')
 }
 
 type ApiCandidate = { class_id?: number; classId?: number; confidence?: number }
@@ -113,23 +135,14 @@ export async function predictTeaLeaf(file: File): Promise<PredictionResult> {
     response = await fetch(`${API_BASE_URL}/predict`, {
       method: 'POST',
       body: formData,
-      signal: timeoutSignal(30000),
+      signal: timeoutSignal(PREDICT_TIMEOUT_MS),
     })
-  } catch (error) {
-    if (isTimeoutError(error)) throw new Error('โมเดลใช้เวลานานเกินไป ลองใหม่อีกครั้ง')
-    throw new Error('เชื่อมต่อ API ไม่สำเร็จ กรุณาตรวจสอบ URL หรือสถานะ Backend')
+  } catch (caught) {
+    if (isTimeoutError(caught)) throw new Error('ระบบใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง')
+    throw new Error('เชื่อมต่อระบบวิเคราะห์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือลองใหม่ภายหลัง')
   }
 
-  if (!response.ok) {
-    let detail = ''
-    try {
-      const body = (await response.json()) as { detail?: unknown }
-      if (typeof body.detail === 'string') detail = body.detail
-    } catch {
-      detail = ''
-    }
-    throw new Error(detail || `API ตอบกลับผิดพลาด (${response.status})`)
-  }
+  if (!response.ok) throw new Error(await readApiError(response))
 
   return mapApiPrediction((await response.json()) as ApiPrediction)
 }
