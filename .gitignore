@@ -7,8 +7,9 @@ __pycache__/
 # Secrets and local configuration
 .env
 
-# Datasets and model weights are never committed
-data/
+# Datasets and model weights are never committed.
+# Only the repository-root data folder. src/data is application source.
+/data/
 *.onnx
 # ...except the one graph the PWA loads. 16.8 MB, committed on purpose: a fresh
 # checkout has to be able to run the demo without a GPU and without rebuilding
