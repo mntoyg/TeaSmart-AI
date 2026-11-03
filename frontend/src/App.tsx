@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
 import { configShape, type ClientConfig } from './lib/scan-contract';
-import { isFull, type StoredResult } from './lib/local-result';
+import type { StoredResult } from './lib/local-result';
 import { prepareOffline, isOfflineReady } from './lib/offline';
 import { syncQueue } from './lib/queue';
 import DiagnosisResult from './components/DiagnosisResult';
@@ -18,6 +18,17 @@ import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/rea
 import { summarizeToday } from './lib/todaySummary';
 import Onboarding from './components/Onboarding';
 import SiteFooter from './components/SiteFooter';
+import CommandPalette from './components/CommandPalette';
+import ShortcutHelp from './components/ShortcutHelp';
+import { buildCommands } from './commands/registry';
+import { useShortcuts } from './commands/useShortcuts';
+import ToastHost from './components/ToastHost';
+import { toast } from './lib/toast';
+import { downloadCsv, resultLabel } from './lib/exportCsv';
+import { applyTheme, nextThemeChoice, readThemeChoice, resolveTheme, saveThemeChoice, systemPrefersDark, type ThemeChoice } from './lib/theme';
+
+/** The scan page asks for this element when a command or a paste hands it a file. */
+export const uploadZoneId = 'scan-upload-zone';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
   const { id } = useParams();
@@ -61,6 +72,15 @@ function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; confi
       : <p className="notice">รอคำแนะนำที่ตรงกับผลวิเคราะห์จากฐานความรู้</p>}
     <Link className="button" to="/scan">ตรวจใบถัดไป</Link></>;
 }
+/** Reads every scan on this device and hands the browser a CSV file. Reports through toasts. */
+export async function exportHistory() {
+  let results: StoredResult[];
+  try { results = await store.list(); }
+  catch { toast('อ่านประวัติจากอุปกรณ์ไม่ได้ จึงส่งออกไม่ได้', 'error'); return; }
+  if (!results.length) { toast('ยังไม่มีประวัติให้ส่งออก', 'info'); return; }
+  downloadCsv(results);
+  toast(`ส่งออกประวัติ ${results.length.toLocaleString('th-TH')} รายการเป็น CSV แล้ว`, 'success');
+}
 function HistoryPage() {
   const [results, setResults] = useState<StoredResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,27 +93,31 @@ function HistoryPage() {
     return () => { active = false; };
   }, []);
   const today = summarizeToday(results);
-  return <><header className="page-heading"><p className="eyebrow">ข้อมูลในอุปกรณ์นี้</p><h1>ประวัติการตรวจ</h1></header>
+  return <><header className="page-heading history-heading"><div><p className="eyebrow">ข้อมูลในอุปกรณ์นี้</p><h1>ประวัติการตรวจ</h1></div>
+    {results.length > 0 && <button type="button" className="ts-button button-secondary" onClick={() => void exportHistory()}>ส่งออก CSV</button>}</header>
     {today.total > 0 && <section className="card today-summary" aria-label="สรุปใบชาวันนี้">
       <h2>{`จาก ${today.total.toLocaleString('th-TH')} ใบวันนี้`}</h2>
       <ul>{today.lines.map((line) => <li key={line.label}>{`${line.label} ${line.count.toLocaleString('th-TH')} ใบ`}</li>)}</ul>
     </section>}
     {loading ? <p role="status">กำลังอ่านประวัติ…</p> : error ? <p role="alert">{error}</p> : results.length
       ? <ul className="history-list">{results.map((result) => <li key={result.scan_id}><Link className="card" to={`/result/${encodeURIComponent(result.scan_id)}`}>
-        <strong>{isFull(result) ? result.burn_analysis.verdict === 'physical_burn' ? 'อาการไหม้ทางกายภาพ' : result.advice.disease_name_th : 'ผลประเมินเบื้องต้น'}</strong>
+        <strong>{resultLabel(result)}</strong>
         <span>{new Date(result.captured_at).toLocaleString('th-TH')}</span>
         <span>{result.analysis_mode === 'full' ? 'วิเคราะห์ครบขั้นตอน' : 'ประเมินเบื้องต้นบนอุปกรณ์'}</span></Link></li>)}</ul>
       : <section className="card"><p>ยังไม่มีประวัติการตรวจใบชา</p><Link className="button" to="/scan">ตรวจใบชา</Link></section>}
   </>;
 }
 function KnowledgePage({ records, loading, error }: { records: KnowledgeRecord[]; loading: boolean; error: string }) {
+  const location = useLocation();
+  const requested = new URLSearchParams(location.search).get('open');
+  const openId = requested !== null && /^\d+$/.test(requested) ? Number(requested) : undefined;
   // The records carry their own advice here, so each one is its own `advice`:
   // nothing on this page is chosen for a single photograph.
   return <>
     {loading && <p role="status">กำลังโหลดฐานความรู้…</p>}
     {error && <p role="status" className="notice">{error}</p>}
     {records.length
-      ? <KnowledgePanel diseases={records.map((record) => toDisease(record, record))} />
+      ? <KnowledgePanel key={openId ?? 'all'} diseases={records.map((record) => toDisease(record, record))} initialOpenId={openId} />
       : !loading && <p>ยังไม่มีฐานความรู้ในอุปกรณ์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p>}
   </>;
 }
@@ -116,6 +140,12 @@ export function App() {
   const [syncing, setSyncing] = useState(false);
   const [revision, setRevision] = useState(0);
   const [today, setToday] = useState(() => loadToday());
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [pastedFile, setPastedFile] = useState<File>();
+  const [themeChoice, setThemeChoice] = useState<ThemeChoice>(() => readThemeChoice());
+  const [prefersDark, setPrefersDark] = useState(() => systemPrefersDark());
+  const theme = resolveTheme(themeChoice, prefersDark);
   const present = new URLSearchParams(location.search).get('present') === '1';
   const activeTab: AppTab = location.pathname === '/readiness' ? 'readiness'
     : location.pathname === '/history' ? 'history'
@@ -124,6 +154,53 @@ export function App() {
     const paths: Record<AppTab, string> = { scan: '/scan', readiness: '/readiness', knowledge: '/kb', history: '/history' };
     navigate(paths[tab]);
   };
+  const openPalette = useCallback(() => { setHelpOpen(false); setPaletteOpen(true); }, []);
+  const openHelp = useCallback(() => { setPaletteOpen(false); setHelpOpen(true); }, []);
+  const focusUpload = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const zone = document.getElementById(uploadZoneId);
+      zone?.scrollIntoView({ block: 'center' });
+      zone?.querySelector<HTMLButtonElement>('button')?.focus();
+    });
+  }, []);
+  // The theme follows the OS until the user picks one; then the pick wins and is remembered.
+  useEffect(() => { applyTheme(theme); }, [theme]);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => setPrefersDark(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  // Side effects stay outside the state updater: StrictMode runs updaters twice.
+  const toggleTheme = useCallback(() => {
+    const next = nextThemeChoice(themeChoice, systemPrefersDark());
+    saveThemeChoice(next);
+    setThemeChoice(next);
+    toast(next === 'dark' ? 'เปลี่ยนเป็นโหมดมืดแล้ว' : 'เปลี่ยนเป็นโหมดสว่างแล้ว', 'info', 2500);
+  }, [themeChoice]);
+  const commands = useMemo(() => buildCommands({
+    navigate, openHelp, openPalette, focusUpload, toggleTheme,
+    exportHistory: () => void exportHistory(),
+    diseases: knowledge.map((record) => toDisease(record, record)),
+    print: () => window.print(),
+  }), [navigate, openHelp, openPalette, focusUpload, toggleTheme, knowledge]);
+  useShortcuts({ commands, openPalette, suspended: paletteOpen || helpOpen });
+  // Ctrl/Cmd+V with an image on the clipboard lands on the scan page as if the
+  // file had been picked. Text pastes into inputs are left alone.
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const items = Array.from(event.clipboardData?.items ?? []);
+      const image = items.find((item) => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile();
+      if (!image) return;
+      event.preventDefault();
+      setPastedFile(image);
+      toast('รับภาพจากคลิปบอร์ดแล้ว กดวิเคราะห์เมื่อพร้อม', 'info', 3000);
+      if (location.pathname !== '/scan') navigate('/scan');
+    }
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [location.pathname, navigate]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update); window.addEventListener('offline', update);
@@ -158,7 +235,10 @@ export function App() {
   }, [config]);
   async function saveResult(result: StoredResult) {
     try { await store.save(result); }
-    catch { throw new Error('บันทึกผลตรวจไม่ได้ กรุณาตรวจพื้นที่ว่างแล้วลองใหม่'); }
+    catch {
+      toast('บันทึกผลตรวจลงอุปกรณ์ไม่ได้ ผลนี้จะไม่อยู่ในประวัติ', 'error');
+      throw new Error('บันทึกผลตรวจไม่ได้ กรุณาตรวจพื้นที่ว่างแล้วลองใหม่');
+    }
     navigate(`/result/${encodeURIComponent(result.scan_id)}`);
     setRevision((value) => value + 1);
   }
@@ -214,7 +294,8 @@ export function App() {
   return <div className="app-shell">
     <div id="top" />
     <Onboarding />
-    <AppHeader activeTab={activeTab} online={online} modelReady={Boolean(config)} onTabChange={changeTab} />
+    <AppHeader activeTab={activeTab} online={online} modelReady={Boolean(config)} theme={theme}
+      onTabChange={changeTab} onOpenPalette={openPalette} onToggleTheme={toggleTheme} />
     <main className="app-main">
       {present && <p className="present-banner" role="status">โหมดนำเสนอ – ผลตัวอย่างเพื่อสาธิตเท่านั้น</p>}
       <Routes>
@@ -223,7 +304,8 @@ export function App() {
       <Route path="/scan" element={<><OfflinePanel online={online} message={offlineMessage}
         preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
         syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
-        <ScanPage onResult={saveResult} config={config} present={present} />
+        <ScanPage onResult={saveResult} config={config} present={present}
+          pastedFile={pastedFile} onPastedFileConsumed={() => setPastedFile(undefined)} />
         <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
           onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
       <Route path="/readiness" element={<ReadinessPanel today={today.readiness} onSave={saveReadiness} onScan={() => navigate('/scan')} />} />
@@ -234,5 +316,8 @@ export function App() {
     </Routes>
     <SiteFooter />
     </main>
+    <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+    <ShortcutHelp open={helpOpen} commands={commands} onClose={() => setHelpOpen(false)} />
+    <ToastHost />
   </div>;
 }

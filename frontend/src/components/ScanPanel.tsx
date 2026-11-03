@@ -61,6 +61,7 @@ export default function ScanPanel({
         )}
 
         <div
+          id="scan-upload-zone"
           className={`upload-zone ${isDragging ? 'dragging' : ''} ${previewUrl ? 'has-preview' : ''}`}
           onDragOver={(event) => {
             event.preventDefault()
@@ -123,7 +124,7 @@ export default function ScanPanel({
                 </button>
               </div>
               <span className="file-note">
-                รองรับ JPG, PNG, WEBP · ขนาดไม่เกิน {maxUploadMegabytes.toLocaleString('th-TH')} MB
+                รองรับ JPG, PNG, WEBP · ขนาดไม่เกิน {maxUploadMegabytes.toLocaleString('th-TH')} MB · วางภาพด้วย Ctrl+V ได้
               </span>
             </>
           )}

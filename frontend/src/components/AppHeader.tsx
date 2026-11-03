@@ -1,4 +1,4 @@
-import { BookOpen, ClipboardCheck, History, Leaf, ScanLine } from 'lucide-react'
+import { BookOpen, ClipboardCheck, History, Leaf, Moon, ScanLine, Search, Sun } from 'lucide-react'
 import type { MouseEvent } from 'react'
 
 export type AppTab = 'scan' | 'readiness' | 'knowledge' | 'history'
@@ -8,7 +8,10 @@ type Props = {
   online: boolean
   /** True once the on-device model config has loaded. This screen does not invent a sample result. */
   modelReady: boolean
+  theme: 'light' | 'dark'
   onTabChange: (tab: AppTab) => void
+  onOpenPalette: () => void
+  onToggleTheme: () => void
 }
 
 const navItems: { id: AppTab; label: string; icon: typeof ScanLine }[] = [
@@ -18,7 +21,7 @@ const navItems: { id: AppTab; label: string; icon: typeof ScanLine }[] = [
   { id: 'history', label: 'ประวัติ', icon: History },
 ]
 
-export default function AppHeader({ activeTab, online, modelReady, onTabChange }: Props) {
+export default function AppHeader({ activeTab, online, modelReady, theme, onTabChange, onOpenPalette, onToggleTheme }: Props) {
   const changeTab = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
     onTabChange('scan')
@@ -53,6 +56,14 @@ export default function AppHeader({ activeTab, online, modelReady, onTabChange }
         <span className={`status-dot ${modelReady ? '' : 'offline'}`} />
         <span>{modelReady ? 'โมเดลบนเครื่องพร้อม' : 'กำลังโหลดโมเดล'} · {online ? 'มีเครือข่าย' : 'ไม่มีเครือข่าย'}</span>
       </div>
+      <button type="button" className="palette-trigger" onClick={onOpenPalette} aria-label="ค้นหาคำสั่ง (Ctrl+K)" title="ค้นหาคำสั่ง · Ctrl+K">
+        <Search size={18} />
+        <kbd aria-hidden="true">Ctrl K</kbd>
+      </button>
+      <button type="button" className="theme-toggle" onClick={onToggleTheme} aria-pressed={theme === 'dark'}
+        aria-label={theme === 'dark' ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด'} title="สลับโหมดมืด/สว่าง · t">
+        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
       <nav className="mobile-nav" aria-label="เมนูหลัก">
         {navItems.map(({ id, label, icon: Icon }) => (
           <button
