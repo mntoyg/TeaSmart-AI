@@ -8,6 +8,8 @@
     "generate:contract": "node scripts/generate-contract.mjs",
     "test:contract": "node --test scripts/contract.test.mjs",
     "test": "vitest run",
+    "check": "npm run test:contract && npm test && npm run build",
+    "check": "npm run test:contract && npm test && npm run build",
     "build": "node scripts/generate-contract.mjs --check && tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },

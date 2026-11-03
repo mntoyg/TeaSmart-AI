@@ -8,8 +8,10 @@ import { inferOffline } from '../lib/offline';
 import { store } from '../lib/storage';
 
 type Capture = { file: File; id: string; at: string };
-export function ScanPage({ onResult, multipartField = 'image', config }: {
-  onResult: (result: StoredResult) => void | Promise<void>; multipartField?: string; config?: ClientConfig;
+const sampleFiles = ['sample-1.jpg', 'sample-2.jpg', 'sample-3.jpg', 'sample-4.jpg']
+
+export function ScanPage({ onResult, multipartField = 'image', config, present = false }: {
+  onResult: (result: StoredResult) => void | Promise<void>; multipartField?: string; config?: ClientConfig; present?: boolean;
 }) {
   const [capture, setCapture] = useState<Capture>();
   const [preview, setPreview] = useState('');
@@ -64,7 +66,31 @@ export function ScanPage({ onResult, multipartField = 'image', config }: {
     } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : 'วิเคราะห์ไม่ได้ กรุณาลองใหม่'); }
     finally { if (mounted.current) setBusy(false); }
   }
+  async function useSample(fileName: string) {
+    setError('')
+    try {
+      const response = await fetch(`/samples/${fileName}`)
+      if (!response.ok) throw new Error('missing')
+      const blob = await response.blob()
+      if (!blob.type.startsWith('image/')) throw new Error('missing')
+      choose(new File([blob], fileName, { type: blob.type || 'image/jpeg' }))
+    } catch {
+      if (mounted.current) setError('ยังไม่มีภาพตัวอย่างชุดนี้ในโฟลเดอร์ public/samples ใส่ภาพที่เรามีสิทธิ์ใช้แล้วกดใหม่ ระบบจะไม่สมมติผลให้')
+    }
+  }
   return <>
+    {present && (
+      <section className="sample-picker" aria-label="ภาพตัวอย่างสำหรับนำเสนอ">
+        <p>เลือกภาพตัวอย่าง แล้วกดวิเคราะห์ในฟลว์เดียวกับการสแกนจริง</p>
+        <div className="sample-picker-actions">
+          {sampleFiles.map((fileName, index) => (
+            <button key={fileName} type="button" className="ts-button button-secondary" onClick={() => void useSample(fileName)}>
+              ภาพตัวอย่าง {index + 1}
+            </button>
+          ))}
+        </div>
+      </section>
+    )}
     <StepIndicator hasImage={Boolean(capture)} hasResult={false} />
     <ScanPanel
       previewUrl={preview || null}
