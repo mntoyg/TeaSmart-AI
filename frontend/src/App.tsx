@@ -214,7 +214,7 @@ export function App() {
   return <div className="app-shell">
     <div id="top" />
     <Onboarding />
-    <AppHeader activeTab={activeTab} online={online} onTabChange={changeTab} />
+    <AppHeader activeTab={activeTab} online={online} modelReady={Boolean(config)} onTabChange={changeTab} />
     <main className="app-main">
       {present && <p className="present-banner" role="status">โหมดนำเสนอ – ผลตัวอย่างเพื่อสาธิตเท่านั้น</p>}
       <Routes>
