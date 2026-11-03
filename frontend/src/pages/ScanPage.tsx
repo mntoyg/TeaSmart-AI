@@ -10,8 +10,10 @@ import { store } from '../lib/storage';
 type Capture = { file: File; id: string; at: string };
 const sampleFiles = ['sample-1.jpg', 'sample-2.jpg', 'sample-3.jpg', 'sample-4.jpg']
 
-export function ScanPage({ onResult, multipartField = 'image', config, present = false }: {
+export function ScanPage({ onResult, multipartField = 'image', config, present = false, pastedFile, onPastedFileConsumed }: {
   onResult: (result: StoredResult) => void | Promise<void>; multipartField?: string; config?: ClientConfig; present?: boolean;
+  /** An image the user pasted anywhere in the app; taken once, then released. */
+  pastedFile?: File; onPastedFileConsumed?: () => void;
 }) {
   const [capture, setCapture] = useState<Capture>();
   const [preview, setPreview] = useState('');
@@ -29,6 +31,13 @@ export function ScanPage({ onResult, multipartField = 'image', config, present =
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [capture]);
+  useEffect(() => {
+    if (!pastedFile) return;
+    choose(pastedFile);
+    onPastedFileConsumed?.();
+    // `choose` is a plain function of this render; the file is the only input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pastedFile]);
   // `null` arrives from the panel when the user takes the photograph back out.
   function choose(file: File | null) {
     setError('');

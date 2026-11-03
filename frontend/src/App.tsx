@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { readKnowledgeBase, readClientConfig, SyncUnavailableError, type KnowledgeRecord } from './lib/api';
 import { store } from './lib/storage';
@@ -18,6 +18,13 @@ import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/rea
 import { summarizeToday } from './lib/todaySummary';
 import Onboarding from './components/Onboarding';
 import SiteFooter from './components/SiteFooter';
+import CommandPalette from './components/CommandPalette';
+import ShortcutHelp from './components/ShortcutHelp';
+import { buildCommands } from './commands/registry';
+import { useShortcuts } from './commands/useShortcuts';
+
+/** The scan page asks for this element when a command or a paste hands it a file. */
+export const uploadZoneId = 'scan-upload-zone';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
   const { id } = useParams();
@@ -87,13 +94,16 @@ function HistoryPage() {
   </>;
 }
 function KnowledgePage({ records, loading, error }: { records: KnowledgeRecord[]; loading: boolean; error: string }) {
+  const location = useLocation();
+  const requested = new URLSearchParams(location.search).get('open');
+  const openId = requested !== null && /^\d+$/.test(requested) ? Number(requested) : undefined;
   // The records carry their own advice here, so each one is its own `advice`:
   // nothing on this page is chosen for a single photograph.
   return <>
     {loading && <p role="status">กำลังโหลดฐานความรู้…</p>}
     {error && <p role="status" className="notice">{error}</p>}
     {records.length
-      ? <KnowledgePanel diseases={records.map((record) => toDisease(record, record))} />
+      ? <KnowledgePanel key={openId ?? 'all'} diseases={records.map((record) => toDisease(record, record))} initialOpenId={openId} />
       : !loading && <p>ยังไม่มีฐานความรู้ในอุปกรณ์ กรุณาเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่</p>}
   </>;
 }
@@ -116,6 +126,9 @@ export function App() {
   const [syncing, setSyncing] = useState(false);
   const [revision, setRevision] = useState(0);
   const [today, setToday] = useState(() => loadToday());
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [pastedFile, setPastedFile] = useState<File>();
   const present = new URLSearchParams(location.search).get('present') === '1';
   const activeTab: AppTab = location.pathname === '/readiness' ? 'readiness'
     : location.pathname === '/history' ? 'history'
@@ -124,6 +137,35 @@ export function App() {
     const paths: Record<AppTab, string> = { scan: '/scan', readiness: '/readiness', knowledge: '/kb', history: '/history' };
     navigate(paths[tab]);
   };
+  const openPalette = useCallback(() => { setHelpOpen(false); setPaletteOpen(true); }, []);
+  const openHelp = useCallback(() => { setPaletteOpen(false); setHelpOpen(true); }, []);
+  const focusUpload = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const zone = document.getElementById(uploadZoneId);
+      zone?.scrollIntoView({ block: 'center' });
+      zone?.querySelector<HTMLButtonElement>('button')?.focus();
+    });
+  }, []);
+  const commands = useMemo(() => buildCommands({
+    navigate, openHelp, openPalette, focusUpload,
+    diseases: knowledge.map((record) => toDisease(record, record)),
+    print: () => window.print(),
+  }), [navigate, openHelp, openPalette, focusUpload, knowledge]);
+  useShortcuts({ commands, openPalette, suspended: paletteOpen || helpOpen });
+  // Ctrl/Cmd+V with an image on the clipboard lands on the scan page as if the
+  // file had been picked. Text pastes into inputs are left alone.
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const items = Array.from(event.clipboardData?.items ?? []);
+      const image = items.find((item) => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile();
+      if (!image) return;
+      event.preventDefault();
+      setPastedFile(image);
+      if (location.pathname !== '/scan') navigate('/scan');
+    }
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [location.pathname, navigate]);
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update); window.addEventListener('offline', update);
@@ -214,7 +256,7 @@ export function App() {
   return <div className="app-shell">
     <div id="top" />
     <Onboarding />
-    <AppHeader activeTab={activeTab} online={online} modelReady={Boolean(config)} onTabChange={changeTab} />
+    <AppHeader activeTab={activeTab} online={online} modelReady={Boolean(config)} onTabChange={changeTab} onOpenPalette={openPalette} />
     <main className="app-main">
       {present && <p className="present-banner" role="status">โหมดนำเสนอ – ผลตัวอย่างเพื่อสาธิตเท่านั้น</p>}
       <Routes>
@@ -223,7 +265,8 @@ export function App() {
       <Route path="/scan" element={<><OfflinePanel online={online} message={offlineMessage}
         preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
         syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
-        <ScanPage onResult={saveResult} config={config} present={present} />
+        <ScanPage onResult={saveResult} config={config} present={present}
+          pastedFile={pastedFile} onPastedFileConsumed={() => setPastedFile(undefined)} />
         <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
           onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
       <Route path="/readiness" element={<ReadinessPanel today={today.readiness} onSave={saveReadiness} onScan={() => navigate('/scan')} />} />
@@ -234,5 +277,7 @@ export function App() {
     </Routes>
     <SiteFooter />
     </main>
+    <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+    <ShortcutHelp open={helpOpen} commands={commands} onClose={() => setHelpOpen(false)} />
   </div>;
 }

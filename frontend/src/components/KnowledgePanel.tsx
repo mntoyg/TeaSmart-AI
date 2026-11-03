@@ -5,6 +5,8 @@ import type { Disease } from '../types'
 type Props = {
   /** Knowledge base records served by the backend; never a copy kept in TypeScript. */
   diseases: Disease[]
+  /** Card to open on arrival, e.g. from the command palette. Defaults to the first. */
+  initialOpenId?: number
 }
 
 const symptomFilters = [
@@ -14,8 +16,8 @@ const symptomFilters = [
   { id: 'healthy', label: 'ใบปกติ', match: (disease: Disease) => disease.classId === 3 },
 ]
 
-export default function KnowledgePanel({ diseases }: Props) {
-  const [expandedId, setExpandedId] = useState<number | null>(0)
+export default function KnowledgePanel({ diseases, initialOpenId }: Props) {
+  const [expandedId, setExpandedId] = useState<number | null>(initialOpenId ?? 0)
   const [query, setQuery] = useState('')
   const [symptom, setSymptom] = useState<string | null>(null)
   const needle = query.trim().toLocaleLowerCase('th')
