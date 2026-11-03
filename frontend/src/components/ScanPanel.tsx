@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Camera, Check, ImagePlus, Leaf, ScanSearch, ShieldCheck, Sparkles, Upload, X } from 'lucide-react'
+import PhotoGuide from './PhotoGuide'
 
 type Props = {
   previewUrl: string | null
@@ -28,6 +29,7 @@ export default function ScanPanel({
   const inputRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   const acceptFile = (file?: File) => {
     if (file) onSelectFile(file)
@@ -127,6 +129,14 @@ export default function ScanPanel({
           )}
         </div>
 
+        {isAnalyzing && (
+          <div className="scan-skeleton" role="status" aria-label="กำลังวิเคราะห์ภาพ">
+            <span className="skeleton-bar" />
+            <span className="skeleton-bar short" />
+            <span className="skeleton-bar" />
+          </div>
+        )}
+
         {error && (
           <div className="alert alert-error scan-alert" role="alert">
             {error}
@@ -182,6 +192,10 @@ export default function ScanPanel({
             <strong>ถ่ายอย่างไรให้แม่น</strong>
           </div>
           <p className="tips-lead">ถ่ายใบเดียวให้ใกล้แผล อ่านผลได้ชัดกว่าภาพที่กำใบหลายใบในมือ</p>
+          <button type="button" className="ts-button button-secondary guide-button" onClick={() => setGuideOpen(true)}>
+            ดูตัวอย่างถูกและผิด
+          </button>
+          <PhotoGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
           <div className="tips-groups">
             <div className="tips-group">
               <strong>

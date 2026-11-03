@@ -1,0 +1,10 @@
+---
+description: กฎ CSS ของ TeaSmart
+globs: src/**/*.css,frontend/src/**/*.css
+---
+
+- ใช้ตัวแปรใน `:root` (--green-900/800/700/100/50, --cream, --muted, --line, --shadow) แทนการเขียนสีใหม่ถ้ามีสีใกล้เคียง
+- เพิ่มสไตล์ท้าย `index.css` ตามกลุ่มคอมโพเนนต์ ห้ามลบของเดิมถ้าไม่ได้สั่ง
+- Mobile-first: จุดตัดเดิม 900px และ 680px ปุ่มสูงอย่างน้อย 44px
+- ทุกแอนิเมชันต้องเคารพ `prefers-reduced-motion`
+- ห้าม inline style ยกเว้นความกว้างแถบ progress

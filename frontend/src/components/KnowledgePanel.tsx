@@ -7,8 +7,24 @@ type Props = {
   diseases: Disease[]
 }
 
+const symptomFilters = [
+  { id: 'pale', label: 'กลางแผลซีด', match: (disease: Disease) => /เทา|ซีด|จุดดำ/.test(disease.symptoms) },
+  { id: 'edge', label: 'ขอบหรือปลายใบ', match: (disease: Disease) => /ขอบใบ|ปลายใบ/.test(disease.symptoms) },
+  { id: 'raised', label: 'จุดนูน', match: (disease: Disease) => /นูน/.test(disease.symptoms) },
+  { id: 'healthy', label: 'ใบปกติ', match: (disease: Disease) => disease.classId === 3 },
+]
+
 export default function KnowledgePanel({ diseases }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(0)
+  const [query, setQuery] = useState('')
+  const [symptom, setSymptom] = useState<string | null>(null)
+  const needle = query.trim().toLocaleLowerCase('th')
+  const visible = diseases.filter((disease) => {
+    const filter = symptomFilters.find((item) => item.id === symptom)
+    if (filter && !filter.match(disease)) return false
+    if (!needle) return true
+    return `${disease.nameTh} ${disease.symptoms} ${disease.shortDescription}`.toLocaleLowerCase('th').includes(needle)
+  })
 
   return (
     <section className="page-section">
@@ -41,8 +57,27 @@ export default function KnowledgePanel({ diseases }: Props) {
         </p>
       </div>
 
+      <label className="knowledge-search">
+        ค้นในคลังความรู้
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="เช่น ขอบใบ, จุดนูน" />
+      </label>
+      <div className="symptom-filters" role="group" aria-label="กรองตามอาการ">
+        {symptomFilters.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            className={`ts-button button-secondary ${symptom === filter.id ? 'active' : ''}`}
+            aria-pressed={symptom === filter.id}
+            onClick={() => setSymptom(symptom === filter.id ? null : filter.id)}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       <div className="knowledge-list">
-        {diseases.map((disease) => {
+        {visible.length === 0 && <p>ไม่พบระเบียนที่ตรงกับคำค้น</p>}
+        {visible.map((disease) => {
           const expanded = expandedId === disease.classId
           const healthy = disease.classId === 3
           return (

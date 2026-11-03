@@ -15,6 +15,9 @@ import ReadinessPanel from './components/ReadinessPanel';
 import OfflinePanel from './components/OfflinePanel';
 import KnowledgePanel from './components/KnowledgePanel';
 import { bangkokDay, loadToday, saveToday, type TodayReadiness } from './lib/readiness';
+import { summarizeToday } from './lib/todaySummary';
+import Onboarding from './components/Onboarding';
+import SiteFooter from './components/SiteFooter';
 
 function ResultPage({ knowledge, config }: { knowledge: KnowledgeRecord[]; config?: ClientConfig }) {
   const { id } = useParams();
@@ -69,7 +72,12 @@ function HistoryPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+  const today = summarizeToday(results);
   return <><header className="page-heading"><p className="eyebrow">ข้อมูลในอุปกรณ์นี้</p><h1>ประวัติการตรวจ</h1></header>
+    {today.total > 0 && <section className="card today-summary" aria-label="สรุปใบชาวันนี้">
+      <h2>{`จาก ${today.total.toLocaleString('th-TH')} ใบวันนี้`}</h2>
+      <ul>{today.lines.map((line) => <li key={line.label}>{`${line.label} ${line.count.toLocaleString('th-TH')} ใบ`}</li>)}</ul>
+    </section>}
     {loading ? <p role="status">กำลังอ่านประวัติ…</p> : error ? <p role="alert">{error}</p> : results.length
       ? <ul className="history-list">{results.map((result) => <li key={result.scan_id}><Link className="card" to={`/result/${encodeURIComponent(result.scan_id)}`}>
         <strong>{isFull(result) ? result.burn_analysis.verdict === 'physical_burn' ? 'อาการไหม้ทางกายภาพ' : result.advice.disease_name_th : 'ผลประเมินเบื้องต้น'}</strong>
@@ -108,6 +116,7 @@ export function App() {
   const [syncing, setSyncing] = useState(false);
   const [revision, setRevision] = useState(0);
   const [today, setToday] = useState(() => loadToday());
+  const present = new URLSearchParams(location.search).get('present') === '1';
   const activeTab: AppTab = location.pathname === '/readiness' ? 'readiness'
     : location.pathname === '/history' ? 'history'
       : location.pathname === '/kb' ? 'knowledge' : 'scan';
@@ -204,15 +213,17 @@ export function App() {
   }
   return <div className="app-shell">
     <div id="top" />
+    <Onboarding />
     <AppHeader activeTab={activeTab} online={online} onTabChange={changeTab} />
     <main className="app-main">
+      {present && <p className="present-banner" role="status">โหมดนำเสนอ – ผลตัวอย่างเพื่อสาธิตเท่านั้น</p>}
       <Routes>
       {/* The panel belongs to the scan page: the queue it drains is filled there.
           Draining itself stays in App, where the effects run on every route. */}
       <Route path="/scan" element={<><OfflinePanel online={online} message={offlineMessage}
         preparing={preparing} onPrepare={prepare} pendingCount={pendingCount}
         syncMessage={syncMessage} canRetry={!syncUnavailable} syncing={syncing} onRetry={replay} />
-        <ScanPage onResult={saveResult} config={config} />
+        <ScanPage onResult={saveResult} config={config} present={present} />
         <TodayPlanCard today={today.readiness} scanCount={today.scanCount}
           onCheck={() => navigate('/readiness')} onScan={() => navigate('/scan')} /></>} />
       <Route path="/readiness" element={<ReadinessPanel today={today.readiness} onSave={saveReadiness} onScan={() => navigate('/scan')} />} />
@@ -220,6 +231,8 @@ export function App() {
       <Route path="/history" element={<HistoryPage key={revision} />} />
       <Route path="/kb" element={<KnowledgePage records={knowledge} loading={loading} error={error} />} />
       <Route path="*" element={<Navigate to="/scan" replace />} />
-    </Routes></main>
+    </Routes>
+    <SiteFooter />
+    </main>
   </div>;
 }

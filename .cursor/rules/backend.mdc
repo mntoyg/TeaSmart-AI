@@ -1,0 +1,10 @@
+---
+description: กฎ FastAPI backend
+globs: backend/**/*.py
+---
+
+- ลำดับคลาสของ `/predict` ต้องตรงกับ `src/data/diseases.ts` และสัญญา `/api/v1/scan` ต้องตรงกับ docs/DESIGN.md หัวข้อ 8
+- โหลดโมเดลครั้งเดียวใน lifespan ห้ามโหลดใน request
+- error ทุกตัวส่ง `detail` เป็นภาษาไทยที่ผู้ใช้อ่านเข้าใจ
+- ห้ามเขียนไฟล์ที่อัปโหลดลงดิสก์ ห้าม log เนื้อรูป
+- CORS ใช้รายการโดเมนจาก env ห้าม "*"

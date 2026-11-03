@@ -8,8 +8,11 @@ import {
   Copy,
   FlaskConical,
   Leaf,
+  Printer,
+  Share2,
   ShieldAlert,
 } from 'lucide-react'
+import { agricultureContacts } from '../data/contacts'
 import type { PredictionResult } from '../types'
 
 type Props = {
@@ -50,7 +53,7 @@ export default function DiagnosisResult({
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
 
-  const copySummary = async () => {
+  const summaryText = () => {
     const when = new Date(result.createdAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
     const lines =
       status === 'uncertain'
@@ -71,13 +74,32 @@ export default function DiagnosisResult({
             `วันที่: ${when}`,
             'นี่เป็นข้อมูลช่วยคัดกรองเบื้องต้น ไม่ใช่การวินิจฉัยแทนผู้เชี่ยวชาญ',
           ]
+    return lines.join('\n')
+  }
+  const contacts = agricultureContacts.filter((contact) => contact.office && contact.phone)
+  const showContacts = contacts.length > 0 && (status === 'uncertain' || (!isHealthy && !isDemo))
+
+  const copySummary = async () => {
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
+      await navigator.clipboard.writeText(summaryText())
       setCopied(true)
       setCopyError(null)
     } catch {
       setCopied(false)
       setCopyError('คัดลอกไม่สำเร็จ ลองเลือกข้อความแล้วคัดลอกเอง')
+    }
+  }
+  const shareSummary = async () => {
+    const text = summaryText()
+    if (!navigator.share) {
+      await copySummary()
+      return
+    }
+    try {
+      await navigator.share({ title: 'TeaSmart', text })
+    } catch (failure) {
+      if (failure instanceof DOMException && failure.name === 'AbortError') return
+      await copySummary()
     }
   }
 
@@ -349,7 +371,27 @@ export default function DiagnosisResult({
           {copied ? <Check size={17} /> : <Copy size={17} />}
           {copied ? 'คัดลอกแล้ว' : 'คัดลอกสรุปผล'}
         </button>
+        <button type="button" className="ts-button button-secondary" onClick={() => void shareSummary()}>
+          <Share2 size={17} /> ส่งต่อผล
+        </button>
+        <button type="button" className="ts-button button-secondary" onClick={() => window.print()}>
+          <Printer size={17} /> พิมพ์หรือบันทึก PDF
+        </button>
       </div>
+      {showContacts && (
+        <aside className="contact-card">
+          <h3>ติดต่อเจ้าหน้าที่เกษตร</h3>
+          <ul>
+            {contacts.map((contact) => (
+              <li key={contact.phone}>
+                <strong>{contact.office}</strong>
+                <a href={`tel:${contact.phone}`}>{contact.phone}</a>
+                {contact.hours && <span>{contact.hours}</span>}
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
       {copyError && (
         <p className="copy-error" role="alert">
           {copyError}
