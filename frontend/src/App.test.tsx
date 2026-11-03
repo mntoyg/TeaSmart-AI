@@ -8,6 +8,7 @@ import { store } from './lib/storage';
 import { scanFixture } from './test/fixtures';
 import { configShape } from './lib/scan-contract';
 import { localFixture } from './test/local-fixture';
+import { knowledgeFixture } from './test/kb-fixture';
 import { inferOffline, isOfflineReady } from './lib/offline';
 vi.mock('./lib/offline', () => ({ inferOffline: vi.fn(), prepareOffline: vi.fn(), isOfflineReady: vi.fn(async () => false) }));
 
@@ -43,9 +44,12 @@ it('replays a newly queued scan when connectivity returned before inference comp
   const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
   const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
   render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
-  fireEvent.change(screen.getByLabelText('เลือกภาพใบชา'), { target: { files: [new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' })] } });
-  await waitFor(() => expect(screen.getByRole('button', { name: 'ประเมินบนอุปกรณ์' })).toBeEnabled());
-  await userEvent.click(screen.getByRole('button', { name: 'ประเมินบนอุปกรณ์' }));
+  fireEvent.change(screen.getByLabelText('เลือกรูปภาพ'), { target: { files: [new File(['leaf'], 'leaf.jpg', { type: 'image/jpeg' })] } });
+  // There is no on-device button to press any more: the scan POST above throws,
+  // which is what an estate with no route out looks like, and the page falls
+  // through to the device model on its own.
+  await waitFor(() => expect(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' })).toBeEnabled());
+  await userEvent.click(screen.getByRole('button', { name: 'เริ่มวิเคราะห์ใบชา' }));
   await waitFor(() => expect(requests.mock.calls.some(([url]) => url === '/api/v1/sync/batch')).toBe(true));
   createUrl.mockRestore(); revokeUrl.mockRestore(); vi.unstubAllGlobals();
 });
@@ -69,6 +73,48 @@ it('offers a button-styled scan link when history is empty', async () => {
   list.mockRestore();
 });
 
+it('opens the before-reading checklist and persists today\'s plan across app reloads', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  const user = userEvent.setup();
+  const firstRender = render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const beforeReadingTabs = await screen.findAllByRole('button', { name: 'ก่อนอ่าน' });
+  await user.click(beforeReadingTabs[0]);
+  expect(await screen.findByRole('heading', { name: 'เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  await user.click(screen.getByLabelText('แสงธรรมชาติ มองสีแผลชัด'));
+  await user.click(screen.getByLabelText('มีหลายใบและเห็นแผลชัด'));
+  await user.click(screen.getByLabelText('มากกว่า 20 นาที'));
+  await user.click(screen.getByLabelText('แยกได้ และจะเปิดคลังความรู้เทียบถ้าสงสัย'));
+  await user.click(screen.getByRole('button', { name: 'บันทึกแผนวันนี้' }));
+  expect(await screen.findByText(/บันทึกวันนี้แล้ว/)).toBeInTheDocument();
+
+  firstRender.unmount();
+  render(<MemoryRouter initialEntries={['/readiness']}><App /></MemoryRouter>);
+  expect(await screen.findByText(/บันทึกวันนี้แล้ว/)).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
+it('shows the today plan card on the scan page', async () => {
+  localStorage.clear();
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'วันนี้ยังไม่ได้เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
+it('keeps offline status visible while omitting the queue area when no images are pending', async () => {
+  const pending = vi.spyOn(store, 'pending').mockResolvedValue([]);
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+  render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+
+  const panel = await screen.findByRole('region', { name: 'สถานะออฟไลน์และคิว' });
+  expect(within(panel).getByRole('status')).toHaveTextContent('ยังไม่ได้เตรียมใช้งานออฟไลน์');
+  expect(within(panel).queryByRole('group', { name: 'ภาพที่รอส่ง' })).not.toBeInTheDocument();
+
+  pending.mockRestore();
+  vi.unstubAllGlobals();
+});
+
 it('keeps the local queue visible without offering a pointless retry on the static demo', async () => {
   await store.saveConfig(configShape);
   const id = crypto.randomUUID();
@@ -83,6 +129,7 @@ it('keeps the local queue visible without offering a pointless retry on the stat
   expect(await screen.findByText(/ภาพถูกเก็บไว้ในอุปกรณ์แล้ว แต่รุ่นสาธิตนี้ไม่มีเซิร์ฟเวอร์สำหรับวิเคราะห์เต็มรูปแบบ/))
     .toBeInTheDocument();
   expect(screen.getByText(/เก็บไว้ในอุปกรณ์แล้ว 1 ภาพ/)).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'ภาพที่รอส่ง' })).toHaveTextContent('เก็บไว้ในอุปกรณ์แล้ว 1 ภาพ');
   expect(screen.queryByRole('button', { name: 'ส่งคิวอีกครั้ง' })).not.toBeInTheDocument();
   vi.unstubAllGlobals();
 });
@@ -103,5 +150,48 @@ it('refreshes the visible queue after repeated transport failures exhaust retrie
       state: attempts === 3 ? 'failed' : 'pending' }));
   }
   await waitFor(() => expect(screen.queryByText(/เก็บไว้ในอุปกรณ์แล้ว/)).not.toBeInTheDocument());
+  vi.unstubAllGlobals();
+});
+
+it('shows the offline and queue panel on the scan page only', async () => {
+  const panel = 'สถานะออฟไลน์และคิว';
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Offline')));
+
+  const scan = render(<MemoryRouter initialEntries={['/scan']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('region', { name: panel })).toBeInTheDocument();
+  scan.unmount();
+
+  const knowledge = render(<MemoryRouter initialEntries={['/kb']}><App /></MemoryRouter>);
+  expect(await screen.findByText(/ยังไม่มีฐานความรู้ในอุปกรณ์/)).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  knowledge.unmount();
+
+  const history = render(<MemoryRouter initialEntries={['/history']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'ประวัติการตรวจ' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  history.unmount();
+
+  const readiness = render(<MemoryRouter initialEntries={['/readiness']}><App /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'เช็กก่อนอ่านผล' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: panel })).not.toBeInTheDocument();
+  readiness.unmount();
+
+  vi.unstubAllGlobals();
+});
+
+it('builds the knowledge library at /kb out of the records the backend served', async () => {
+  const records = knowledgeFixture();
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+    if (url === '/api/v1/kb') return new Response(JSON.stringify(records));
+    if (url === '/api/v1/config') return new Response(JSON.stringify(configShape));
+    throw new TypeError('Offline');
+  }));
+
+  render(<MemoryRouter initialEntries={['/kb']}><App /></MemoryRouter>);
+
+  expect(await screen.findByText('6 ระเบียนในคลังความรู้')).toBeInTheDocument();
+  for (const record of records) {
+    expect(screen.getByText(record.disease_name_th)).toBeInTheDocument();
+  }
   vi.unstubAllGlobals();
 });
