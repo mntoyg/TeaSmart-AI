@@ -21,6 +21,8 @@ export type CommandContext = {
   openPalette: () => void
   print: () => void
   focusUpload: () => void
+  toggleTheme: () => void
+  exportHistory: () => void
 }
 
 export function buildCommands(context: CommandContext): Command[] {
@@ -30,6 +32,8 @@ export function buildCommands(context: CommandContext): Command[] {
     { id: 'go-knowledge', label: 'ไปคลังความรู้', keywords: ['knowledge', 'kb', 'โรค'], shortcut: 'k', group: 'นำทาง', run: () => context.navigate('/kb') },
     { id: 'go-history', label: 'ไปหน้าประวัติ', keywords: ['history', 'ย้อนหลัง'], shortcut: 'h', group: 'นำทาง', run: () => context.navigate('/history') },
     { id: 'new-scan', label: 'เลือกภาพใหม่เพื่อสแกน', keywords: ['upload', 'camera', 'กล้อง'], shortcut: 'n', group: 'สแกน', run: () => { context.navigate('/scan'); context.focusUpload() } },
+    { id: 'export-history', label: 'ส่งออกประวัติเป็น CSV', keywords: ['export', 'csv', 'excel', 'ดาวน์โหลด'], shortcut: 'e', group: 'เครื่องมือ', run: context.exportHistory },
+    { id: 'toggle-theme', label: 'สลับโหมดมืด/สว่าง', keywords: ['theme', 'dark', 'light', 'ธีม', 'กลางคืน'], shortcut: 't', group: 'เครื่องมือ', run: context.toggleTheme },
     { id: 'print', label: 'พิมพ์หรือบันทึกหน้านี้เป็น PDF', keywords: ['print', 'pdf'], shortcut: 'Ctrl+P', group: 'เครื่องมือ', run: context.print },
     { id: 'help', label: 'ดูคีย์ลัดทั้งหมด', keywords: ['help', 'shortcut', 'ช่วยเหลือ'], shortcut: '?', group: 'เครื่องมือ', run: context.openHelp },
   ]
