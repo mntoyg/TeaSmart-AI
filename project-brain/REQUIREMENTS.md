@@ -13,14 +13,14 @@
 - [ ] ทดสอบด้วยภาพจริงครบทุกคลาสบนมือถือ (ต้องทำด้วยมือ)
 
 ## Should (ทำให้เว็บไม่ใช่เว็บ AI ทั่วไป)
-- [x] Command Palette (Ctrl/Cmd+K): สั่งงาน, ค้นโรค, ไปหน้าต่าง ๆ
-- [x] คีย์ลัด + หน้าช่วยเหลือคีย์ลัด (กด ?)
-- [x] วางภาพจาก clipboard (Ctrl/Cmd+V)
-- [x] ประวัติไม่หาย (IndexedDB) + ส่งออก CSV
-- [x] Toast แจ้งผล (แทน alert เงียบ ๆ)
-- [x] โหมดมืด/สว่าง (จำค่า) และใช้งานกลางแดดได้ (contrast สูง)
-- [x] PWA: ติดตั้งลงหน้าจอ, เปิดหน้าความรู้ได้แม้ออฟไลน์
-- [x] พิมพ์/บันทึกผลเป็น PDF ผ่าน window.print พร้อม stylesheet สำหรับพิมพ์
+- [x] Command Palette (Ctrl/Cmd+K): สั่งงาน, ค้นโรค, ไปหน้าต่าง ๆ (`src/commands/registry.ts`, `components/CommandPalette.tsx`)
+- [x] คีย์ลัด + หน้าช่วยเหลือคีย์ลัด (กด ?) — s r k h n e t ? ไม่ทำงานขณะพิมพ์ในช่องข้อความ
+- [x] วางภาพจาก clipboard (Ctrl/Cmd+V) — ทดสอบใน jsdom แล้ว ยังไม่ได้ลองบนเบราว์เซอร์จริงทุกตัว
+- [x] ประวัติไม่หาย (IndexedDB) + ส่งออก CSV (`lib/exportCsv.ts`, ปุ่มบนหน้าประวัติและคำสั่ง e)
+- [x] Toast แจ้งผล (`lib/toast.ts`, `components/ToastHost.tsx`, role="status")
+- [~] โหมดมืด/สว่าง (จำค่าใน `teasmart.theme.v1`, ตาม OS เมื่อไม่เลือก) — ตัวอักษรรองสี `--muted` บนพื้นสว่างยังต่ำกว่า AA (~3.6:1) ยังไม่ได้วัด contrast กลางแดดบนเครื่องจริง
+- [~] PWA: service worker + manifest มีอยู่ (vite-plugin-pwa) ยังไม่ได้ทดสอบติดตั้ง/เปิดออฟไลน์บนมือถือจริงรอบนี้
+- [x] พิมพ์/บันทึกผลเป็น PDF ผ่าน window.print พร้อม stylesheet สำหรับพิมพ์ (`@media print` ท้าย `index.css`)
 
 ## Could
 - [ ] เทียบภาพกับตัวอย่างโรคในคลังความรู้ (side-by-side)
@@ -32,6 +32,6 @@
 
 ## Acceptance ทั่วไปของทุกฟีเจอร์
 - ใช้ keyboard ล้วนได้ มี focus ที่เห็นชัด มี aria-label ภาษาไทย
-- ไม่พังบนจอ 320px
-- รองรับ prefers-reduced-motion
-- build ผ่าน ไม่มี any ใหม่
+- ไม่พังบนจอ 320px (ตรวจ 2026-11-03: ไม่มี scroll แนวนอน header 67px เมนูล่างและปุ่มค้นหาไม่ทับกัน)
+- รองรับ prefers-reduced-motion (animation ทั้งหมดถูกตัดเหลือ 0.01ms ผ่านกฎรวมใน `index.css`)
+- build ผ่าน ไม่มี any ใหม่ (2026-11-03: `tsc -b` ผ่าน, vitest 140 เทสต์ผ่าน, `npm run build` ผ่าน; โปรเจกต์ยังไม่มี eslint.config)

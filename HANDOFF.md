@@ -7,9 +7,14 @@ branch: feat/frontend-command-palette
 
 ## ทำอะไรไป (ไฟล์ที่แก้)
 - ดู project-brain/CURRENT_STATUS.md
+- ใหม่: `frontend/src/commands/*`, `components/CommandPalette.tsx`, `ShortcutHelp.tsx`, `ToastHost.tsx`,
+  `lib/theme.ts`, `lib/toast.ts`, `lib/exportCsv.ts` (+ เทสต์คู่กัน)
+- แก้: `App.tsx`, `components/AppHeader.tsx`, `pages/ScanPage.tsx`, `components/ScanPanel.tsx`,
+  `components/KnowledgePanel.tsx`, `index.css`, `styles.css`
 
 ## ค้างอยู่ / ติดอะไร
 - ทดสอบภาพจริงบนมือถือ และตัดสินค่า min_confidence หลังเห็นผลโมเดล
+- ยังไม่ได้ลอง Ctrl/Cmd+V, ติดตั้ง PWA และโหมดมืดกลางแดดบนเครื่องจริง (รายการเต็มใน CURRENT_STATUS)
 
 ## คำสั่งทดสอบ
 cd frontend && npm ci && npm run dev
