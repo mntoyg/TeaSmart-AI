@@ -9,8 +9,8 @@ import { devHttps } from './vite.https.ts';
 export default defineConfig({
   plugins: [react(), tailwindcss(), VitePWA({
     strategies: 'injectManifest', srcDir: 'src', filename: 'sw.ts', injectRegister: false,
-    manifest: { name: 'ผู้ช่วยดูแลใบชา', short_name: 'ตรวจใบชา', lang: 'th', start_url: '/scan',
-      display: 'standalone', background_color: '#f5f7f1', theme_color: '#174e36',
+    manifest: { name: 'TeaSmart — ตรวจโรคใบชา', short_name: 'ตรวจใบชา', lang: 'th', start_url: '/scan',
+      display: 'standalone', background_color: '#f6f7f1', theme_color: '#193c2b',
       icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }] },
     injectManifest: { globPatterns: ['**/*.{js,css,html,svg,webmanifest,wasm,mjs,onnx}'], maximumFileSizeToCacheInBytes: 64 * 1024 * 1024 },
   })],

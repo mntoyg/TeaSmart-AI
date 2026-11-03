@@ -6,6 +6,8 @@ export type AppTab = 'scan' | 'readiness' | 'knowledge' | 'history'
 type Props = {
   activeTab: AppTab
   online: boolean
+  /** True once the on-device model config has loaded. This screen does not invent a sample result. */
+  modelReady: boolean
   onTabChange: (tab: AppTab) => void
 }
 
@@ -16,7 +18,7 @@ const navItems: { id: AppTab; label: string; icon: typeof ScanLine }[] = [
   { id: 'history', label: 'ประวัติ', icon: History },
 ]
 
-export default function AppHeader({ activeTab, online, onTabChange }: Props) {
+export default function AppHeader({ activeTab, online, modelReady, onTabChange }: Props) {
   const changeTab = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
     onTabChange('scan')
@@ -48,8 +50,8 @@ export default function AppHeader({ activeTab, online, onTabChange }: Props) {
       </nav>
 
       <div className="header-status">
-        <span className={`status-dot ${online ? '' : 'offline'}`} />
-        <span>{online ? 'เชื่อมต่อเครือข่าย' : 'ไม่มีเครือข่าย'}</span>
+        <span className={`status-dot ${modelReady ? '' : 'offline'}`} />
+        <span>{modelReady ? 'โมเดลบนเครื่องพร้อม' : 'กำลังโหลดโมเดล'} · {online ? 'มีเครือข่าย' : 'ไม่มีเครือข่าย'}</span>
       </div>
       <nav className="mobile-nav" aria-label="เมนูหลัก">
         {navItems.map(({ id, label, icon: Icon }) => (
