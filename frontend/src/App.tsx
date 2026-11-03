@@ -230,7 +230,7 @@ export function App() {
       <Route path="/result/:id" element={<ResultPage key={revision} knowledge={knowledge} config={config} />} />
       <Route path="/history" element={<HistoryPage key={revision} />} />
       <Route path="/kb" element={<KnowledgePage records={knowledge} loading={loading} error={error} />} />
-      <Route path="*" element={<Navigate to="/scan" replace />} />
+      <Route path="*" element={<Navigate to={{ pathname: '/scan', search: location.search }} replace />} />
     </Routes>
     <SiteFooter />
     </main>
