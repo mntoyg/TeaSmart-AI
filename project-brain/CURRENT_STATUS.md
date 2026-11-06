@@ -5,10 +5,10 @@
 branch งานล่าสุด: feat/api-backend-service
 
 ## ทำอะไรไปล่าสุด
-- ต่อ FastAPI เป็น Vercel service `backend` และส่ง `/api/*` กับ `/health` ไปที่ service นั้น (D-011)
-- หน้าเว็บถือ 404/405 ที่ไม่มี `detail_th` บน `/api/v1/scan` ว่าเซิร์ฟเวอร์ไปไม่ถึง จึงตกไปโมเดลบนเครื่อง
-- ตรวจบนเครื่อง: health 200, preflight จาก `https://teasmart-ai.vercel.app` ได้ origin นั้น, POST `/api/v1/scan` 200
-- backend pytest 17 ผ่านในชุดที่แตะ, frontend vitest 31 ผ่านในไฟล์ API
+- รัน FastAPI กับ frontend ร่วมกันบนเครื่องได้: `app.asgi:app` ที่พอร์ต 8000, Vite proxy `/api`
+- ตรวจแล้วบนเครื่อง: `/health` 200, preflight origin `https://teasmart-ai.vercel.app` ผ่าน, `POST /api/v1/scan` 200
+- ขึ้น Vercel เป็น service ไม่ได้: preview `teasmart-nu2a2p6jv` ล้ม บันเดิล 317.28 MB จึงไม่ใส่ service นั้นใน `vercel.json`
+- หน้าเว็บถือ 404/405 ที่ไม่มี `detail_th` บน `/api/v1/scan` ว่าไปไม่ถึง API แล้วใช้โมเดลบนเครื่อง
 
 ## ก่อนหน้านี้
 - ลิงก์สาธารณะกลับมาใช้แอป `frontend/` ที่โหลดโมเดลบนเครื่อง (PR #42)

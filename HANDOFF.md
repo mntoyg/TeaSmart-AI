@@ -6,10 +6,10 @@
 branch: feat/api-backend-service
 
 ## ทำอะไรไป (ไฟล์ที่แก้)
-- `vercel.json` เพิ่ม service backend และ rewrite `/api` กับ `/health`
 - `backend/app/asgi.py`, `backend/scripts/stage_model.py`, CORS ใน `config.py` / `main.py`, `active_model_path` ใน `scan.py`
 - `frontend/src/lib/api.ts` ให้ 404/405 ที่ไม่มีคำอธิบายภาษาไทยตกไปโมเดลบนเครื่อง
-- ยังไม่ได้ขึ้น production จนกว่า preview จะตอบ `/health` และ `POST /api/v1/scan`
+- ไม่ได้ใส่ FastAPI ลง `vercel.json` หลัง preview ล้มที่ขนาด 317.28 MB
+- รันร่วมกัน: หน้าต่างหนึ่ง `cd backend && .venv/Scripts/python.exe -m uvicorn app.asgi:app --port 8000` อีกหน้าต่าง `cd frontend && npm run dev`
 
 ## ค้างอยู่ / ติดอะไร
 - ทดสอบภาพจริงบนมือถือ และตัดสินค่า min_confidence หลังเห็นผลโมเดล
