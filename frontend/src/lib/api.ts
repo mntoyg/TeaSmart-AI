@@ -95,6 +95,14 @@ async function request(url: string, init?: RequestInit): Promise<unknown> {
     if (!detail && url === '/api/v1/sync/batch' && [404, 405].includes(response.status)) {
       throw new SyncUnavailableError();
     }
+    // A static host has no analysis route: 404/405 with an HTML body is not a
+    // judgement about the photograph, so the device model may still run.
+    if (!detail && url === '/api/v1/scan' && [404, 405].includes(response.status)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7540/ingest/3d1fd72b-ddeb-4d67-8b4c-a3516021afb0',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0112ae'},body:JSON.stringify({sessionId:'0112ae',location:'api.ts:scan',message:'scan route is not an API',data:{status:response.status},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      throw new ServerUnreachableError();
+    }
     throw new Error(detail || 'ระบบยังไม่พร้อม กรุณาลองใหม่');
   }
   return body;

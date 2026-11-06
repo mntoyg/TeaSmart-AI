@@ -65,6 +65,14 @@ describe('scanImage', () => {
     await expect(scanImage(leaf())).rejects.toBe(abort);
   });
 
+  it('treats a static-host 405 with no Thai detail as unreachable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<!doctype html>', { status: 405 })),
+    );
+    await expect(scanImage(leaf())).rejects.toBeInstanceOf(ServerUnreachableError);
+  });
+
   it('does not call a refusal unreachable: the server answered', async () => {
     vi.stubGlobal(
       'fetch',

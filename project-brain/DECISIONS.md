@@ -45,4 +45,12 @@ header ใช้พื้นทึบ 97% แทนเบลอ; เดสก์
 ส่วนที่ยังใช้สีตายตัว (เช่น ป้ายสีเหลืองของโรค) override เฉพาะ selector ท้าย `index.css`
 Toast สูงสุด 3 รายการ บนมือถืออยู่เหนือเมนูล่างและปุ่มค้นหา / วันที่ 2026-11-03 / ทีม frontend
 
+## D-011 API เต็มรันคู่กับ frontend บนเครื่อง ไม่ได้ฝังในฟังก์ชัน Vercel
+เหตุผล: `POST /api/v1/scan` บนโฮสต์สถิตได้ 405 หน้าเว็บจึงควรตกไปโมเดลบนเครื่อง
+ลองเพิ่ม FastAPI เป็น Vercel service แล้ว preview `teasmart-nu2a2p6jv` ล้มด้วย
+`Total bundle size (317.28 MB) exceeds the maximum function size` จาก onnxruntime กับ opencv
+ผลกระทบ: `vercel.json` ยังเสิร์ฟเฉพาะ frontend รันร่วมกันด้วย `npm run dev` ที่ proxy `/api` ไป `127.0.0.1:8000`
+(`app.asgi:app`) โมเดลไฟล์เดียวใน git ถ้ามีก็อปใน `backend/model/` ซึ่ง gitignore จะถูกใช้ก่อน
+หน้าเว็บถือ 404/405 ที่ไม่มี `detail_th` ว่าไปไม่ถึง API / วันที่ 2026-11-06 / ทีม frontend
+
 <!-- รูปแบบรายการใหม่: D-00X ชื่อ / เหตุผล / ผลกระทบ / วันที่ / ใครตัดสินใจ -->

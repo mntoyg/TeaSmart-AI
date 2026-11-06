@@ -21,7 +21,15 @@ class Settings(BaseSettings):
 
     app_name: str = "TeaSmart AI"
     model_version: str = "teasmart-v1"
-    cors_origins: list[str] = ["http://localhost:5173"]
+    # Same-origin calls from the public site still send a preflight, so the
+    # production host is listed. Preview URLs of this project match the regex.
+    # A wildcard origin is not used.
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://teasmart-ai.vercel.app",
+    ]
+    cors_origin_regex: str = r"https://teasmart-[a-z0-9-]+\.vercel\.app"
 
     # Upload hardening (see docs/DESIGN.md, section 10).
     max_upload_bytes: int = 8388608
@@ -175,3 +183,16 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def active_model_path(settings: Settings | None = None) -> Path:
+    """The graph to load. A deploy that only ships `backend/` stages a copy.
+
+    Locally and in tests the shared file under `frontend/public/models` is the
+    one copy in git. `scripts/stage_model.py` copies it into `backend/model`,
+    which is gitignored, when the host builds the API service on its own.
+    """
+    staged = _APP_DIR / "model" / "teasmart-v1.onnx"
+    if staged.is_file():
+        return staged
+    return (settings or get_settings()).model_path
