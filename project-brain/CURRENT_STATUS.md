@@ -1,10 +1,16 @@
 # CURRENT STATUS (อัปเดตทุกครั้งที่จบงาน)
 
-วันที่: 2026-11-03
-เว็บสาธารณะ: https://teasmart-ai.vercel.app (build จาก `frontend/`)
-branch งานล่าสุด: feat/frontend-command-palette
+วันที่: 2026-11-06
+เว็บสาธารณะ: https://teasmart-ai.vercel.app (แอป `frontend/` และ API ที่ `/api`)
+branch งานล่าสุด: feat/api-backend-service
 
 ## ทำอะไรไปล่าสุด
+- ต่อ FastAPI เป็น Vercel service `backend` และส่ง `/api/*` กับ `/health` ไปที่ service นั้น (D-011)
+- หน้าเว็บถือ 404/405 ที่ไม่มี `detail_th` บน `/api/v1/scan` ว่าเซิร์ฟเวอร์ไปไม่ถึง จึงตกไปโมเดลบนเครื่อง
+- ตรวจบนเครื่อง: health 200, preflight จาก `https://teasmart-ai.vercel.app` ได้ origin นั้น, POST `/api/v1/scan` 200
+- backend pytest 17 ผ่านในชุดที่แตะ, frontend vitest 31 ผ่านในไฟล์ API
+
+## ก่อนหน้านี้
 - ลิงก์สาธารณะกลับมาใช้แอป `frontend/` ที่โหลดโมเดลบนเครื่อง (PR #42)
 - เพิ่ม onboarding, คู่มือถ่ายรูป, สรุปใบวันนี้, ส่งต่อ/พิมพ์, ค้นคลังความรู้, โหมดนำเสนอ (PR #40)
 - รอบนี้ (3 commit บน branch นี้):

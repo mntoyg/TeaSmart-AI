@@ -8,9 +8,29 @@
       "rewrites": [
         { "source": "/(.*)", "destination": "/index.html" }
       ]
+    },
+    "backend": {
+      "root": "backend",
+      "framework": "fastapi",
+      "entrypoint": "app.asgi:app",
+      "buildCommand": "pip install -r requirements.txt && python scripts/stage_model.py"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/health",
+      "destination": {
+        "type": "service",
+        "service": "backend"
+      }
+    },
     {
       "source": "/(.*)",
       "destination": {
