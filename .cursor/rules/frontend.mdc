@@ -1,0 +1,15 @@
+---
+description: กฎการเขียน React/TS/CSS ของ TeaSmart
+globs: frontend/src/**/*.tsx,frontend/src/**/*.ts,frontend/src/**/*.css,src/**/*.tsx,src/**/*.ts,src/**/*.css
+alwaysApply: false
+---
+
+- อ่าน @project-brain/DESIGN_SYSTEM.md ก่อนแตะ UI
+- TypeScript strict: ห้ามใช้ any, ห้าม @ts-ignore โดยไม่มีคอมเมนต์เหตุผล
+- ใช้ function component + hooks, props ประกาศ type ชัด
+- ใช้คลาส CSS และ token ที่มีอยู่ก่อนสร้างใหม่; ห้ามเพิ่มฟอนต์/ไลบรารี UI
+- ทุกปุ่มที่เป็นไอคอนล้วนต้องมี aria-label ภาษาไทย
+- คีย์ลัดตัวอักษรเดี่ยวต้องไม่ทำงานตอนโฟกัสใน input/textarea/select/contenteditable
+- ทุก action ผ่าน frontend/src/commands/registry.ts ห้ามผูก logic ซ้ำใน onClick กับ shortcut
+- ต้องใช้ได้ที่ 320px และเคารพ prefers-reduced-motion
+- cleanup ทุก event listener / object URL ใน useEffect

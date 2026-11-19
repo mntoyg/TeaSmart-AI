@@ -11,7 +11,12 @@ def test_settings_defaults_match_the_values_the_spec_pins():
     settings = Settings(_env_file=None)
     assert settings.app_name == "TeaSmart AI"
     assert settings.model_version == "teasmart-v1"
-    assert settings.cors_origins == ["http://localhost:5173"]
+    assert settings.cors_origins == [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://teasmart-ai.vercel.app",
+    ]
+    assert settings.cors_origin_regex == r"https://teasmart-[a-z0-9-]+\.vercel\.app"
     assert settings.max_upload_bytes == 8388608
     assert settings.max_image_pixels == 40000000
     # Measured 2026-10-19 over 400 corpus images, not guessed: 80 rejected

@@ -5,6 +5,7 @@ import mjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url';
 import { parseConfig } from './api';
 import { preprocess, classifyLogits } from './inference';
 import { assessQuality } from './quality';
+import { assessVegetation } from './leaf';
 import type { ClientConfig } from './scan-contract';
 declare const self: DedicatedWorkerGlobalScope;
 ort.env.wasm.numThreads = 1;
@@ -33,6 +34,10 @@ self.onmessage = async (event: MessageEvent<{ id: number; config: ClientConfig; 
     if (!rgb || !width || !height) { await load(config); self.postMessage({ id, ready: true }); return; }
     const quality = assessQuality(rgb, width, height, config.quality);
     if (!quality.passed) { self.postMessage({ id, error: quality.detail_th }); return; }
+    // Before `load`, not after: there is no reason to fetch a 16 MB graph to
+    // classify a frame this gate has already turned down.
+    const vegetation = assessVegetation(rgb, width, height, config.leaf);
+    if (!vegetation.passed) { self.postMessage({ id, error: vegetation.detail_th }); return; }
     const model = await load(config), input = preprocess(rgb, width, height, config);
     let outputs: Awaited<ReturnType<typeof model.run>>;
     try {

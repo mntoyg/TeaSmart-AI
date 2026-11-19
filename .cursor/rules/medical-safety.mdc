@@ -1,0 +1,10 @@
+---
+description: ความปลอดภัยของเนื้อหาโรคพืช/สารเคมี
+globs: frontend/src/data/**,frontend/src/components/DiagnosisResult.tsx,frontend/src/components/KnowledgePanel.tsx,src/data/**,src/components/DiagnosisResult.tsx,src/components/KnowledgePanel.tsx
+---
+
+- เนื้อหาโรคที่แสดงต้องมาจากฐานความรู้ที่ระบบเสิร์ฟหรือจาก `diseases.ts` ห้ามแต่งอาการหรือชื่อสารใหม่
+- ห้ามเขียนว่า "วินิจฉัย" ใช้คำว่า "คัดกรองเบื้องต้น" / "ผลจำแนก"
+- ส่วนสารเคมีต้องพับไว้ก่อน และมีคำเตือนฉลาก/เจ้าหน้าที่เสมอ
+- สถานะ healthy ต้องไม่แนะนำสารเคมี
+- ห้ามเดาเบอร์โทรเจ้าหน้าที่ ถ้า `contacts.ts` ว่าง ให้ซ่อนการ์ด

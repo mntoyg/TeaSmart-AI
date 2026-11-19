@@ -30,7 +30,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings, active_model_path, get_settings
 from app.core.images import ImageTooLargeError, decode_image
 from app.services.classify import Runner, classify, load_session
 from app.services.expert import get_advice, load_kb
@@ -171,7 +171,7 @@ def get_runner(settings: Settings = Depends(get_settings)) -> Runner:
     A dependency rather than a module global so tests can inject fixed logits
     without a 16.8 MB model load, and so a path change takes effect.
     """
-    return _cached_runner(str(settings.model_path))
+    return _cached_runner(str(active_model_path(settings)))
 
 
 def downscale_for_analysis(rgb: np.ndarray, settings: Settings) -> np.ndarray:
