@@ -78,6 +78,28 @@ def test_the_snapshot_kb_has_not_drifted_from_the_source(kb, kb_canonicals) -> N
     )
 
 
+def test_the_snapshot_kb_says_what_the_source_says(kb) -> None:
+    """Agreeing on class names is not agreeing on what the farmer reads.
+
+    The test above only compares the set of canonical names. A correction to
+    the text in diseases.json therefore merged green while the deployed site
+    kept serving the old wording, because the site reads this snapshot and not
+    the source. This compares every record in full.
+    """
+    source = json.loads(KB_SOURCE.read_text(encoding="utf-8"))
+    by_class = {record["canonical"]: record for record in kb}
+    stale = [
+        (record["canonical"], field)
+        for record in source
+        for field, value in record.items()
+        if by_class.get(record["canonical"], {}).get(field) != value
+    ]
+    assert stale == [], (
+        f"the kb snapshot differs from diseases.json in {stale}. "
+        "Regenerate: python scripts/snapshot_api.py"
+    )
+
+
 def test_every_class_the_model_emits_has_advice(config, kb_canonicals) -> None:
     missing = [name for name in config["class_order"] if name not in kb_canonicals]
     assert not missing, (
